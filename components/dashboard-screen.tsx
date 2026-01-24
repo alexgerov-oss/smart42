@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import { Api } from "@/lib/core/api"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -145,50 +146,90 @@ export default function DashboardScreen({
     }
   }, [doors, selectedDoorId])
 
-  const handleDoorToggle = () => {
+  const getActiveDoorId = () => selectedDoorId || doors[0]?.id
+
+  const callDoorApi = async (doorId: string, nextState: "lock" | "unlock") => {
+    const res = nextState === "lock" ? await Api.lockDoor(doorId) : await Api.unlockDoor(doorId)
+    if (!res.ok) {
+      toast({
+        title: "Action failed",
+        description: res.error,
+        variant: "destructive",
+      })
+      return false
+    }
+    return true
+  }
+
+  const handleDoorToggle = async () => {
     // All roles can lock/unlock doors
     if (!Permissions.canLockUnlockDoors(permissionContext)) {
       return
     }
-    setDoorState(doorState === "lock" ? "unlock" : "lock")
+
+    const doorId = getActiveDoorId()
+    if (!doorId) return
+
+    const nextState: "lock" | "unlock" = doorState === "lock" ? "unlock" : "lock"
+    const ok = await callDoorApi(doorId, nextState)
+    if (!ok) return
+
+    setDoorState(nextState)
   }
 
-  const handleLabelClick = (targetState: "lock" | "unlock") => {
+  const handleLabelClick = async (targetState: "lock" | "unlock") => {
     if (!Permissions.canLockUnlockDoors(permissionContext)) {
       return
     }
-    if (doorState !== targetState) {
-      setDoorState(targetState)
-    }
+
+    const doorId = getActiveDoorId()
+    if (!doorId) return
+
+    if (doorState === targetState) return
+
+    const ok = await callDoorApi(doorId, targetState)
+    if (!ok) return
+
+    setDoorState(targetState)
   }
 
-  const handleSliderInteraction = (clientX: number, rect: DOMRect) => {
+  const handleSliderInteraction = async (clientX: number, rect: DOMRect) => {
     if (!Permissions.canLockUnlockDoors(permissionContext)) {
       return
     }
+
+    const doorId = getActiveDoorId()
+    if (!doorId) return
 
     const relativeX = clientX - rect.left
     const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100))
 
-    if (percentage < 50) {
-      setDoorState("lock")
-      setSliderPosition(0)
-    } else {
-      setDoorState("unlock")
-      setSliderPosition(100)
+    const targetState: "lock" | "unlock" = percentage < 50 ? "lock" : "unlock"
+    const targetPos = targetState === "lock" ? 0 : 100
+
+    // If already in that state, just snap the slider (no API call)
+    if (doorState === targetState) {
+      setSliderPosition(targetPos)
+      return
     }
+
+    const ok = await callDoorApi(doorId, targetState)
+    if (!ok) return
+
+    setDoorState(targetState)
+    setSliderPosition(targetPos)
   }
 
   const handleSliderMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true)
     const rect = e.currentTarget.getBoundingClientRect()
-    handleSliderInteraction(e.clientX, rect)
+    void handleSliderInteraction(e.clientX, rect)
   }
 
   const handleSliderMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isDragging) {
       const rect = e.currentTarget.getBoundingClientRect()
-      handleSliderInteraction(e.clientX, rect)
+      void handleSliderInteraction(e.clientX, rect)
     }
   }
 
@@ -200,14 +241,14 @@ export default function DashboardScreen({
     setIsDragging(true)
     const rect = e.currentTarget.getBoundingClientRect()
     const touch = e.touches[0]
-    handleSliderInteraction(touch.clientX, rect)
+    void handleSliderInteraction(touch.clientX, rect)
   }
 
   const handleSliderTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (isDragging && e.touches.length > 0) {
       const rect = e.currentTarget.getBoundingClientRect()
       const touch = e.touches[0]
-      handleSliderInteraction(touch.clientX, rect)
+      void handleSliderInteraction(touch.clientX, rect)
     }
   }
 
@@ -411,7 +452,7 @@ export default function DashboardScreen({
             {/* Slider control with labels */}
             <div className="flex items-center gap-3">
               <span
-                onClick={() => handleLabelClick("lock")}
+                onClick={() => void handleLabelClick("lock")}
                 className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
                   doorState === "lock" ? "text-red-500 opacity-100" : "text-gray-300 opacity-50"
                 }`}
@@ -435,15 +476,11 @@ export default function DashboardScreen({
                     backgroundColor: doorState === "lock" ? "var(--color-status-lock)" : "var(--color-status-unlock)",
                   }}
                 >
-                  {doorState === "lock" ? (
-                    <LockIcon className="h-6 w-6 text-white" />
-                  ) : (
-                    <LockOpen className="h-6 w-6 text-white" />
-                  )}
+                  {doorState === "lock" ? <LockIcon className="h-6 w-6 text-white" /> : <LockOpen className="h-6 w-6 text-white" />}
                 </div>
               </div>
               <span
-                onClick={() => handleLabelClick("unlock")}
+                onClick={() => void handleLabelClick("unlock")}
                 className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
                   doorState === "unlock" ? "text-green-500 opacity-100" : "text-gray-300 opacity-50"
                 }`}
@@ -465,13 +502,7 @@ export default function DashboardScreen({
               )}
 
               {/* Right: Door state */}
-              <div>
-                {doorSensorOpen ? (
-                  <p className="text-sm font-medium text-green-500">Open</p>
-                ) : (
-                  <p className="text-sm font-medium">Closed</p>
-                )}
-              </div>
+              <div>{doorSensorOpen ? <p className="text-sm font-medium text-green-500">Open</p> : <p className="text-sm font-medium">Closed</p>}</div>
             </div>
           </div>
         </Card>
@@ -655,7 +686,9 @@ export default function DashboardScreen({
           >
             <div className="relative">
               <Activity className="h-6 w-6" />
-              {(!canAccessActivity || !isPremium) && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
+              {(!canAccessActivity || !isPremium) && (
+                <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />
+              )}
             </div>
             <span className="text-xs">Activity</span>
           </button>

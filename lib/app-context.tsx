@@ -1,53 +1,22 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-
-interface WhenCondition {
-  type: "wifi" | "battery" | "cpu-temp" | "cpu-load" | "power-drops" | "latency" | "door-lock" | "door-open"
-  operator?: "<" | ">" | "="
-  value?: number
-  doorEvent?: "lock" | "unlock" | "open" | "closed"
-  timeWindow?: "between" | "always"
-  timeStart?: string
-  timeEnd?: string
-}
-
-interface ThenAction {
-  type: "push" | "email" | "restart"
-  customText?: string
-}
-
-interface Scene {
-  id: string
-  name: string
-  active: boolean
-  whenConditions: WhenCondition[]
-  thenAction: ThenAction
-  createdBy: "admin" | "full" | "open-close"
-}
-
-interface Controller {
-  id: string
-  serialNumber: string
-  ip?: string
-  status: "online" | "offline"
-  addedAt: string
-  isRestarting?: boolean
-}
-
-interface Door {
-  id: string
-  systemName: string // Immutable system name
-  createdBy: "admin" | "full" | "open-close"
-  createdAt: string
-}
+import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react"
+import { storage } from "@/lib/core/storage"
+import type {
+  AccessRole,
+  AppUser,
+  Controller,
+  Door,
+  EntityType,
+  IButtonUser,
+  NameOverrides,
+  Scene,
+} from "@/lib/core/types"
 
 interface AppContextType {
-  // System Status collapse state
   isSystemStatusExpanded: boolean
   setIsSystemStatusExpanded: (expanded: boolean) => void
 
-  // Scenes state
   scenes: Scene[]
   setScenes: (scenes: Scene[]) => void
 
@@ -77,39 +46,21 @@ interface AppContextType {
   setUserName: (name: string) => void
   userEmail: string
   setUserEmail: (email: string) => void
-  iButtonUsers: Array<{
-    id: string
-    name: string
-    chipId: string
-    createdBy: "admin" | "full" | "open-close"
-    createdByName: string
-    createdByRole: "admin" | "full" | "open-close"
-    createdAt: string
-  }>
-  appUsers: Array<{
-    id: string
-    name: string
-    email?: string
-    status?: "active" | "invited"
-    access: "admin" | "full" | "open-close"
-    createdBy: "admin" | "full" | "open-close"
-    ownerDisplayName?: string
-    adminOverrideName?: string
-    createdByName: string
-    createdByRole: "admin" | "full" | "open-close"
-    createdAt: string
-  }>
-  currentUserAccess: "admin" | "full" | "open-close"
-  setCurrentUserAccess: (access: "admin" | "full" | "open-close") => void
+
+  iButtonUsers: IButtonUser[]
+  appUsers: AppUser[]
+
+  currentUserAccess: AccessRole
+  setCurrentUserAccess: (access: AccessRole) => void
+
   updateIButtonUser: (id: string, name: string) => void
   updateAppUser: (id: string, name: string) => void
   addIButtonUser: () => string
   removeIButtonUser: (id: string) => void
-  addAppUser: (name: string, email: string, access: "admin" | "full" | "open-close") => void
+  addAppUser: (name: string, email: string, access: AccessRole) => void
   removeAppUser: (id: string) => void
-  updateAppUserAccess: (id: string, access: "admin" | "full" | "open-close") => void
+  updateAppUserAccess: (id: string, access: AccessRole) => void
 
-  // Controller management
   controllers: Controller[]
   addController: (serialNumber: string, ip?: string) => boolean
   updateController: (id: string, serialNumber: string, ip?: string) => boolean
@@ -121,27 +72,16 @@ interface AppContextType {
   sessionPassword: string
   setSessionPassword: (password: string) => void
 
-  // Door management
   doors: Door[]
   addDoor: (systemName: string) => string | null
   updateDoor: (id: string, systemName: string) => boolean
   removeDoor: (id: string) => void
 
-  // Per-user name isolation
   currentUserId: string
-  nameOverrides: Record<string, Record<string, Record<string, string>>>
-  getEntityName: (
-    entityType: "doors" | "ibuttons" | "appusers" | "scenes",
-    entityId: string,
-    defaultName: string,
-  ) => string
-  setEntityName: (
-    entityType: "doors" | "ibuttons" | "appusers" | "scenes",
-    entityId: string,
-    customName: string,
-  ) => void
+  nameOverrides: NameOverrides
+  getEntityName: (entityType: EntityType, entityId: string, defaultName: string) => string
+  setEntityName: (entityType: EntityType, entityId: string, customName: string) => void
 
-  // Full Access account limit tracking
   fullAccessAccountCount: number
   canCreateFullAccessAccount: () => boolean
   isFullAccessUserActivated: () => boolean
@@ -150,6 +90,34 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
+
+function canRenameEntity(role: AccessRole, entityType: EntityType): boolean {
+  if (entityType === "scenes") return true
+  return role === "admin" || role === "full"
+}
+
+function setUserOverride(
+  prev: NameOverrides,
+  userId: string,
+  entityType: EntityType,
+  entityId: string,
+  customName: string,
+): NameOverrides {
+  return {
+    ...prev,
+    [userId]: {
+      ...(prev[userId] || {}),
+      [entityType]: {
+        ...((prev[userId] || {})[entityType] || {}),
+        [entityId]: customName,
+      },
+    },
+  }
+}
+
+function getUserOverride(prev: NameOverrides, userId: string, entityType: EntityType, entityId: string): string | undefined {
+  return prev[userId]?.[entityType]?.[entityId]
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isSystemStatusExpanded, setIsSystemStatusExpanded] = useState(true)
@@ -166,179 +134,125 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [nightLockPeriod, setNightLockPeriod] = useState<"AM" | "PM">("PM")
   const [lastNightLockDate, setLastNightLockDate] = useState<string | null>(null)
 
-  const [quickControlsLocked, setQuickControlsLockedState] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("quickControlsLocked")
-      return saved === "true"
-    }
-    return false
-  })
+  const [currentUserAccess, setCurrentUserAccess] = useState<AccessRole>("admin")
+  const isAdmin = currentUserAccess === "admin"
+  const isFull = currentUserAccess === "full"
 
+  const [fullAccessCreatedByAdmin, setFullAccessCreatedByAdmin] = useState(false)
+  const fullIsActivated = fullAccessCreatedByAdmin
+  const isBlockedFull = isFull && !fullIsActivated
+  const canOperateFullRestrictedActions = !isBlockedFull
+
+  const [quickControlsLocked, setQuickControlsLockedState] = useState<boolean>(() =>
+    storage.getBool("quickControlsLocked", false),
+  )
   const setQuickControlsLocked = (locked: boolean) => {
     setQuickControlsLockedState(locked)
-    if (typeof window !== "undefined") {
-      localStorage.setItem("quickControlsLocked", locked.toString())
-    }
+    storage.setBool("quickControlsLocked", locked)
   }
 
-  const [userNamesByRole, setUserNamesByRole] = useState<Record<"admin" | "full" | "open-close", string>>({
+  const [userNamesByRole, setUserNamesByRole] = useState<Record<AccessRole, string>>({
     admin: "John Doe",
     full: "Jane Smith",
     "open-close": "Guest User",
   })
-
-  const [currentUserAccess, setCurrentUserAccess] = useState<"admin" | "full" | "open-close">("admin")
   const userName = userNamesByRole[currentUserAccess]
-
   const [userEmail, setUserEmail] = useState("john.doe@example.com")
-  const [iButtonUsers, setIButtonUsers] = useState<
-    Array<{
-      id: string
-      name: string
-      chipId: string
-      createdBy: "admin" | "full" | "open-close"
-      createdByName: string
-      createdByRole: "admin" | "full" | "open-close"
-      createdAt: string
-    }>
-  >([])
 
-  const [appUsers, setAppUsers] = useState<
-    Array<{
-      id: string
-      name: string
-      email?: string
-      status?: "active" | "invited"
-      access: "admin" | "full" | "open-close"
-      createdBy: "admin" | "full" | "open-close"
-      ownerDisplayName?: string
-      adminOverrideName?: string
-      createdByName: string
-      createdByRole: "admin" | "full" | "open-close"
-      createdAt: string
-    }>
-  >([])
+  const [currentUserId, setCurrentUserId] = useState<string>("admin-1")
+  useEffect(() => {
+    if (isAdmin) setCurrentUserId("admin-1")
+    else if (isFull) setCurrentUserId("full-1")
+    else setCurrentUserId("open-close-1")
+  }, [isAdmin, isFull])
+
+  const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
+  const [appUsers, setAppUsers] = useState<AppUser[]>([])
+
+  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
+
+  const creatorIdentity = useMemo(() => {
+    if (isFull && fullAccessProfileByAdmin) {
+      return { name: fullAccessProfileByAdmin.name, email: fullAccessProfileByAdmin.email }
+    }
+    return { name: userName, email: userEmail }
+  }, [isFull, fullAccessProfileByAdmin, userName, userEmail])
 
   const [controllers, setControllers] = useState<Controller[]>([])
 
+  const validateSerialNumber = (serial: string): boolean => {
+    const trimmed = serial.trim()
+    if (trimmed.length < 8) return false
+    if (!/^[A-Za-z0-9-]+$/.test(trimmed)) return false
+    return true
+  }
+
   const [sessionPassword, setSessionPassword] = useState<string>("")
 
-  // Door management - doors have immutable systemName
-  const [doors, setDoors] = useState<Door[]>(() => {
-    // Initialize with default doors if none exist
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("doors")
-      if (saved) {
-        try {
-          return JSON.parse(saved)
-        } catch {
-          // Fallback to defaults
-        }
-      }
-    }
-    return [
-      {
-        id: "main-door",
-        systemName: "Main door",
-        createdBy: "admin",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "second-door",
-        systemName: "Second door",
-        createdBy: "admin",
-        createdAt: new Date().toISOString(),
-      },
-    ]
-  })
-
-  // Persist doors to localStorage
+  const defaultDoors: Door[] = [
+    { id: "main-door", systemName: "Main door", createdBy: "admin", createdAt: new Date().toISOString() },
+    { id: "second-door", systemName: "Second door", createdBy: "admin", createdAt: new Date().toISOString() },
+  ]
+  const [doors, setDoors] = useState<Door[]>(() => storage.getJSON("doors", defaultDoors))
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("doors", JSON.stringify(doors))
-    }
+    storage.setJSON("doors", doors)
   }, [doors])
 
-  // Unique user ID per role
-  const [currentUserId, setCurrentUserId] = useState<string>("admin-1")
-
-  // Name overrides storage: { userId: { entityType: { entityId: customName } } }
-  // Load from localStorage on init
-  const [nameOverrides, setNameOverrides] = useState<Record<string, Record<string, Record<string, string>>>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nameOverrides")
-      if (saved) {
-        try {
-          return JSON.parse(saved)
-        } catch {
-          // Invalid data, start fresh
-        }
-      }
-    }
-    return {}
-  })
-
-  // Persist name overrides to localStorage whenever they change
+  const [nameOverrides, setNameOverrides] = useState<NameOverrides>(() => storage.getJSON("nameOverrides", {}))
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("nameOverrides", JSON.stringify(nameOverrides))
-    }
+    storage.setJSON("nameOverrides", nameOverrides)
   }, [nameOverrides])
 
+  const getEntityName = (entityType: EntityType, entityId: string, defaultName: string): string => {
+    return getUserOverride(nameOverrides, currentUserId, entityType, entityId) ?? defaultName
+  }
+
+  const setEntityName = (entityType: EntityType, entityId: string, customName: string) => {
+    if (!canRenameEntity(currentUserAccess, entityType)) return
+
+    setNameOverrides((prev) => {
+      const updated = setUserOverride(prev, currentUserId, entityType, entityId, customName)
+      storage.setJSON("nameOverrides", updated) // keep "persist immediately"
+      return updated
+    })
+  }
+
   const [fullAccessAccountCount, setFullAccessAccountCount] = useState(0)
+  useEffect(() => {
+    setFullAccessAccountCount(appUsers.filter((user) => user.access === "full").length)
+  }, [appUsers])
 
-  const [fullAccessCreatedByAdmin, setFullAccessCreatedByAdmin] = useState(false)
-
-  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{
-    name: string
-    email: string
-  } | null>(null)
+  const canCreateFullAccessAccount = (): boolean => fullAccessAccountCount < 1
+  const isFullAccessUserActivated = (): boolean => fullIsActivated
+  const canFullAccessAddUsers = (adminHasActiveSubscription: boolean): boolean => (!isFull ? true : adminHasActiveSubscription)
+  const getFullAccessUserProfile = () => fullAccessProfileByAdmin
 
   const updateIButtonUser = (id: string, name: string) => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
-    // Local overrides are managed separately through setEntityName()
+    if (!canOperateFullRestrictedActions) return
     setIButtonUsers((prev) => prev.map((user) => (user.id === id ? { ...user, name } : user)))
   }
 
   const updateAppUser = (id: string, name: string) => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
+    if (!canOperateFullRestrictedActions) return
+
     setAppUsers((prev) =>
       prev.map((user) => {
         if (user.id !== id) return user
 
-        // If Admin is editing a Full Access default user (id: "2")
-        if (currentUserAccess === "admin" && id === "2") {
+        if (isAdmin && id === "2") {
           const fullAccessUser = prev.find((u) => u.id === "2")
-          if (fullAccessUser) {
-            setFullAccessProfileByAdmin({
-              name,
-              email: fullAccessUser.email || "",
-            })
-          }
+          if (fullAccessUser) setFullAccessProfileByAdmin({ name, email: fullAccessUser.email || "" })
           return { ...user, name, adminOverrideName: name }
         }
 
-        // Normal name update
         return { ...user, name }
       }),
     )
   }
 
   const addIButtonUser = () => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return `ibutton-blocked-${Date.now()}`
-    }
+    if (!canOperateFullRestrictedActions) return `ibutton-blocked-${Date.now()}`
     const newId = `ibutton-${Date.now()}`
-
-    let creatorName = userName
-    if (currentUserAccess === "full" && fullAccessProfileByAdmin) {
-      creatorName = fullAccessProfileByAdmin.name
-    }
-
     setIButtonUsers((prev) => [
       ...prev,
       {
@@ -346,7 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: "New iButton",
         chipId: `CHIP${Date.now()}`,
         createdBy: currentUserAccess,
-        createdByName: creatorName,
+        createdByName: creatorIdentity.name,
         createdByRole: currentUserAccess,
         createdAt: new Date().toISOString(),
       },
@@ -356,28 +270,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const removeIButtonUser = (id: string) => {
     if (id === "1") return
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
+    if (!canOperateFullRestrictedActions) return
     setIButtonUsers((prev) => prev.filter((user) => user.id !== id))
   }
 
-  const addAppUser = (name: string, email: string, access: "admin" | "full" | "open-close") => {
-    if (currentUserAccess === "admin" && access === "full") {
+  const addAppUser = (name: string, email: string, access: AccessRole) => {
+    if (isAdmin && access === "full") {
       setFullAccessCreatedByAdmin(true)
       setFullAccessProfileByAdmin({ name, email })
     }
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
-
-    let creatorName = userName
-    let creatorEmail = userEmail
-
-    if (currentUserAccess === "full" && fullAccessProfileByAdmin) {
-      creatorName = fullAccessProfileByAdmin.name
-      creatorEmail = fullAccessProfileByAdmin.email
-    }
+    if (!canOperateFullRestrictedActions) return
 
     const newId = `appuser-${Date.now()}`
     setAppUsers((prev) => [
@@ -389,7 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: "invited",
         access,
         createdBy: currentUserAccess,
-        createdByName: creatorName,
+        createdByName: creatorIdentity.name,
         createdByRole: currentUserAccess,
         createdAt: new Date().toISOString(),
       },
@@ -398,99 +300,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const removeAppUser = (id: string) => {
     if (id === "1") return
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
+    if (!canOperateFullRestrictedActions) return
     setAppUsers((prev) => prev.filter((user) => user.id !== id))
   }
 
-  const updateAppUserAccess = (id: string, access: "admin" | "full" | "open-close") => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
+  const updateAppUserAccess = (id: string, access: AccessRole) => {
+    if (!canOperateFullRestrictedActions) return
     setAppUsers((prev) => prev.map((user) => (user.id === id ? { ...user, access } : user)))
   }
 
-  const validateSerialNumber = (serial: string): boolean => {
-    // Serial number validation: must be alphanumeric and ≥8 characters (per spec)
-    const trimmed = serial.trim()
-    if (trimmed.length < 8) return false
-    if (!/^[A-Za-z0-9-]+$/.test(trimmed)) return false
-    return true
-  }
-
-  // Door management functions
   const addDoor = (systemName: string): string | null => {
-    if (currentUserAccess !== "admin") {
-      return null
-    }
+    if (!isAdmin) return null
     const newId = `door-${Date.now()}`
-    const newDoor: Door = {
-      id: newId,
-      systemName: systemName.trim(),
-      createdBy: currentUserAccess,
-      createdAt: new Date().toISOString(),
-    }
-    setDoors((prev) => [...prev, newDoor])
+    setDoors((prev) => [
+      ...prev,
+      { id: newId, systemName: systemName.trim(), createdBy: currentUserAccess, createdAt: new Date().toISOString() },
+    ])
     return newId
   }
 
   const updateDoor = (id: string, systemName: string): boolean => {
-    if (currentUserAccess !== "admin") {
-      return false
-    }
-    setDoors((prev) =>
-      prev.map((door) => (door.id === id ? { ...door, systemName: systemName.trim() } : door)),
-    )
+    if (!isAdmin) return false
+    setDoors((prev) => prev.map((door) => (door.id === id ? { ...door, systemName: systemName.trim() } : door)))
     return true
   }
 
   const removeDoor = (id: string) => {
-    if (currentUserAccess !== "admin") {
-      return
-    }
+    if (!isAdmin) return
     setDoors((prev) => prev.filter((door) => door.id !== id))
   }
 
   const addController = (serialNumber: string, ip?: string): boolean => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return false
-    }
+    if (!canOperateFullRestrictedActions) return false
+    if (!validateSerialNumber(serialNumber)) return false
+    if (controllers.some((c) => c.serialNumber === serialNumber.trim())) return false
 
-    if (!validateSerialNumber(serialNumber)) {
-      return false
-    }
-
-    // Check if serial number already exists
-    if (controllers.some((c) => c.serialNumber === serialNumber.trim())) {
-      return false
-    }
-
-    const newController: Controller = {
-      id: `controller-${Date.now()}`,
-      serialNumber: serialNumber.trim(),
-      ip: ip?.trim(),
-      status: "online",
-      addedAt: new Date().toISOString(),
-    }
-
-    setControllers((prev) => [...prev, newController])
+    setControllers((prev) => [
+      ...prev,
+      {
+        id: `controller-${Date.now()}`,
+        serialNumber: serialNumber.trim(),
+        ip: ip?.trim(),
+        status: "online",
+        addedAt: new Date().toISOString(),
+      },
+    ])
     return true
   }
 
   const updateController = (id: string, serialNumber: string, ip?: string): boolean => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return false
-    }
-
-    if (!validateSerialNumber(serialNumber)) {
-      return false
-    }
-
-    // Check if serial number already exists on different controller
-    if (controllers.some((c) => c.id !== id && c.serialNumber === serialNumber.trim())) {
-      return false
-    }
+    if (!canOperateFullRestrictedActions) return false
+    if (!validateSerialNumber(serialNumber)) return false
+    if (controllers.some((c) => c.id !== id && c.serialNumber === serialNumber.trim())) return false
 
     setControllers((prev) =>
       prev.map((controller) =>
@@ -501,16 +362,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const removeController = (id: string) => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
+    if (!canOperateFullRestrictedActions) return
     setControllers((prev) => prev.filter((controller) => controller.id !== id))
   }
 
   const updateControllerStatus = (id: string, status: "online" | "offline") => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
+    if (!canOperateFullRestrictedActions) return
     setControllers((prev) => prev.map((controller) => (controller.id === id ? { ...controller, status } : controller)))
   }
 
@@ -519,16 +376,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const restartController = (id: string) => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
-      return
-    }
+    if (!canOperateFullRestrictedActions) return
 
-    // Set isRestarting to true
     setControllers((prev) =>
       prev.map((controller) => (controller.id === id ? { ...controller, isRestarting: true } : controller)),
     )
 
-    // Simulate restart: after 5 seconds, set isRestarting to false and status back to online
     setTimeout(() => {
       setControllers((prev) =>
         prev.map((controller) =>
@@ -539,119 +392,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const handleSetUserName = (name: string) => {
-    if (currentUserAccess === "full" && !fullAccessCreatedByAdmin) {
+    if (!canOperateFullRestrictedActions) return
+
+    setUserNamesByRole((prev) => ({ ...prev, [currentUserAccess]: name }))
+
+    if (isAdmin) {
+      setAppUsers((prev) => prev.map((user) => (user.id === "1" ? { ...user, name } : user)))
       return
     }
 
-    setUserNamesByRole((prev) => ({
-      ...prev,
-      [currentUserAccess]: name,
-    }))
-
-    if (currentUserAccess === "admin") {
-      // Update the admin's entry (id: "1")
-      setAppUsers((prev) => prev.map((user) => (user.id === "1" ? { ...user, name } : user)))
-    } else if (currentUserAccess === "full") {
-      // Update the full access user's ownerDisplayName (id: "2")
+    if (isFull) {
       setAppUsers((prev) =>
-        prev.map((user) =>
-          user.id === "2" ? { ...user, name, ownerDisplayName: name, access: currentUserAccess } : user,
-        ),
+        prev.map((user) => (user.id === "2" ? { ...user, name, ownerDisplayName: name, access: currentUserAccess } : user)),
       )
     }
-    // Open-close users don't have entries in appUsers
-  }
-
-  const getEntityName = (
-    entityType: "doors" | "ibuttons" | "appusers" | "scenes",
-    entityId: string,
-    defaultName: string,
-  ): string => {
-    const userOverrides = nameOverrides[currentUserId]
-    if (userOverrides && userOverrides[entityType] && userOverrides[entityType][entityId]) {
-      return userOverrides[entityType][entityId]
-    }
-    return defaultName
-  }
-
-  const setEntityName = (
-    entityType: "doors" | "ibuttons" | "appusers" | "scenes",
-    entityId: string,
-    customName: string,
-  ) => {
-    // Permission checks based on entity type
-    if (entityType === "doors") {
-      // Only admin and full access can rename doors
-      if (currentUserAccess !== "admin" && currentUserAccess !== "full") {
-        return
-      }
-    } else if (entityType === "ibuttons") {
-      // Only admin and full access can rename iButtons
-      if (currentUserAccess !== "admin" && currentUserAccess !== "full") {
-        return
-      }
-    } else if (entityType === "appusers") {
-      // Only admin and full access can rename app users
-      if (currentUserAccess !== "admin" && currentUserAccess !== "full") {
-        return
-      }
-    }
-
-    // Set the local override for the current user
-    setNameOverrides((prev) => {
-      const updated = {
-        ...prev,
-        [currentUserId]: {
-          ...(prev[currentUserId] || {}),
-          [entityType]: {
-            ...((prev[currentUserId] || {})[entityType] || {}),
-            [entityId]: customName,
-          },
-        },
-      }
-      // Persist to localStorage immediately
-      if (typeof window !== "undefined") {
-        localStorage.setItem("nameOverrides", JSON.stringify(updated))
-      }
-      return updated
-    })
-  }
-
-  const canCreateFullAccessAccount = (): boolean => {
-    return fullAccessAccountCount < 1
-  }
-
-  const isFullAccessUserActivated = (): boolean => {
-    return fullAccessCreatedByAdmin
-  }
-
-  const canFullAccessAddUsers = (adminHasActiveSubscription: boolean): boolean => {
-    if (currentUserAccess !== "full") return true
-    return adminHasActiveSubscription
-  }
-
-  const getFullAccessUserProfile = () => {
-    return fullAccessProfileByAdmin
   }
 
   useEffect(() => {
     const currentName = userNamesByRole[currentUserAccess]
 
-    if (currentUserAccess === "admin") {
+    if (isAdmin) {
       setAppUsers((prev) =>
         prev.map((user) => (user.id === "1" ? { ...user, name: currentName, access: currentUserAccess } : user)),
       )
-    } else if (currentUserAccess === "full") {
-      // Only update if the user already exists
+    } else if (isFull) {
       setAppUsers((prev) =>
         prev.map((user) =>
-          user.id === "2" && user.access === "full"
-            ? { ...user, name: currentName, ownerDisplayName: currentName }
-            : user,
+          user.id === "2" && user.access === "full" ? { ...user, name: currentName, ownerDisplayName: currentName } : user,
         ),
       )
     }
-  }, [currentUserAccess, userNamesByRole])
+  }, [currentUserAccess, userNamesByRole, isAdmin, isFull])
 
   useEffect(() => {
     if (!autoLockEnabled) {
@@ -664,25 +435,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const interval = setInterval(() => {
         setCountdown((prev) => {
-          if (prev === null || prev <= 0) {
-            return null
-          }
+          if (prev === null || prev <= 0) return null
 
           const newCount = prev - 1
-
           if (newCount <= 0) {
             setDoorState("lock")
             return null
           }
-
           return newCount
         })
       }, 1000)
 
       return () => clearInterval(interval)
-    } else {
-      setCountdown(null)
     }
+
+    setCountdown(null)
   }, [doorState, autoLockDelay, autoLockEnabled])
 
   useEffect(() => {
@@ -693,11 +460,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const currentDate = now.toDateString()
 
       let targetHour = Number.parseInt(nightLockHour)
-      if (nightLockPeriod === "PM" && targetHour !== 12) {
-        targetHour += 12
-      } else if (nightLockPeriod === "AM" && targetHour === 12) {
-        targetHour = 0
-      }
+      if (nightLockPeriod === "PM" && targetHour !== 12) targetHour += 12
+      else if (nightLockPeriod === "AM" && targetHour === 12) targetHour = 0
 
       const currentHour = now.getHours()
       const currentMinute = now.getMinutes()
@@ -713,22 +477,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     checkNightLock()
 
     return () => clearInterval(interval)
-  }, [autoNightLockEnabled, nightLockHour, nightLockMinute, nightLockPeriod, lastNightLockDate, setDoorState])
-
-  useEffect(() => {
-    const count = appUsers.filter((user) => user.access === "full").length
-    setFullAccessAccountCount(count)
-  }, [appUsers])
-
-  useEffect(() => {
-    if (currentUserAccess === "admin") {
-      setCurrentUserId("admin-1")
-    } else if (currentUserAccess === "full") {
-      setCurrentUserId("full-1")
-    } else {
-      setCurrentUserId("open-close-1")
-    }
-  }, [currentUserAccess])
+  }, [autoNightLockEnabled, nightLockHour, nightLockMinute, nightLockPeriod, lastNightLockDate])
 
   return (
     <AppContext.Provider
