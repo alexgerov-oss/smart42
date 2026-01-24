@@ -1,0 +1,1132 @@
+"use client"
+
+import { useState } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, UserIcon, Mail, Home, Activity, Settings, User, LockIcon, Zap, Send, Layers } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { Screen } from "@/app/page"
+import { useAppContext } from "@/lib/app-context"
+
+interface ProfileScreenProps {
+  onNavigate: (screen: Screen) => void
+  isPremium: boolean
+  premiumExpiry: string
+  isOnTrial: boolean
+  remainingTrialDays: number | null
+  currentScreen: Screen
+}
+
+export default function ProfileScreen({
+  onNavigate,
+  isPremium,
+  premiumExpiry,
+  isOnTrial,
+  remainingTrialDays,
+  currentScreen,
+}: ProfileScreenProps) {
+  const {
+    userName,
+    setUserName,
+    userEmail,
+    setUserEmail,
+    currentUserAccess,
+    setCurrentUserAccess,
+    sessionPassword,
+    setSessionPassword,
+    getFullAccessUserProfile,
+  } = useAppContext()
+
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [isEditingEmail, setIsEditingEmail] = useState(false)
+  const [isEditingPassword, setIsEditingPassword] = useState(false)
+
+  const [tempName, setTempName] = useState("")
+  const [tempEmail1, setTempEmail1] = useState("")
+  const [tempEmail2, setTempEmail2] = useState("")
+  const [emailChangePassword, setEmailChangePassword] = useState("")
+  const [emailChangePasswordError, setEmailChangePasswordError] = useState("")
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [tempPassword1, setTempPassword1] = useState("")
+  const [tempPassword2, setTempPassword2] = useState("")
+
+  const [supportCategory, setSupportCategory] = useState("")
+  const [supportMessage, setSupportMessage] = useState("")
+  const [supportSubmitted, setSupportSubmitted] = useState(false)
+
+  const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+
+  const displayName = currentUserAccess === "full" ? getFullAccessUserProfile()?.name || userName : userName
+  const displayEmail = currentUserAccess === "full" ? getFullAccessUserProfile()?.email || userEmail : userEmail
+
+  const handleSaveName = () => {
+    if (currentUserAccess === "full") {
+      setIsEditingName(false)
+      setTempName("")
+      return
+    }
+
+    if (tempName.trim()) {
+      setUserName(tempName)
+    }
+    setIsEditingName(false)
+    setTempName("")
+  }
+
+  const validateEmailFormat = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  const handleSaveEmail = () => {
+    if (currentUserAccess === "full") {
+      setIsEditingEmail(false)
+      setTempEmail1("")
+      setTempEmail2("")
+      setEmailChangePassword("")
+      setEmailChangePasswordError("")
+      setEmailError("")
+      return
+    }
+
+    if (!validateEmailFormat(tempEmail1)) {
+      setEmailError("Invalid email format")
+      return
+    }
+    if (tempEmail1 !== tempEmail2) {
+      setEmailError("Emails do not match")
+      return
+    }
+    if (!emailChangePassword.trim()) {
+      setEmailChangePasswordError("Current password is required.")
+      return
+    }
+    if (emailChangePassword !== sessionPassword) {
+      setEmailChangePasswordError("Incorrect password")
+      return
+    }
+    if (tempEmail1.trim()) {
+      setUserEmail(tempEmail1)
+    }
+    setIsEditingEmail(false)
+    setTempEmail1("")
+    setTempEmail2("")
+    setEmailChangePassword("")
+    setEmailChangePasswordError("")
+    setEmailError("")
+  }
+
+  const handleSavePassword = () => {
+    if (!currentPassword) {
+      setPasswordError("Current password is required")
+      return
+    }
+    if (currentPassword !== sessionPassword) {
+      setPasswordError("Incorrect current password")
+      return
+    }
+    if (tempPassword1 !== tempPassword2) {
+      setPasswordError("Passwords do not match")
+      return
+    }
+    if (tempPassword1.trim()) {
+      setSessionPassword(tempPassword1)
+    }
+    setIsEditingPassword(false)
+    setCurrentPassword("")
+    setTempPassword1("")
+    setTempPassword2("")
+    setPasswordError("")
+  }
+
+  const handleSubmitSupport = () => {
+    if (!supportCategory || supportMessage.length < 100) return
+
+    console.log("Support ticket submitted:", { category: supportCategory, message: supportMessage })
+    setSupportSubmitted(true)
+
+    // Clear form immediately after submission
+    setSupportCategory("")
+    setSupportMessage("")
+
+    // Hide confirmation message after 5 seconds
+    setTimeout(() => {
+      setSupportSubmitted(false)
+    }, 5000)
+  }
+
+  const characterCount = supportMessage.length
+  const isMessageValid = characterCount >= 100
+
+  const hasFullAccess = currentUserAccess === "full"
+  const isAdmin = currentUserAccess === "admin"
+  const canAccessScenes = currentUserAccess === "admin" || currentUserAccess === "full"
+  const canAccessSettings = currentUserAccess === "admin" || currentUserAccess === "full"
+  const canAccessSupport = currentUserAccess === "admin"
+
+  const getActiveTab = () => {
+    if (currentScreen === "dashboard") return "home"
+    if (currentScreen === "activity-log") return "activity-log"
+    if (currentScreen === "scenes") return "scenes"
+    if (currentScreen === "settings") return "settings"
+    if (currentScreen === "profile") return "profile"
+    return "profile"
+  }
+
+  const activeTab = getActiveTab()
+
+  return (
+    <div className="flex min-h-screen flex-col pb-20">
+      <div className="bg-card border-b border-border p-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => onNavigate("dashboard")}
+            className="text-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+          <h1 className="text-xl font-bold text-foreground">Profile</h1>
+        </div>
+      </div>
+
+      <div className="flex-1 p-4">
+        {currentUserAccess === "admin" ? (
+          <Tabs defaultValue="profile" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="profile" className="flex-1">
+                Profile
+              </TabsTrigger>
+              {canAccessSupport && (
+                <TabsTrigger value="support" className="flex-1">
+                  Support
+                </TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="profile" className="space-y-4">
+              <Card className="bg-card border-border p-6">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/20">
+                    <UserIcon className="h-12 w-12 text-primary" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
+                    {isPremium ? (
+                      <div className="space-y-1">
+                        {isOnTrial && remainingTrialDays !== null ? (
+                          <>
+                            <p className="text-sm font-semibold text-yellow-500">Trial version</p>
+                            <p className="text-xs text-gray-400">{remainingTrialDays} days left</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold text-yellow-500">Member</p>
+                            <p className="text-xs text-muted-foreground">Valid until: {premiumExpiry}</p>
+                          </>
+                        )}
+                        {currentUserAccess === "admin" && (
+                          <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
+                            <p className="text-xs text-blue-500 leading-relaxed">
+                              Admin role: full control over controller, users, iButtons, scenes and system settings.
+                            </p>
+                          </div>
+                        )}
+                        {currentUserAccess === "open-close" && (
+                          <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
+                            <p className="text-xs font-medium text-yellow-500 mb-1">Open/Close only access</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              You can lock and unlock the door, but you don't have access to Settings or Scenes.
+                            </p>
+                          </div>
+                        )}
+                        {currentUserAccess === "full" && (
+                          <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
+                            <p className="text-xs font-medium text-green-500 mb-1">Full access account.</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              You can control the door, manage scenes, users, and iButtons. Controller management is
+                              restricted to Admin.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Free user</p>
+                        {currentUserAccess === "admin" && (
+                          <div className="mt-2 rounded-lg bg-background border border-border p-3 text-left">
+                            <p className="text-xs text-blue-500 leading-relaxed">
+                              Admin role: full control over controller, users, iButtons, scenes and system settings.
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex justify-center">
+                          <Button
+                            onClick={() => onNavigate("subscription")}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
+                          >
+                            <Zap className="h-4 w-4" />
+                            Get Premium
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="bg-card border-border p-4 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Contact Information</h3>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">Name</Label>
+                      {!isEditingName && (
+                        <Button
+                          onClick={() => {
+                            setTempName(displayName)
+                            setIsEditingName(true)
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-primary h-auto py-1 px-2"
+                        >
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                    {isEditingName ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={tempName}
+                          onChange={(e) => setTempName(e.target.value)}
+                          placeholder="Enter name"
+                          className="w-full"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setIsEditingName(false)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            Cancel
+                          </Button>
+                          <Button onClick={handleSaveName} size="sm" className="flex-1">
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg bg-background p-3">
+                        <div className="flex items-center gap-3">
+                          <UserIcon className="h-5 w-5 text-primary" />
+                          <p className="text-sm text-foreground">{displayName}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">Email</Label>
+                      {!isEditingEmail && (
+                        <Button
+                          onClick={() => {
+                            setTempEmail1("")
+                            setTempEmail2("")
+                            setEmailChangePassword("")
+                            setEmailChangePasswordError("")
+                            setIsEditingEmail(true)
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-primary h-auto py-1 px-2"
+                        >
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                    {isEditingEmail ? (
+                      <div className="space-y-2">
+                        <input
+                          type="email"
+                          autoComplete="email"
+                          tabIndex={-1}
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            opacity: 0,
+                            height: 0,
+                            pointerEvents: "none",
+                          }}
+                        />
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-foreground">New Email</Label>
+                            <Input
+                              type="email"
+                              value={tempEmail1}
+                              onChange={(e) => {
+                                setTempEmail1(e.target.value)
+                                if (emailError) setEmailError("")
+                              }}
+                              placeholder="Enter new email"
+                              className="w-full"
+                              autoComplete="email"
+                              autoFocus
+                            />
+                            {emailError && <p className="text-xs text-destructive">{emailError}</p>}
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-foreground">Confirm New Email</Label>
+                            <Input
+                              type="text"
+                              inputMode="email"
+                              name="email-verification-field"
+                              value={tempEmail2}
+                              onChange={(e) => setTempEmail2(e.target.value)}
+                              placeholder="Confirm new email"
+                              className="w-full"
+                              autoComplete="off"
+                              autoCorrect="off"
+                              autoCapitalize="off"
+                              spellCheck="false"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-foreground">Current Password</Label>
+                            <Input
+                              type="password"
+                              value={emailChangePassword}
+                              onChange={(e) => {
+                                setEmailChangePassword(e.target.value)
+                                if (emailChangePasswordError) setEmailChangePasswordError("")
+                              }}
+                              placeholder="Enter current password"
+                              className="w-full"
+                              autoComplete="current-password"
+                            />
+                            {emailChangePasswordError && (
+                              <p className="text-xs text-destructive">{emailChangePasswordError}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            onClick={() => {
+                              setIsEditingEmail(false)
+                              setTempEmail1("")
+                              setTempEmail2("")
+                              setEmailChangePassword("")
+                              setEmailChangePasswordError("")
+                              setEmailError("")
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            Cancel
+                          </Button>
+                          <Button onClick={handleSaveEmail} size="sm" className="flex-1">
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg bg-background p-3">
+                        <div className="flex items-center gap-3">
+                          <Mail className="h-5 w-5 text-primary" />
+                          <p className="text-sm text-foreground break-all">{displayEmail}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">Password</Label>
+                      {!isEditingPassword && (
+                        <Button
+                          onClick={() => {
+                            setCurrentPassword("")
+                            setTempPassword1("")
+                            setTempPassword2("")
+                            setIsEditingPassword(true)
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-primary h-auto py-1 px-2"
+                        >
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                    {isEditingPassword ? (
+                      <div className="space-y-2">
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-foreground">Current Password</Label>
+                            <Input
+                              type="password"
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              placeholder="Current password"
+                              className="w-full"
+                              autoComplete="current-password"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-foreground">New Password</Label>
+                            <Input
+                              type="password"
+                              value={tempPassword1}
+                              onChange={(e) => {
+                                setTempPassword1(e.target.value)
+                                if (passwordError) setPasswordError("")
+                              }}
+                              placeholder="New password"
+                              className="w-full"
+                              autoComplete="new-password"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-foreground">Confirm New Password</Label>
+                            <Input
+                              type="password"
+                              value={tempPassword2}
+                              onChange={(e) => setTempPassword2(e.target.value)}
+                              placeholder="Confirm new password"
+                              className="w-full"
+                              autoComplete="new-password"
+                            />
+                            {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            onClick={() => {
+                              setIsEditingPassword(false)
+                              setCurrentPassword("")
+                              setTempPassword1("")
+                              setTempPassword2("")
+                              setPasswordError("")
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            Cancel
+                          </Button>
+                          <Button onClick={handleSavePassword} size="sm" className="flex-1">
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg bg-background p-3">
+                        <div className="flex items-center gap-3">
+                          <LockIcon className="h-5 w-5 text-primary" />
+                          <p className="text-sm text-muted-foreground">••••••••</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="bg-card border-border p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Access Level (Testing)</h3>
+                <p className="text-xs text-muted-foreground">Switch between access levels to test UI behavior</p>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Current Access</Label>
+                  <Select
+                    value={currentUserAccess}
+                    onValueChange={(value: "admin" | "full" | "open-close") => setCurrentUserAccess(value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="full">Full access</SelectItem>
+                      <SelectItem value="open-close">Open / Close only</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-blue-500">Admin</p>
+                      <p className="text-xs text-muted-foreground">
+                        Full system control. Can add, edit and restart controllers. Can manage all users, iButtons,
+                        scenes and settings. Can see and manage scenes created by all users.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-green-500">Full access</p>
+                      <p className="text-xs text-muted-foreground">
+                        Advanced access. Can add and manage iButtons and app users created by them. Can create and
+                        manage their own scenes. Cannot add, edit or restart controllers.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-yellow-500">Open / Close only</p>
+                      <p className="text-xs text-muted-foreground">
+                        Basic access. Can only open and close the door. No access to scenes, settings or user
+                        management.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="bg-card border-border p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Account Actions</h3>
+                <Button
+                  onClick={() => onNavigate("login")}
+                  variant="outline"
+                  className="w-full justify-start text-destructive border-border hover:text-destructive bg-transparent"
+                >
+                  Logout
+                </Button>
+              </Card>
+            </TabsContent>
+
+            {canAccessSupport && (
+              <TabsContent value="support" className="space-y-4">
+                <Card className="bg-card border-border p-4 space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground">Contact Support</h3>
+
+                  {supportSubmitted ? (
+                    <div className="text-center py-8 space-y-2">
+                      <div className="flex justify-center">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
+                          <Send className="h-8 w-8 text-accent" />
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground px-4">
+                        Your ticket has been received. We will contact you by email as soon as possible.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm text-muted-foreground">Issue Category</Label>
+                        <Select
+                          value={supportCategory}
+                          onValueChange={(value) => {
+                            setSupportCategory(value)
+                            // Do NOT trigger any focus or layout changes
+                          }}
+                        >
+                          <SelectTrigger className="w-full [&>span]:data-[placeholder]:text-white">
+                            <SelectValue placeholder="Select an issue category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="app">Problem with app</SelectItem>
+                            <SelectItem value="ibutton">Problem with iButton</SelectItem>
+                            <SelectItem value="controller">Problem with controller</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm text-muted-foreground">Message</Label>
+                        <Textarea
+                          value={supportMessage}
+                          onChange={(e) => setSupportMessage(e.target.value)}
+                          placeholder="Describe your issue in detail..."
+                          rows={6}
+                          className="bg-background border-border resize-none"
+                          autoComplete="off"
+                        />
+                        <p className="text-sm text-blue-500">{100 - characterCount} characters remaining</p>
+                      </div>
+
+                      <Button
+                        onClick={handleSubmitSupport}
+                        disabled={!supportCategory || !isMessageValid}
+                        className="w-full"
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Submit Ticket
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              </TabsContent>
+            )}
+          </Tabs>
+        ) : (
+          <div className="space-y-4">
+            <Card className="bg-card border-border p-6">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/20">
+                  <UserIcon className="h-12 w-12 text-primary" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
+                  {isPremium ? (
+                    <div className="space-y-1">
+                      {isOnTrial && remainingTrialDays !== null ? (
+                        <>
+                          <p className="text-sm font-semibold text-yellow-500">Trial version</p>
+                          <p className="text-xs text-gray-400">{remainingTrialDays} days left</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-semibold text-yellow-500">Member</p>
+                          <p className="text-xs text-muted-foreground">Valid until: {premiumExpiry}</p>
+                        </>
+                      )}
+                      {currentUserAccess === "open-close" && (
+                        <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
+                          <p className="text-xs font-medium text-yellow-500 mb-1">Open/Close only access</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            You can lock and unlock the door, but you don't have access to Settings or Scenes.
+                          </p>
+                        </div>
+                      )}
+                      {currentUserAccess === "full" && (
+                        <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
+                          <p className="text-xs font-medium text-green-500 mb-1">Full access account.</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            You can control the door, manage scenes, users, and iButtons. Controller management is
+                            restricted to Admin.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Free user</p>
+                      <div className="flex justify-center">
+                        <Button
+                          onClick={() => onNavigate("subscription")}
+                          className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
+                        >
+                          <Zap className="h-4 w-4" />
+                          Get Premium
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-card border-border p-4 space-y-4">
+              <h3 className="text-sm font-semibold text-foreground">Contact Information</h3>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">Name</Label>
+                    {!isEditingName && (
+                      <Button
+                        onClick={() => {
+                          setTempName(displayName)
+                          setIsEditingName(true)
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-primary h-auto py-1 px-2"
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingName ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={tempName}
+                        onChange={(e) => setTempName(e.target.value)}
+                        placeholder="Enter name"
+                        className="w-full"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <Button onClick={() => setIsEditingName(false)} variant="outline" size="sm" className="flex-1">
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSaveName} size="sm" className="flex-1">
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg bg-background p-3">
+                      <div className="flex items-center gap-3">
+                        <UserIcon className="h-5 w-5 text-primary" />
+                        <p className="text-sm text-foreground">{displayName}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    {!isEditingEmail && (
+                      <Button
+                        onClick={() => {
+                          setTempEmail1("")
+                          setTempEmail2("")
+                          setEmailChangePassword("")
+                          setEmailChangePasswordError("")
+                          setIsEditingEmail(true)
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-primary h-auto py-1 px-2"
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingEmail ? (
+                    <div className="space-y-2">
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        style={{
+                          position: "absolute",
+                          opacity: 0,
+                          height: 0,
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-foreground">New Email</Label>
+                          <Input
+                            type="email"
+                            value={tempEmail1}
+                            onChange={(e) => {
+                              setTempEmail1(e.target.value)
+                              if (emailError) setEmailError("")
+                            }}
+                            placeholder="Enter new email"
+                            className="w-full"
+                            autoComplete="email"
+                            autoFocus
+                          />
+                          {emailError && <p className="text-xs text-destructive">{emailError}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-foreground">Confirm New Email</Label>
+                          <Input
+                            type="text"
+                            inputMode="email"
+                            name="email-verification-field"
+                            value={tempEmail2}
+                            onChange={(e) => setTempEmail2(e.target.value)}
+                            placeholder="Confirm new email"
+                            className="w-full"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-foreground">Current Password</Label>
+                          <Input
+                            type="password"
+                            value={emailChangePassword}
+                            onChange={(e) => {
+                              setEmailChangePassword(e.target.value)
+                              if (emailChangePasswordError) setEmailChangePasswordError("")
+                            }}
+                            placeholder="Enter current password"
+                            className="w-full"
+                            autoComplete="current-password"
+                          />
+                          {emailChangePasswordError && (
+                            <p className="text-xs text-destructive">{emailChangePasswordError}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          onClick={() => {
+                            setIsEditingEmail(false)
+                            setTempEmail1("")
+                            setTempEmail2("")
+                            setEmailChangePassword("")
+                            setEmailChangePasswordError("")
+                            setEmailError("")
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSaveEmail} size="sm" className="flex-1">
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg bg-background p-3">
+                      <div className="flex items-center gap-3">
+                        <Mail className="h-5 w-5 text-primary" />
+                        <p className="text-sm text-foreground break-all">{displayEmail}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">Password</Label>
+                    {!isEditingPassword && (
+                      <Button
+                        onClick={() => {
+                          setCurrentPassword("")
+                          setTempPassword1("")
+                          setTempPassword2("")
+                          setIsEditingPassword(true)
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-primary h-auto py-1 px-2"
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingPassword ? (
+                    <div className="space-y-2">
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-foreground">Current Password</Label>
+                          <Input
+                            type="password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            placeholder="Current password"
+                            className="w-full"
+                            autoComplete="current-password"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-foreground">New Password</Label>
+                          <Input
+                            type="password"
+                            value={tempPassword1}
+                            onChange={(e) => {
+                              setTempPassword1(e.target.value)
+                              if (passwordError) setPasswordError("")
+                            }}
+                            placeholder="New password"
+                            className="w-full"
+                            autoComplete="new-password"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-foreground">Confirm New Password</Label>
+                          <Input
+                            type="password"
+                            value={tempPassword2}
+                            onChange={(e) => setTempPassword2(e.target.value)}
+                            placeholder="Confirm new password"
+                            className="w-full"
+                            autoComplete="new-password"
+                          />
+                          {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          onClick={() => {
+                            setIsEditingPassword(false)
+                            setCurrentPassword("")
+                            setTempPassword1("")
+                            setTempPassword2("")
+                            setPasswordError("")
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSavePassword} size="sm" className="flex-1">
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg bg-background p-3">
+                      <div className="flex items-center gap-3">
+                        <LockIcon className="h-5 w-5 text-primary" />
+                        <p className="text-sm text-muted-foreground">••••••••</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-card border-border p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Access Level (Testing)</h3>
+              <p className="text-xs text-muted-foreground">Switch between access levels to test UI behavior</p>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Current Access</Label>
+                <Select
+                  value={currentUserAccess}
+                  onValueChange={(value: "admin" | "full" | "open-close") => setCurrentUserAccess(value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="full">Full access</SelectItem>
+                    <SelectItem value="open-close">Open / Close only</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <div className="space-y-3 pt-2">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-blue-500">Admin</p>
+                    <p className="text-xs text-muted-foreground">
+                      Full system control. Can add, edit and restart controllers. Can manage all users, iButtons, scenes
+                      and settings. Can see and manage scenes created by all users.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-green-500">Full access</p>
+                    <p className="text-xs text-muted-foreground">
+                      Advanced access. Can add and manage iButtons and app users created by them. Can create and manage
+                      their own scenes. Cannot add, edit or restart controllers.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-yellow-500">Open / Close only</p>
+                    <p className="text-xs text-muted-foreground">
+                      Basic access. Can only open and close the door. No access to scenes, settings or user management.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-card border-border p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Account Actions</h3>
+              <Button
+                onClick={() => onNavigate("login")}
+                variant="outline"
+                className="w-full justify-start text-destructive border-border hover:text-destructive bg-transparent"
+              >
+                Logout
+              </Button>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
+        <div className="flex items-center justify-around p-4">
+          <button
+            onClick={() => {
+              onNavigate("dashboard")
+              window.scrollTo({ top: 0, behavior: "instant" })
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors ${
+              activeTab === "home" ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <Home className="h-6 w-6" />
+            <span className="text-xs">Home</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (isPremium) {
+                onNavigate("activity-log")
+              } else {
+                onNavigate("subscription")
+              }
+              window.scrollTo({ top: 0, behavior: "instant" })
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors relative ${
+              activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <div className="relative">
+              <Activity className="h-6 w-6" />
+              {!isPremium && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
+            </div>
+            <span className="text-xs">Activity</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (canAccessScenes) {
+                onNavigate("scenes")
+                window.scrollTo({ top: 0, behavior: "instant" })
+              }
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors relative ${
+              activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <div className="relative">
+              <Layers className="h-6 w-6" />
+              {!canAccessScenes && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
+            </div>
+            <span className="text-xs">Scenes</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (canAccessSettings) {
+                onNavigate("settings")
+                window.scrollTo({ top: 0, behavior: "instant" })
+              }
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors relative ${
+              activeTab === "settings" ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <div className="relative">
+              <Settings className="h-6 w-6" />
+              {!canAccessSettings && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
+            </div>
+            <span className="text-xs">Settings</span>
+          </button>
+
+          <button
+            className={`flex flex-col items-center gap-1 transition-colors ${
+              activeTab === "profile" ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <User className="h-6 w-6" />
+            <span className="text-xs">Profile</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
