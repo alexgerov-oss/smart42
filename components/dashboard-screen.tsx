@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Api } from "@/lib/core/api"
+import { doorActions } from "@/lib/core/door-actions"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -86,6 +86,7 @@ export default function DashboardScreen({
   const [isDeleteDoorDialogOpen, setIsDeleteDoorDialogOpen] = useState(false)
   const [newDoorName, setNewDoorName] = useState("")
   const [editDoorName, setEditDoorName] = useState("")
+
   const {
     isSystemStatusExpanded,
     setIsSystemStatusExpanded,
@@ -98,7 +99,6 @@ export default function DashboardScreen({
     currentUserAccess,
     getEntityName,
     setEntityName,
-    isFullAccessUserActivated,
     getFullAccessUserProfile,
     doors,
     addDoor,
@@ -107,7 +107,6 @@ export default function DashboardScreen({
   } = useAppContext()
 
   const { toast } = useToast()
-
   const controller = getActiveController()
 
   // Get the selected door's system name, then apply local override
@@ -148,8 +147,9 @@ export default function DashboardScreen({
 
   const getActiveDoorId = () => selectedDoorId || doors[0]?.id
 
-  const callDoorApi = async (doorId: string, nextState: "lock" | "unlock") => {
-    const res = nextState === "lock" ? await Api.lockDoor(doorId) : await Api.unlockDoor(doorId)
+  const callDoorAction = async (doorId: string, nextState: "lock" | "unlock") => {
+    const res = nextState === "lock" ? await doorActions.lock(doorId) : await doorActions.unlock(doorId)
+
     if (!res.ok) {
       toast({
         title: "Action failed",
@@ -158,45 +158,38 @@ export default function DashboardScreen({
       })
       return false
     }
+
     return true
   }
 
   const handleDoorToggle = async () => {
-    // All roles can lock/unlock doors
-    if (!Permissions.canLockUnlockDoors(permissionContext)) {
-      return
-    }
+    if (!Permissions.canLockUnlockDoors(permissionContext)) return
 
     const doorId = getActiveDoorId()
     if (!doorId) return
 
     const nextState: "lock" | "unlock" = doorState === "lock" ? "unlock" : "lock"
-    const ok = await callDoorApi(doorId, nextState)
+    const ok = await callDoorAction(doorId, nextState)
     if (!ok) return
 
     setDoorState(nextState)
   }
 
   const handleLabelClick = async (targetState: "lock" | "unlock") => {
-    if (!Permissions.canLockUnlockDoors(permissionContext)) {
-      return
-    }
+    if (!Permissions.canLockUnlockDoors(permissionContext)) return
 
     const doorId = getActiveDoorId()
     if (!doorId) return
-
     if (doorState === targetState) return
 
-    const ok = await callDoorApi(doorId, targetState)
+    const ok = await callDoorAction(doorId, targetState)
     if (!ok) return
 
     setDoorState(targetState)
   }
 
   const handleSliderInteraction = async (clientX: number, rect: DOMRect) => {
-    if (!Permissions.canLockUnlockDoors(permissionContext)) {
-      return
-    }
+    if (!Permissions.canLockUnlockDoors(permissionContext)) return
 
     const doorId = getActiveDoorId()
     if (!doorId) return
@@ -213,7 +206,7 @@ export default function DashboardScreen({
       return
     }
 
-    const ok = await callDoorApi(doorId, targetState)
+    const ok = await callDoorAction(doorId, targetState)
     if (!ok) return
 
     setDoorState(targetState)
@@ -257,9 +250,7 @@ export default function DashboardScreen({
   }
 
   const handleDoorNameAction = () => {
-    if (!canRenameDoors) {
-      return
-    }
+    if (!canRenameDoors) return
 
     if (isEditing) {
       if (tempDoorName.trim()) {
@@ -304,17 +295,13 @@ export default function DashboardScreen({
   const activeTab = getActiveTab()
 
   const handleAddDoor = () => {
-    if (!canAddDoors) {
-      return
-    }
+    if (!canAddDoors) return
     setNewDoorName("")
     setIsAddDoorModalOpen(true)
   }
 
   const handleSaveNewDoor = () => {
-    if (!canAddDoors || !newDoorName.trim()) {
-      return
-    }
+    if (!canAddDoors || !newDoorName.trim()) return
     const newId = addDoor(newDoorName.trim())
     if (newId) {
       setSelectedDoorId(newId)
@@ -324,39 +311,28 @@ export default function DashboardScreen({
   }
 
   const handleEditDoor = () => {
-    if (!canEditDoors) {
-      return
-    }
+    if (!canEditDoors) return
     const currentDoor = doors.find((d) => d.id === selectedDoorId)
     if (currentDoor) {
-      // Show the system name in edit dialog (not local override)
       setEditDoorName(currentDoor.systemName)
       setIsEditDoorModalOpen(true)
     }
   }
 
   const handleSaveEditDoor = () => {
-    if (!canEditDoors || !editDoorName.trim()) {
-      return
-    }
+    if (!canEditDoors || !editDoorName.trim()) return
     const success = updateDoor(selectedDoorId, editDoorName.trim())
-    if (success) {
-      setIsEditDoorModalOpen(false)
-    }
+    if (success) setIsEditDoorModalOpen(false)
   }
 
   const handleConfirmDelete = () => {
-    if (!canDeleteDoors) {
-      return
-    }
+    if (!canDeleteDoors) return
     setIsEditDoorModalOpen(false)
     setIsDeleteDoorDialogOpen(true)
   }
 
   const handleDeleteDoor = () => {
-    if (!canDeleteDoors) {
-      return
-    }
+    if (!canDeleteDoors) return
     const filteredDoors = doors.filter((d) => d.id !== selectedDoorId)
     removeDoor(selectedDoorId)
     if (filteredDoors.length > 1) {
@@ -502,7 +478,9 @@ export default function DashboardScreen({
               )}
 
               {/* Right: Door state */}
-              <div>{doorSensorOpen ? <p className="text-sm font-medium text-green-500">Open</p> : <p className="text-sm font-medium">Closed</p>}</div>
+              <div>
+                {doorSensorOpen ? <p className="text-sm font-medium text-green-500">Open</p> : <p className="text-sm font-medium">Closed</p>}
+              </div>
             </div>
           </div>
         </Card>
@@ -686,9 +664,7 @@ export default function DashboardScreen({
           >
             <div className="relative">
               <Activity className="h-6 w-6" />
-              {(!canAccessActivity || !isPremium) && (
-                <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />
-              )}
+              {(!canAccessActivity || !isPremium) && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
             </div>
             <span className="text-xs">Activity</span>
           </button>
