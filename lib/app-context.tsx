@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react"
 import { storage } from "@/lib/core/storage"
 import { getUserOverride, setUserOverride } from "@/lib/core/naming"
+import { canRenameEntity } from "@/lib/core/permissions"
 import type {
   AccessRole,
   AppUser,
@@ -91,11 +92,6 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
-
-function canRenameEntity(role: AccessRole, entityType: EntityType): boolean {
-  if (entityType === "scenes") return true
-  return role === "admin" || role === "full"
-}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isSystemStatusExpanded, setIsSystemStatusExpanded] = useState(true)
