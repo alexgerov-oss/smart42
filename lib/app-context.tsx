@@ -4,6 +4,8 @@ import { createContext, useContext, useMemo, useState, useEffect, type ReactNode
 import { storage } from "@/lib/core/storage"
 import { getUserOverride, setUserOverride } from "@/lib/core/naming"
 import { canRenameEntity } from "@/lib/core/permissions"
+import { getCurrentUserId } from "@/lib/core/identity"
+import { loadQuickControlsLocked, saveQuickControlsLocked } from "@/lib/core/ui-preferences"
 import { loadDoorsFromStorage, saveDoorsToStorage, canAdminManageDoors, getDefaultDoors } from "@/lib/core/doors"
 import type {
   AccessRole,
@@ -118,12 +120,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const isBlockedFull = isFull && !fullIsActivated
   const canOperateFullRestrictedActions = !isBlockedFull
 
-  const [quickControlsLocked, setQuickControlsLockedState] = useState<boolean>(() =>
-    storage.getBool("quickControlsLocked", false),
-  )
+  const [quickControlsLocked, setQuickControlsLockedState] = useState<boolean>(() => loadQuickControlsLocked())
+    
   const setQuickControlsLocked = (locked: boolean) => {
     setQuickControlsLockedState(locked)
-    storage.setBool("quickControlsLocked", locked)
+    saveQuickControlsLocked(locked)
   }
 
   const [userNamesByRole, setUserNamesByRole] = useState<Record<AccessRole, string>>({
@@ -135,11 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userEmail, setUserEmail] = useState("john.doe@example.com")
 
   // ✅ FIX 1: currentUserId вече е изчисляемо (без setState в useEffect)
-  const currentUserId = useMemo(() => {
-    if (isAdmin) return "admin-1"
-    if (isFull) return "full-1"
-    return "open-close-1"
-  }, [isAdmin, isFull])
+  const currentUserId = useMemo(() => getCurrentUserId(currentUserAccess), [currentUserAccess])
 
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
