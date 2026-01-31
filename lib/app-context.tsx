@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react"
 import { storage } from "@/lib/core/storage"
+import { getUserOverride, setUserOverride } from "@/lib/core/naming"
 import type {
   AccessRole,
   AppUser,
@@ -94,34 +95,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 function canRenameEntity(role: AccessRole, entityType: EntityType): boolean {
   if (entityType === "scenes") return true
   return role === "admin" || role === "full"
-}
-
-function setUserOverride(
-  prev: NameOverrides,
-  userId: string,
-  entityType: EntityType,
-  entityId: string,
-  customName: string,
-): NameOverrides {
-  return {
-    ...prev,
-    [userId]: {
-      ...(prev[userId] || {}),
-      [entityType]: {
-        ...((prev[userId] || {})[entityType] || {}),
-        [entityId]: customName,
-      },
-    },
-  }
-}
-
-function getUserOverride(
-  prev: NameOverrides,
-  userId: string,
-  entityType: EntityType,
-  entityId: string,
-): string | undefined {
-  return prev[userId]?.[entityType]?.[entityId]
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
