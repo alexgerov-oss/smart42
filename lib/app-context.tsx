@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo, useState, useEffect, type ReactNode
 import { storage } from "@/lib/core/storage"
 import { getUserOverride, setUserOverride } from "@/lib/core/naming"
 import { canRenameEntity } from "@/lib/core/permissions"
+import { loadDoorsFromStorage, saveDoorsToStorage, canAdminManageDoors, getDefaultDoors } from "@/lib/core/doors"
 import type {
   AccessRole,
   AppUser,
@@ -165,14 +166,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [sessionPassword, setSessionPassword] = useState<string>("")
 
-  const defaultDoors: Door[] = [
-    { id: "main-door", systemName: "Main door", createdBy: "admin", createdAt: new Date().toISOString() },
-    { id: "second-door", systemName: "Second door", createdBy: "admin", createdAt: new Date().toISOString() },
-  ]
-  const [doors, setDoors] = useState<Door[]>(() => storage.getJSON("doors", defaultDoors))
+  const defaultDoors = useMemo(() => getDefaultDoors(), [])
+  const [doors, setDoors] = useState<Door[]>(() => loadDoorsFromStorage(defaultDoors))
+  
   useEffect(() => {
-    storage.setJSON("doors", doors)
+    saveDoorsToStorage(doors)
   }, [doors])
+
 
   const [nameOverrides, setNameOverrides] = useState<NameOverrides>(() => storage.getJSON("nameOverrides", {}))
   useEffect(() => {
@@ -287,7 +287,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const addDoor = (systemName: string): string | null => {
-    if (!isAdmin) return null
+    if (!canAdminManageDoors(currentUserAccess)) return null
     const newId = `door-${Date.now()}`
     setDoors((prev) => [
       ...prev,
@@ -297,13 +297,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const updateDoor = (id: string, systemName: string): boolean => {
-    if (!isAdmin) return false
+    if (!canAdminManageDoors(currentUserAccess)) return false
     setDoors((prev) => prev.map((door) => (door.id === id ? { ...door, systemName: systemName.trim() } : door)))
     return true
   }
 
   const removeDoor = (id: string) => {
-    if (!isAdmin) return
+    if (!canAdminManageDoors(currentUserAccess)) return
     setDoors((prev) => prev.filter((door) => door.id !== id))
   }
 
