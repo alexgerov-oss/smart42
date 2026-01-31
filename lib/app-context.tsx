@@ -5,6 +5,7 @@ import { storage } from "@/lib/core/storage"
 import { getUserOverride, setUserOverride } from "@/lib/core/naming"
 import { canRenameEntity } from "@/lib/core/permissions"
 import { getCurrentUserId } from "@/lib/core/identity"
+import { validateControllerSerialNumber } from "@/lib/core/validators"
 import { loadQuickControlsLocked, saveQuickControlsLocked } from "@/lib/core/ui-preferences"
 import { loadDoorsFromStorage, saveDoorsToStorage, canAdminManageDoors, getDefaultDoors } from "@/lib/core/doors"
 import type {
@@ -154,14 +155,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [controllers, setControllers] = useState<Controller[]>([])
 
-  const validateSerialNumber = (serial: string): boolean => {
-    const trimmed = serial.trim()
-    if (trimmed.length < 8) return false
-    if (!/^[A-Za-z0-9-]+$/.test(trimmed)) return false
-    return true
-  }
-
-  const [sessionPassword, setSessionPassword] = useState<string>("")
+    const [sessionPassword, setSessionPassword] = useState<string>("")
 
   const defaultDoors = useMemo(() => getDefaultDoors(), [])
   const [doors, setDoors] = useState<Door[]>(() => loadDoorsFromStorage(defaultDoors))
@@ -306,7 +300,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addController = (serialNumber: string, ip?: string): boolean => {
     if (!canOperateFullRestrictedActions) return false
-    if (!validateSerialNumber(serialNumber)) return false
+    if (!validateControllerSerialNumber(serialNumber)) return false
     if (controllers.some((c) => c.serialNumber === serialNumber.trim())) return false
 
     setControllers((prev) => [
@@ -324,7 +318,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateController = (id: string, serialNumber: string, ip?: string): boolean => {
     if (!canOperateFullRestrictedActions) return false
-    if (!validateSerialNumber(serialNumber)) return false
+    if (!validateControllerSerialNumber(serialNumber)) return false
     if (controllers.some((c) => c.id !== id && c.serialNumber === serialNumber.trim())) return false
 
     setControllers((prev) =>
