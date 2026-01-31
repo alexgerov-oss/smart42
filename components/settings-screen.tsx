@@ -1180,7 +1180,7 @@ export default function SettingsScreen({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete iButton</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the iButton "{iButtonToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete the iButton {iButtonToDelete?.name}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1200,7 +1200,7 @@ export default function SettingsScreen({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete App User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the app user "{appUserToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete the app user {appUserToDelete?.name}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

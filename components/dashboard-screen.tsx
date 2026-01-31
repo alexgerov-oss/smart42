@@ -31,14 +31,7 @@ import { useAppContext } from "@/lib/app-context"
 import { getWifiClass, getDoorStatusClass, validateColorTokens } from "@/lib/color-utils"
 import { useToast } from "@/hooks/use-toast"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,10 +69,7 @@ export default function DashboardScreen({
   currentScreen,
 }: DashboardScreenProps) {
   const [doorSensorOpen, setDoorSensorOpen] = useState(false)
-  const [tempDoorName, setTempDoorName] = useState("")
-  const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
-  const [sliderPosition, setSliderPosition] = useState(0)
   const [selectedDoorId, setSelectedDoorId] = useState("main-door")
   const [isAddDoorModalOpen, setIsAddDoorModalOpen] = useState(false)
   const [isEditDoorModalOpen, setIsEditDoorModalOpen] = useState(false)
@@ -109,14 +99,16 @@ export default function DashboardScreen({
   const { toast } = useToast()
   const controller = getActiveController()
 
-  // Get the selected door's system name, then apply local override
-  const selectedDoor = doors.find((d) => d.id === selectedDoorId)
+  // ✅ Always use a valid door id (no setState in useEffect)
+  const activeDoorId =
+    doors.length === 0 ? "" : doors.some((d) => d.id === selectedDoorId) ? selectedDoorId : doors[0].id
+
+  const selectedDoor = doors.find((d) => d.id === activeDoorId)
   const doorSystemName = selectedDoor?.systemName || doorName
-  const displayDoorName = getEntityName("doors", selectedDoorId, doorSystemName)
+  const displayDoorName = getEntityName("doors", activeDoorId, doorSystemName)
 
   const displayUserName = currentUserAccess === "full" ? getFullAccessUserProfile()?.name || userName : userName
 
-  // Permission context for centralized checks
   const permissionContext: PermissionContext = {
     currentUserAccess,
     adminHasActiveSubscription: isPremium || isOnTrial,
@@ -124,28 +116,13 @@ export default function DashboardScreen({
     isTrialExpired: remainingTrialDays !== null && remainingTrialDays === 0,
   }
 
-  // Permission checks
   const canAddDoors = Permissions.canAddDoors(permissionContext)
   const canEditDoors = Permissions.canEditDoors(permissionContext)
   const canDeleteDoors = Permissions.canDeleteDoors(permissionContext)
-  const canRenameDoors = Permissions.canRenameDoors(permissionContext)
 
   useEffect(() => {
     validateColorTokens()
   }, [])
-
-  useEffect(() => {
-    setSliderPosition(doorState === "lock" ? 100 : 0)
-  }, [doorState])
-
-  // Ensure selected door exists, fallback to first door
-  useEffect(() => {
-    if (doors.length > 0 && !doors.find((d) => d.id === selectedDoorId)) {
-      setSelectedDoorId(doors[0].id)
-    }
-  }, [doors, selectedDoorId])
-
-  const getActiveDoorId = () => selectedDoorId || doors[0]?.id
 
   const callDoorAction = async (doorId: string, nextState: "lock" | "unlock") => {
     const res = nextState === "lock" ? await doorActions.lock(doorId) : await doorActions.unlock(doorId)
@@ -162,27 +139,12 @@ export default function DashboardScreen({
     return true
   }
 
-  const handleDoorToggle = async () => {
-    if (!Permissions.canLockUnlockDoors(permissionContext)) return
-
-    const doorId = getActiveDoorId()
-    if (!doorId) return
-
-    const nextState: "lock" | "unlock" = doorState === "lock" ? "unlock" : "lock"
-    const ok = await callDoorAction(doorId, nextState)
-    if (!ok) return
-
-    setDoorState(nextState)
-  }
-
   const handleLabelClick = async (targetState: "lock" | "unlock") => {
     if (!Permissions.canLockUnlockDoors(permissionContext)) return
-
-    const doorId = getActiveDoorId()
-    if (!doorId) return
+    if (!activeDoorId) return
     if (doorState === targetState) return
 
-    const ok = await callDoorAction(doorId, targetState)
+    const ok = await callDoorAction(activeDoorId, targetState)
     if (!ok) return
 
     setDoorState(targetState)
@@ -190,27 +152,19 @@ export default function DashboardScreen({
 
   const handleSliderInteraction = async (clientX: number, rect: DOMRect) => {
     if (!Permissions.canLockUnlockDoors(permissionContext)) return
-
-    const doorId = getActiveDoorId()
-    if (!doorId) return
+    if (!activeDoorId) return
 
     const relativeX = clientX - rect.left
     const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100))
 
     const targetState: "lock" | "unlock" = percentage < 50 ? "lock" : "unlock"
-    const targetPos = targetState === "lock" ? 0 : 100
 
-    // If already in that state, just snap the slider (no API call)
-    if (doorState === targetState) {
-      setSliderPosition(targetPos)
-      return
-    }
+    if (doorState === targetState) return
 
-    const ok = await callDoorAction(doorId, targetState)
+    const ok = await callDoorAction(activeDoorId, targetState)
     if (!ok) return
 
     setDoorState(targetState)
-    setSliderPosition(targetPos)
   }
 
   const handleSliderMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -226,9 +180,7 @@ export default function DashboardScreen({
     }
   }
 
-  const handleSliderMouseUp = () => {
-    setIsDragging(false)
-  }
+  const handleSliderMouseUp = () => setIsDragging(false)
 
   const handleSliderTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     setIsDragging(true)
@@ -245,23 +197,7 @@ export default function DashboardScreen({
     }
   }
 
-  const handleSliderTouchEnd = () => {
-    setIsDragging(false)
-  }
-
-  const handleDoorNameAction = () => {
-    if (!canRenameDoors) return
-
-    if (isEditing) {
-      if (tempDoorName.trim()) {
-        setEntityName("doors", selectedDoorId, tempDoorName)
-      }
-      setIsEditing(false)
-    } else {
-      setIsEditing(true)
-      setTempDoorName(displayDoorName)
-    }
-  }
+  const handleSliderTouchEnd = () => setIsDragging(false)
 
   const handleRestrictedAccess = (tabName: string) => {
     toast({
@@ -312,7 +248,8 @@ export default function DashboardScreen({
 
   const handleEditDoor = () => {
     if (!canEditDoors) return
-    const currentDoor = doors.find((d) => d.id === selectedDoorId)
+    if (!activeDoorId) return
+    const currentDoor = doors.find((d) => d.id === activeDoorId)
     if (currentDoor) {
       setEditDoorName(currentDoor.systemName)
       setIsEditDoorModalOpen(true)
@@ -321,7 +258,8 @@ export default function DashboardScreen({
 
   const handleSaveEditDoor = () => {
     if (!canEditDoors || !editDoorName.trim()) return
-    const success = updateDoor(selectedDoorId, editDoorName.trim())
+    if (!activeDoorId) return
+    const success = updateDoor(activeDoorId, editDoorName.trim())
     if (success) setIsEditDoorModalOpen(false)
   }
 
@@ -333,14 +271,11 @@ export default function DashboardScreen({
 
   const handleDeleteDoor = () => {
     if (!canDeleteDoors) return
-    const filteredDoors = doors.filter((d) => d.id !== selectedDoorId)
-    removeDoor(selectedDoorId)
-    if (filteredDoors.length > 1) {
-      const remaining = filteredDoors.filter((d) => d.id !== selectedDoorId)
-      if (remaining.length > 0) {
-        setSelectedDoorId(remaining[0].id)
-      }
-    }
+    if (!activeDoorId) return
+
+    const remaining = doors.filter((d) => d.id !== activeDoorId)
+    removeDoor(activeDoorId)
+    setSelectedDoorId(remaining[0]?.id ?? "")
     setIsDeleteDoorDialogOpen(false)
   }
 
@@ -390,9 +325,8 @@ export default function DashboardScreen({
       </div>
 
       <div className="flex-1 space-y-4 p-4">
-        {/* Lock/Unlock Main Control */}
         <div className="flex items-center gap-2 mb-2">
-          <Select value={selectedDoorId} onValueChange={setSelectedDoorId}>
+          <Select value={activeDoorId} onValueChange={setSelectedDoorId}>
             <SelectTrigger className="flex-1">
               <SelectValue />
             </SelectTrigger>
@@ -407,13 +341,12 @@ export default function DashboardScreen({
               })}
             </SelectContent>
           </Select>
+
           {canAddDoors && (
             <div className="flex gap-2">
-              {canAddDoors && (
-                <Button onClick={handleAddDoor} variant="outline" size="sm">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              )}
+              <Button onClick={handleAddDoor} variant="outline" size="sm">
+                <Plus className="h-4 w-4" />
+              </Button>
               {canEditDoors && (
                 <Button onClick={handleEditDoor} variant="ghost" size="sm" className="text-blue-500 hover:text-blue-600">
                   <Pencil className="h-4 w-4" />
@@ -425,7 +358,6 @@ export default function DashboardScreen({
 
         <Card className="bg-card border-border p-4 space-y-3 min-h-[140px]">
           <div className="flex flex-col gap-2">
-            {/* Slider control with labels */}
             <div className="flex items-center gap-3">
               <span
                 onClick={() => void handleLabelClick("lock")}
@@ -435,6 +367,7 @@ export default function DashboardScreen({
               >
                 Lock
               </span>
+
               <div
                 className="relative w-24 h-16 bg-black rounded-full cursor-pointer select-none overflow-hidden border-2 border-border"
                 onMouseDown={handleSliderMouseDown}
@@ -452,9 +385,14 @@ export default function DashboardScreen({
                     backgroundColor: doorState === "lock" ? "var(--color-status-lock)" : "var(--color-status-unlock)",
                   }}
                 >
-                  {doorState === "lock" ? <LockIcon className="h-6 w-6 text-white" /> : <LockOpen className="h-6 w-6 text-white" />}
+                  {doorState === "lock" ? (
+                    <LockIcon className="h-6 w-6 text-white" />
+                  ) : (
+                    <LockOpen className="h-6 w-6 text-white" />
+                  )}
                 </div>
               </div>
+
               <span
                 onClick={() => void handleLabelClick("unlock")}
                 className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
@@ -465,9 +403,7 @@ export default function DashboardScreen({
               </span>
             </div>
 
-            {/* Timer and Door state */}
             <div className="flex items-center justify-between min-h-[32px]">
-              {/* Left: Timer */}
               {doorState === "unlock" && autoLockEnabled && countdown !== null && countdown > 0 ? (
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-muted-foreground">Automatic lock</span>
@@ -477,9 +413,12 @@ export default function DashboardScreen({
                 <div></div>
               )}
 
-              {/* Right: Door state */}
               <div>
-                {doorSensorOpen ? <p className="text-sm font-medium text-green-500">Open</p> : <p className="text-sm font-medium">Closed</p>}
+                {doorSensorOpen ? (
+                  <p className="text-sm font-medium text-green-500">Open</p>
+                ) : (
+                  <p className="text-sm font-medium">Closed</p>
+                )}
               </div>
             </div>
           </div>
@@ -664,7 +603,9 @@ export default function DashboardScreen({
           >
             <div className="relative">
               <Activity className="h-6 w-6" />
-              {(!canAccessActivity || !isPremium) && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
+              {(!canAccessActivity || !isPremium) && (
+                <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />
+              )}
             </div>
             <span className="text-xs">Activity</span>
           </button>
@@ -736,9 +677,7 @@ export default function DashboardScreen({
                 onChange={(e) => setNewDoorName(e.target.value)}
                 placeholder="Enter door name"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSaveNewDoor()
-                  }
+                  if (e.key === "Enter") handleSaveNewDoor()
                 }}
               />
             </div>
@@ -768,9 +707,7 @@ export default function DashboardScreen({
                 onChange={(e) => setEditDoorName(e.target.value)}
                 placeholder="Enter door name"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSaveEditDoor()
-                  }
+                  if (e.key === "Enter") handleSaveEditDoor()
                 }}
               />
             </div>

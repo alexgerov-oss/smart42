@@ -1,50 +1,42 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Card } from "@/components/ui/card"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
-export default function PerformanceChart() {
-  const [data, setData] = useState<Array<{ time: string; value: number }>>([])
+type ChartPoint = {
+  time: string
+  value: number
+}
 
-  useEffect(() => {
-    // Generate initial data
-    const initialData = Array.from({ length: 20 }, (_, i) => ({
-      time: `${i}s`,
-      value: Math.floor(Math.random() * 40) + 20,
-    }))
-    setData(initialData)
+const data: ChartPoint[] = [
+  { time: "00:00", value: 28 },
+  { time: "02:00", value: 32 },
+  { time: "04:00", value: 30 },
+  { time: "06:00", value: 35 },
+  { time: "08:00", value: 38 },
+  { time: "10:00", value: 33 },
+  { time: "12:00", value: 36 },
+  { time: "14:00", value: 40 },
+  { time: "16:00", value: 37 },
+  { time: "18:00", value: 34 },
+  { time: "20:00", value: 31 },
+  { time: "22:00", value: 29 },
+]
 
-    // Simulate real-time updates
-    const interval = setInterval(() => {
-      setData((prev) => {
-        const newData = [
-          ...prev.slice(1),
-          {
-            time: `${prev.length}s`,
-            value: Math.floor(Math.random() * 40) + 20,
-          },
-        ]
-        return newData
-      })
-    }, 2000)
-
-    return () => clearInterval(interval)
-  }, [])
-
+export function PerformanceChart() {
   return (
-    <div className="h-40 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <XAxis
-            dataKey="time"
-            stroke="oklch(0.60 0.02 264)"
-            tick={{ fill: "oklch(0.60 0.02 264)", fontSize: 12 }}
-            tickLine={false}
-          />
-          <YAxis stroke="oklch(0.60 0.02 264)" tick={{ fill: "oklch(0.60 0.02 264)", fontSize: 12 }} tickLine={false} />
-          <Line type="monotone" dataKey="value" stroke="oklch(0.65 0.24 195)" strokeWidth={2} dot={false} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <Card className="bg-card border-border p-4">
+      <div className="h-[220px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="time" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="value" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
   )
 }

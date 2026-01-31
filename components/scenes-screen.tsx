@@ -176,7 +176,12 @@ const formatSceneDescription = (scene: Scene): string => {
   return `IF ${conditions} → ${action}`
 }
 
-export default function ScenesScreen({ onNavigate, doorName, isPremium, currentScreen }: ScenesScreenProps) {
+export default function ScenesScreen({
+  onNavigate,
+  doorName: _doorName,
+  isPremium,
+  currentScreen,
+}: ScenesScreenProps) {
   const [isCreatingScene, setIsCreatingScene] = useState(false)
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null)
   const [sceneName, setSceneName] = useState("")
@@ -191,16 +196,9 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
   const canAccessScenes = currentUserAccess === "admin" || currentUserAccess === "full"
   const canAccessSettings = currentUserAccess === "admin" || currentUserAccess === "full"
 
-  const visibleScenes = scenes.filter((scene) => {
-    // Admin sees all scenes (including scenes created by Full Access)
-    if (currentUserAccess === "admin") {
-      return true
-    }
-    // Full access users only see their own scenes (NOT Admin scenes)
-    if (currentUserAccess === "full") {
-      return scene.createdBy === "full"
-    }
-    // Open/Close only sees nothing
+  const visibleScenes = scenes.filter((scene: any) => {
+    if (currentUserAccess === "admin") return true
+    if (currentUserAccess === "full") return scene.createdBy === "full"
     return false
   })
 
@@ -230,9 +228,7 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
   }
 
   const handleSaveScene = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
     if (!sceneName.trim()) {
       setSceneNameError("Scene name is required")
@@ -248,42 +244,44 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
       return
     }
 
+    // eslint-disable-next-line react-hooks/purity
     const sceneId = editingSceneId || Date.now().toString()
 
-    // Adapt WhenCondition from scenes-screen format to app-context format
     const adaptedWhenConditions = whenConditions.map((cond) => {
-      // Map extended types to base types supported by app-context
-      let baseType: "wifi" | "battery" | "cpu-temp" | "cpu-load" | "power-drops" | "latency" | "door-lock" | "door-open" = "wifi"
-      
-      if (["wifi", "battery", "cpu-temp", "cpu-load", "power-drops", "latency", "door-lock", "door-open"].includes(cond.type)) {
+      let baseType:
+        | "wifi"
+        | "battery"
+        | "cpu-temp"
+        | "cpu-load"
+        | "power-drops"
+        | "latency"
+        | "door-lock"
+        | "door-open" = "wifi"
+
+      if (
+        ["wifi", "battery", "cpu-temp", "cpu-load", "power-drops", "latency", "door-lock", "door-open"].includes(
+          cond.type,
+        )
+      ) {
         baseType = cond.type as any
       } else if (cond.type === "door-unlock" || cond.type === "door-closed") {
-        // Map door-unlock and door-closed to door-open for app-context compatibility
         baseType = "door-open"
       } else {
-        // For other types (user-ibutton-created, etc.), default to door-open
         baseType = "door-open"
       }
-      
+
       const adapted: any = {
         type: baseType,
         operator: cond.operator,
         value: cond.value,
         timeWindow: cond.timeWindow,
       }
-      
-      // Handle door events
-      if (cond.type === "door-unlock") {
-        adapted.doorEvent = "unlock"
-      } else if (cond.type === "door-closed") {
-        adapted.doorEvent = "closed"
-      } else if (cond.type === "door-lock") {
-        adapted.doorEvent = "lock"
-      } else if (cond.type === "door-open") {
-        adapted.doorEvent = "open"
-      }
-      
-      // Convert time fields if present
+
+      if (cond.type === "door-unlock") adapted.doorEvent = "unlock"
+      else if (cond.type === "door-closed") adapted.doorEvent = "closed"
+      else if (cond.type === "door-lock") adapted.doorEvent = "lock"
+      else if (cond.type === "door-open") adapted.doorEvent = "open"
+
       if (cond.timeWindow === "between" && cond.timeStartHour) {
         const startHour = Number.parseInt(cond.timeStartHour)
         const startMinute = Number.parseInt(cond.timeStartMinute || "00")
@@ -291,24 +289,23 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
         const endHour = Number.parseInt(cond.timeEndHour || "11")
         const endMinute = Number.parseInt(cond.timeEndMinute || "59")
         const endPeriod = cond.timeEndPeriod || "PM"
-        
-        // Convert to 24-hour format and create time strings
+
         let startHour24 = startHour
         if (startPeriod === "PM" && startHour !== 12) startHour24 += 12
         if (startPeriod === "AM" && startHour === 12) startHour24 = 0
-        
+
         let endHour24 = endHour
         if (endPeriod === "PM" && endHour !== 12) endHour24 += 12
         if (endPeriod === "AM" && endHour === 12) endHour24 = 0
-        
+
         adapted.timeStart = `${String(startHour24).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}`
         adapted.timeEnd = `${String(endHour24).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`
       }
-      
+
       return adapted
     })
 
-    const scene = {
+    const scene: any = {
       id: sceneId,
       name: sceneName,
       active: true,
@@ -320,7 +317,7 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
     setEntityName("scenes", sceneId, sceneName)
 
     if (editingSceneId) {
-      setScenes(scenes.map((s) => (s.id === editingSceneId ? scene : s)) as any)
+      setScenes(scenes.map((s: any) => (s.id === editingSceneId ? scene : s)) as any)
     } else {
       setScenes([...scenes, scene] as any)
     }
@@ -337,10 +334,8 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
     setThenAction({ type: "push", customText: "" })
   }
 
-  const handleEditScene = (scene: Scene) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+  const handleEditScene = (scene: any) => {
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
     if (currentUserAccess === "full" && scene.createdBy !== "full") {
       toast({
@@ -359,11 +354,9 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
   }
 
   const handleToggleScene = (id: string) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
-    const scene = scenes.find((s) => s.id === id)
+    const scene = scenes.find((s: any) => s.id === id)
     if (scene && currentUserAccess === "full" && scene.createdBy !== "full") {
       toast({
         title: "Access Restricted",
@@ -372,15 +365,13 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
       })
       return
     }
-    setScenes(scenes.map((s) => (s.id === id ? { ...s, active: !s.active } : s)))
+    setScenes(scenes.map((s: any) => (s.id === id ? { ...s, active: !s.active } : s)) as any)
   }
 
   const handleDeleteScene = (id: string) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
-    const scene = scenes.find((s) => s.id === id)
+    const scene = scenes.find((s: any) => s.id === id)
     if (scene && currentUserAccess === "full" && scene.createdBy !== "full") {
       toast({
         title: "Access Restricted",
@@ -389,16 +380,14 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
       })
       return
     }
-    setScenes(scenes.filter((s) => s.id !== id))
+    setScenes(scenes.filter((s: any) => s.id !== id) as any)
   }
 
   const isFreeAdmin = currentUserAccess === "admin" && !isPremium
   const canCreateScene = isFreeAdmin ? scenes.length === 0 : true
 
   const handleStartCreatingScene = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
     if (isFreeAdmin && scenes.length >= 1) {
       toast({
@@ -550,7 +539,7 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
             {isFreeAdmin && scenes.length >= 1 && (
               <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>
             )}
-            {visibleScenes.map((scene) => (
+            {visibleScenes.map((scene: any) => (
               <Card key={scene.id} className="border-border">
                 <div className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -852,19 +841,19 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
                             <p className="text-xs font-medium mb-1">Example notification:</p>
                             <div className="space-y-1">
                               <p className="text-xs italic">
-                                Scene 'Night Lock' was created by Admin John Doe • 19/12/2025 21:05
+                                {"Scene 'Night Lock' was created by Admin John Doe • 19/12/2025 21:05"}
                                 <br />
-                                Description: Locks the door automatically every night at 22:00.
+                                {"Description: Locks the door automatically every night at 22:00."}
                               </p>
                               <p className="text-xs italic">
-                                Scene 'Night Lock' was edited by Jane Smith (Full Access) • 20/12/2025 08:12
+                                {"Scene 'Night Lock' was edited by Jane Smith (Full Access) • 20/12/2025 08:12"}
                                 <br />
-                                Description: Locks the door automatically every night at 23:00.
+                                {"Description: Locks the door automatically every night at 23:00."}
                               </p>
                               <p className="text-xs italic">
-                                Scene 'Vacation Mode' was deleted by Admin John Doe • 20/12/2025 10:44
+                                {"Scene 'Vacation Mode' was deleted by Admin John Doe • 20/12/2025 10:44"}
                                 <br />
-                                Description: Disables manual unlocking and sends notifications.
+                                {"Description: Disables manual unlocking and sends notifications."}
                               </p>
                             </div>
                           </div>
@@ -917,10 +906,7 @@ export default function ScenesScreen({ onNavigate, doorName, isPremium, currentS
 
             <div className="space-y-3">
               <Label className="text-sm text-muted-foreground">THEN Action (select one)</Label>
-              <Select
-                value={thenAction.type}
-                onValueChange={(value: any) => setThenAction({ ...thenAction, type: value })}
-              >
+              <Select value={thenAction.type} onValueChange={(value: any) => setThenAction({ ...thenAction, type: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

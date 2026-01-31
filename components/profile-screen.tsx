@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { Screen } from "@/app/page"
 import { useAppContext } from "@/lib/app-context"
 
+type AccessLevel = "admin" | "full" | "open-close" | "none" | string
+
 interface ProfileScreenProps {
   onNavigate: (screen: Screen) => void
   isPremium: boolean
@@ -41,6 +43,9 @@ export default function ProfileScreen({
     getFullAccessUserProfile,
   } = useAppContext()
 
+  // Widen the inferred type so comparisons like === "full" / "open-close" are valid in TS
+  const access = currentUserAccess as AccessLevel
+
   const [isEditingName, setIsEditingName] = useState(false)
   const [isEditingEmail, setIsEditingEmail] = useState(false)
   const [isEditingPassword, setIsEditingPassword] = useState(false)
@@ -61,11 +66,11 @@ export default function ProfileScreen({
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState("")
 
-  const displayName = currentUserAccess === "full" ? getFullAccessUserProfile()?.name || userName : userName
-  const displayEmail = currentUserAccess === "full" ? getFullAccessUserProfile()?.email || userEmail : userEmail
+  const displayName = access === "full" ? getFullAccessUserProfile()?.name || userName : userName
+  const displayEmail = access === "full" ? getFullAccessUserProfile()?.email || userEmail : userEmail
 
   const handleSaveName = () => {
-    if (currentUserAccess === "full") {
+    if (access === "full") {
       setIsEditingName(false)
       setTempName("")
       return
@@ -84,7 +89,7 @@ export default function ProfileScreen({
   }
 
   const handleSaveEmail = () => {
-    if (currentUserAccess === "full") {
+    if (access === "full") {
       setIsEditingEmail(false)
       setTempEmail1("")
       setTempEmail2("")
@@ -163,11 +168,11 @@ export default function ProfileScreen({
   const characterCount = supportMessage.length
   const isMessageValid = characterCount >= 100
 
-  const hasFullAccess = currentUserAccess === "full"
-  const isAdmin = currentUserAccess === "admin"
-  const canAccessScenes = currentUserAccess === "admin" || currentUserAccess === "full"
-  const canAccessSettings = currentUserAccess === "admin" || currentUserAccess === "full"
-  const canAccessSupport = currentUserAccess === "admin"
+  const hasFullAccess = access === "full"
+  const isAdmin = access === "admin"
+  const canAccessScenes = access === "admin" || access === "full"
+  const canAccessSettings = access === "admin" || access === "full"
+  const canAccessSupport = access === "admin"
 
   const getActiveTab = () => {
     if (currentScreen === "dashboard") return "home"
@@ -195,7 +200,7 @@ export default function ProfileScreen({
       </div>
 
       <div className="flex-1 p-4">
-        {currentUserAccess === "admin" ? (
+        {access === "admin" ? (
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="profile" className="flex-1">
@@ -229,35 +234,19 @@ export default function ProfileScreen({
                             <p className="text-xs text-muted-foreground">Valid until: {premiumExpiry}</p>
                           </>
                         )}
-                        {currentUserAccess === "admin" && (
+                        {access === "admin" && (
                           <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
                             <p className="text-xs text-blue-500 leading-relaxed">
                               Admin role: full control over controller, users, iButtons, scenes and system settings.
                             </p>
                           </div>
                         )}
-                        {currentUserAccess === "open-close" && (
-                          <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
-                            <p className="text-xs font-medium text-yellow-500 mb-1">Open/Close only access</p>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              You can lock and unlock the door, but you don't have access to Settings or Scenes.
-                            </p>
-                          </div>
-                        )}
-                        {currentUserAccess === "full" && (
-                          <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
-                            <p className="text-xs font-medium text-green-500 mb-1">Full access account.</p>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              You can control the door, manage scenes, users, and iButtons. Controller management is
-                              restricted to Admin.
-                            </p>
-                          </div>
-                        )}
+                        
                       </div>
                     ) : (
                       <div className="space-y-2">
                         <p className="text-sm text-muted-foreground">Free user</p>
-                        {currentUserAccess === "admin" && (
+                        {access === "admin" && (
                           <div className="mt-2 rounded-lg bg-background border border-border p-3 text-left">
                             <p className="text-xs text-blue-500 leading-relaxed">
                               Admin role: full control over controller, users, iButtons, scenes and system settings.
@@ -630,7 +619,7 @@ export default function ProfileScreen({
                             // Do NOT trigger any focus or layout changes
                           }}
                         >
-                          <SelectTrigger className="w-full [&>span]:data-[placeholder]:text-white">
+                          <SelectTrigger className="w-full [&>span]:data-placeholder:text-white">
                             <SelectValue placeholder="Select an issue category" />
                           </SelectTrigger>
                           <SelectContent>
@@ -691,23 +680,8 @@ export default function ProfileScreen({
                           <p className="text-xs text-muted-foreground">Valid until: {premiumExpiry}</p>
                         </>
                       )}
-                      {currentUserAccess === "open-close" && (
-                        <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
-                          <p className="text-xs font-medium text-yellow-500 mb-1">Open/Close only access</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            You can lock and unlock the door, but you don't have access to Settings or Scenes.
-                          </p>
-                        </div>
-                      )}
-                      {currentUserAccess === "full" && (
-                        <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
-                          <p className="text-xs font-medium text-green-500 mb-1">Full access account.</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            You can control the door, manage scenes, users, and iButtons. Controller management is
-                            restricted to Admin.
-                          </p>
-                        </div>
-                      )}
+                      
+                     
                     </div>
                   ) : (
                     <div className="space-y-2">

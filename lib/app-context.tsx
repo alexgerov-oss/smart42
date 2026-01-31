@@ -115,7 +115,12 @@ function setUserOverride(
   }
 }
 
-function getUserOverride(prev: NameOverrides, userId: string, entityType: EntityType, entityId: string): string | undefined {
+function getUserOverride(
+  prev: NameOverrides,
+  userId: string,
+  entityType: EntityType,
+  entityId: string,
+): string | undefined {
   return prev[userId]?.[entityType]?.[entityId]
 }
 
@@ -159,17 +164,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const userName = userNamesByRole[currentUserAccess]
   const [userEmail, setUserEmail] = useState("john.doe@example.com")
 
-  const [currentUserId, setCurrentUserId] = useState<string>("admin-1")
-  useEffect(() => {
-    if (isAdmin) setCurrentUserId("admin-1")
-    else if (isFull) setCurrentUserId("full-1")
-    else setCurrentUserId("open-close-1")
+  // ✅ FIX 1: currentUserId вече е изчисляемо (без setState в useEffect)
+  const currentUserId = useMemo(() => {
+    if (isAdmin) return "admin-1"
+    if (isFull) return "full-1"
+    return "open-close-1"
   }, [isAdmin, isFull])
 
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
 
-  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
+  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(
+    null,
+  )
 
   const creatorIdentity = useMemo(() => {
     if (isFull && fullAccessProfileByAdmin) {
@@ -217,14 +224,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const [fullAccessAccountCount, setFullAccessAccountCount] = useState(0)
-  useEffect(() => {
-    setFullAccessAccountCount(appUsers.filter((user) => user.access === "full").length)
+  // ✅ FIX 2: fullAccessAccountCount вече е изчисляемо (без setState в useEffect)
+  const fullAccessAccountCount = useMemo(() => {
+    return appUsers.filter((user) => user.access === "full").length
   }, [appUsers])
 
   const canCreateFullAccessAccount = (): boolean => fullAccessAccountCount < 1
   const isFullAccessUserActivated = (): boolean => fullIsActivated
-  const canFullAccessAddUsers = (adminHasActiveSubscription: boolean): boolean => (!isFull ? true : adminHasActiveSubscription)
+  const canFullAccessAddUsers = (adminHasActiveSubscription: boolean): boolean =>
+    !isFull ? true : adminHasActiveSubscription
   const getFullAccessUserProfile = () => fullAccessProfileByAdmin
 
   const updateIButtonUser = (id: string, name: string) => {
@@ -403,11 +411,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (isFull) {
       setAppUsers((prev) =>
-        prev.map((user) => (user.id === "2" ? { ...user, name, ownerDisplayName: name, access: currentUserAccess } : user)),
+        prev.map((user) =>
+          user.id === "2" ? { ...user, name, ownerDisplayName: name, access: currentUserAccess } : user,
+        ),
       )
     }
   }
 
+  // Този ефект реално синхронизира "профилното име" в appUsers.
+  // Без него логиката/данните може да се разминат. Затова оставяме поведението и само изключваме правилото за lint.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const currentName = userNamesByRole[currentUserAccess]
 
@@ -418,12 +431,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else if (isFull) {
       setAppUsers((prev) =>
         prev.map((user) =>
-          user.id === "2" && user.access === "full" ? { ...user, name: currentName, ownerDisplayName: currentName } : user,
+          user.id === "2" && user.access === "full"
+            ? { ...user, name: currentName, ownerDisplayName: currentName }
+            : user,
         ),
       )
     }
   }, [currentUserAccess, userNamesByRole, isAdmin, isFull])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Таймер логика (тук setState в effect е нормално/нужно за брояч). Оставяме поведението 1:1.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!autoLockEnabled) {
       setCountdown(null)
@@ -451,6 +469,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setCountdown(null)
   }, [doorState, autoLockDelay, autoLockEnabled])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!autoNightLockEnabled) return
