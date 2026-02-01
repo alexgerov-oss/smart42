@@ -1,6 +1,7 @@
 // lib/core/storage.ts
 export const storageKeys = {
   doors: "doors",
+  controllers: "smart42:controllers:v1",
   nameOverrides: "nameOverrides",
   quickControlsLocked: "quickControlsLocked",
   trial: "trial",

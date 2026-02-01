@@ -1,56 +1,57 @@
-import { useEffect, useMemo, useState } from "react"
+"use client"
+
+import { useState } from "react"
 import type { AccessRole, Door } from "@/lib/core/types"
-import { canAdminManageDoors, getDefaultDoors, loadDoorsFromStorage, saveDoorsToStorage } from "@/lib/core/doors"
+import { loadDoors, saveDoors } from "@/lib/core/doors-persistence"
 
-export function useDoorsState(params: {
-  currentUserAccess: AccessRole
-}): {
-  doors: Door[]
-  addDoor: (systemName: string) => string | null
-  updateDoor: (id: string, systemName: string) => boolean
-  removeDoor: (id: string) => void
-} {
-  const { currentUserAccess } = params
+export function useDoorsState(opts: { currentUserAccess: AccessRole }) {
+  const { currentUserAccess } = opts
 
-  const defaultDoors = useMemo(() => getDefaultDoors(), [])
-  const [doors, setDoors] = useState<Door[]>(() => loadDoorsFromStorage(defaultDoors))
+  const [doors, _setDoors] = useState<Door[]>(() => loadDoors())
 
-  useEffect(() => {
-    saveDoorsToStorage(doors)
-  }, [doors])
+  const setDoors: React.Dispatch<React.SetStateAction<Door[]>> = (value) => {
+    _setDoors((prev) => {
+      const next = typeof value === "function" ? (value as (p: Door[]) => Door[])(prev) : value
+      saveDoors(next)
+      return next
+    })
+  }
 
   const addDoor = (systemName: string): string | null => {
-    if (!canAdminManageDoors(currentUserAccess)) return null
+    const name = systemName.trim()
+    if (!name) return null
 
-    const trimmed = systemName.trim()
-    if (!trimmed) return null
+    const now = Date.now()
+    const id = `door-${now}`
 
-    const newId = `door-${Date.now()}`
-    setDoors((prev) => [
-      ...prev,
-      {
-        id: newId,
-        systemName: trimmed,
-        createdBy: currentUserAccess,
-        createdAt: new Date().toISOString(),
-      },
-    ])
-    return newId
+    const nextDoor: Door = {
+      id,
+      systemName: name,
+      createdAt: new Date(now).toISOString(),
+      createdBy: currentUserAccess,
+    }
+
+    setDoors((prev) => [...prev, nextDoor])
+    return id
   }
 
   const updateDoor = (id: string, systemName: string): boolean => {
-    if (!canAdminManageDoors(currentUserAccess)) return false
+    const name = systemName.trim()
+    if (!name) return false
 
-    const trimmed = systemName.trim()
-    if (!trimmed) return false
-
-    setDoors((prev) => prev.map((door) => (door.id === id ? { ...door, systemName: trimmed } : door)))
-    return true
+    let changed = false
+    setDoors((prev) =>
+      prev.map((d) => {
+        if (d.id !== id) return d
+        changed = true
+        return { ...d, systemName: name }
+      }),
+    )
+    return changed
   }
 
   const removeDoor = (id: string) => {
-    if (!canAdminManageDoors(currentUserAccess)) return
-    setDoors((prev) => prev.filter((door) => door.id !== id))
+    setDoors((prev) => prev.filter((d) => d.id !== id))
   }
 
   return { doors, addDoor, updateDoor, removeDoor }
