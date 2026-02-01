@@ -39,7 +39,6 @@ interface AppContextType {
 
   scenes: Scene[]
   setScenes: (scenes: Scene[]) => void
-  // ✅ Step 16
   canCreateScene: () => boolean
 
   countdown: number | null
@@ -70,10 +69,10 @@ interface AppContextType {
   setUserEmail: (email: string) => void
 
   iButtonUsers: IButtonUser[]
-  // ✅ Step 17
   canCreateIButtonUser: () => boolean
 
   appUsers: AppUser[]
+  canCreateAppUser: () => boolean
 
   currentUserAccess: AccessRole
   setCurrentUserAccess: (access: AccessRole) => void
@@ -107,7 +106,6 @@ interface AppContextType {
   getEntityName: (entityType: EntityType, entityId: string, defaultName: string) => string
   setEntityName: (entityType: EntityType, entityId: string, customName: string) => void
 
-  // ✅ Step 14 additions
   trialDaysLeft: number
   adminHasActiveSubscription: boolean
 
@@ -122,7 +120,10 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isSystemStatusExpanded, setIsSystemStatusExpanded] = useState(true)
-  const [scenes, setScenes] = useState<Scene[]>([])
+
+  // вътрешен state setter
+  const [scenesState, setScenesState] = useState<Scene[]>([])
+  const scenes = scenesState
 
   const [doorState, setDoorState] = useState<"lock" | "unlock">("lock")
   const [autoLockDelay, setAutoLockDelay] = useState(30)
@@ -135,12 +136,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [nightLockPeriod, setNightLockPeriod] = useState<"AM" | "PM">("PM")
   const [lastNightLockDate, setLastNightLockDate] = useState<string | null>(null)
 
-  // currentUserAccess трябва да е деклариран преди да го ползваме в computed
   const [currentUserAccess, setCurrentUserAccess] = useState<AccessRole>("admin")
   const isAdmin = currentUserAccess === "admin"
   const isFull = currentUserAccess === "full"
+  const isOpenClose = currentUserAccess === "open-close"
 
-  // Trial / Premium (loaded from storage)
+  // Trial / Premium
   const [trial, _setTrial] = useState<TrialState>(() => loadTrial())
   useEffect(() => {
     saveTrial(trial)
@@ -151,14 +152,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     savePremium(premium)
   }, [premium])
 
-  // Step 14 computed values
   const trialDaysLeftValue = useMemo(() => trialDaysLeft(trial), [trial])
   const adminHasActiveSubscription = useMemo(() => {
     return adminHasActiveTrial(currentUserAccess, trial) || adminHasPremium(currentUserAccess, premium)
   }, [currentUserAccess, trial, premium])
 
-  // ✅ Step 16 guard
-  const canCreateScene = () => (adminHasActiveSubscription ? true : scenes.length < 1)
+  // ✅ Scenes: Open/Close няма право. В Free режим -> max 1.
+  const canCreateScene = () => {
+    if (isOpenClose) return false
+    return adminHasActiveSubscription ? true : scenes.length < 1
+  }
+
+  // ✅ setScenes guard (реално налага лимита, без да пипаме UI файлове)
+  const setScenes = (next: Scene[]) => {
+    if (isOpenClose) return
+    if (!adminHasActiveSubscription && next.length > 1) {
+      setScenesState(next.slice(0, 1))
+      return
+    }
+    setScenesState(next)
+  }
 
   const [fullAccessCreatedByAdmin, setFullAccessCreatedByAdmin] = useState(false)
   const fullIsActivated = fullAccessCreatedByAdmin
@@ -184,8 +197,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
 
-  // ✅ Step 17 guard (след като имаме iButtonUsers state)
-  const canCreateIButtonUser = () => (adminHasActiveSubscription ? true : iButtonUsers.length < 1)
+  // ✅ iButtons: само Admin. В Free режим -> max 1.
+  const canCreateIButtonUser = () => {
+    if (!isAdmin) return false
+    return adminHasActiveSubscription ? true : iButtonUsers.length < 1
+  }
+
+  // ✅ App users: може само ако Admin има trial/premium. Open/Close никога.
+  const canCreateAppUser = () => {
+    if (isOpenClose) return false
+    return adminHasActiveSubscription
+  }
 
   const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(
     null,
@@ -221,7 +243,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setNameOverrides((prev) => {
       const updated = setUserOverride(prev, currentUserId, entityType, entityId, customName)
-      storage.setJSON("nameOverrides", updated) // keep "persist immediately"
+      storage.setJSON("nameOverrides", updated)
       return updated
     })
   }
@@ -237,11 +259,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateIButtonUser = (id: string, name: string) => {
     if (!canOperateFullRestrictedActions) return
+    if (isOpenClose) return
     setIButtonUsers((prev) => prev.map((user) => (user.id === id ? { ...user, name } : user)))
   }
 
   const updateAppUser = (id: string, name: string) => {
     if (!canOperateFullRestrictedActions) return
+    if (isOpenClose) return
 
     setAppUsers((prev) =>
       prev.map((user) => {
@@ -260,7 +284,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addIButtonUser = () => {
     if (!canOperateFullRestrictedActions) return `ibutton-blocked-${Date.now()}`
-    // ✅ Step 17 enforcement
     if (!canCreateIButtonUser()) return `ibutton-blocked-${Date.now()}`
 
     const newId = `ibutton-${Date.now()}`
@@ -282,15 +305,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeIButtonUser = (id: string) => {
     if (id === "1") return
     if (!canOperateFullRestrictedActions) return
+    if (isOpenClose) return
     setIButtonUsers((prev) => prev.filter((user) => user.id !== id))
   }
 
   const addAppUser = (name: string, email: string, access: AccessRole) => {
+    if (!canOperateFullRestrictedActions) return
+    if (!canCreateAppUser()) return
+
     if (isAdmin && access === "full") {
       setFullAccessCreatedByAdmin(true)
       setFullAccessProfileByAdmin({ name, email })
     }
-    if (!canOperateFullRestrictedActions) return
 
     const newId = `appuser-${Date.now()}`
     setAppUsers((prev) => [
@@ -312,11 +338,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeAppUser = (id: string) => {
     if (id === "1") return
     if (!canOperateFullRestrictedActions) return
+    if (isOpenClose) return
     setAppUsers((prev) => prev.filter((user) => user.id !== id))
   }
 
   const updateAppUserAccess = (id: string, access: AccessRole) => {
     if (!canOperateFullRestrictedActions) return
+    if (isOpenClose) return
     setAppUsers((prev) => prev.map((user) => (user.id === id ? { ...user, access } : user)))
   }
 
@@ -341,7 +369,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDoors((prev) => prev.filter((door) => door.id !== id))
   }
 
-  // Controllers (fixed)
   const addController = (serialNumber: string, ip?: string): boolean => {
     if (!canOperateFullRestrictedActions) return false
 
@@ -388,6 +415,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleSetUserName = (name: string) => {
     if (!canOperateFullRestrictedActions) return
+    if (isOpenClose) return
 
     setUserNamesByRole((prev) => ({ ...prev, [currentUserAccess]: name }))
 
@@ -509,8 +537,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setNightLockPeriod,
         lastNightLockDate,
         setLastNightLockDate,
+
         quickControlsLocked,
         setQuickControlsLocked,
+
         userName,
         setUserName: handleSetUserName,
         userEmail,
@@ -520,8 +550,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         canCreateIButtonUser,
 
         appUsers,
+        canCreateAppUser,
+
         currentUserAccess,
         setCurrentUserAccess,
+
         updateIButtonUser,
         updateAppUser,
         addIButtonUser,
@@ -529,6 +562,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addAppUser,
         removeAppUser,
         updateAppUserAccess,
+
         controllers,
         addController,
         updateController,
@@ -536,18 +570,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateControllerStatus,
         getActiveController,
         restartController,
+
         sessionPassword,
         setSessionPassword,
+
         doors,
         addDoor,
         updateDoor,
         removeDoor,
+
         currentUserId,
         nameOverrides,
         getEntityName,
         setEntityName,
 
-        // Step 14 exposed values
         trialDaysLeft: trialDaysLeftValue,
         adminHasActiveSubscription,
 
