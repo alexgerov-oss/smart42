@@ -1,36 +1,22 @@
 "use client"
 
-import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
 import { useNameOverrides } from "@/lib/core/name-overrides"
 import { useDoorsState } from "@/lib/core/doors-state"
-import { useControllersState } from "@/lib/core/controllers-state"
-import { canCreateScene as canCreateSceneCore, normalizeNextScenes } from "@/lib/core/scenes-guard"
 
-import type { TrialState } from "@/lib/core/trial"
-import type { PremiumState } from "@/lib/core/premium"
-import { loadTrial, saveTrial, trialDaysLeft, adminHasActiveTrial } from "@/lib/core/trial"
-import { loadPremium, savePremium, adminHasPremium } from "@/lib/core/premium"
+import { useSubscriptionState } from "@/lib/core/subscription-state"
+import { useQuickControlsState } from "@/lib/core/quick-controls-state"
+import { useSessionState } from "@/lib/core/session-state"
+
+import { useScenesState } from "@/lib/core/scenes-state"
+import { useLockState } from "@/lib/core/lock-state"
+import { useProfileState } from "@/lib/core/profile-state"
+
+import { useUsersState } from "@/lib/core/users-state"
+import { useFullAccessState } from "@/lib/core/full-access-state"
+import { useControllersWiring } from "@/lib/core/controllers-wiring"
 
 import { getCurrentUserId } from "@/lib/core/identity"
-import { loadQuickControlsLocked, saveQuickControlsLocked } from "@/lib/core/ui-preferences"
-
-import {
-  canCreateIButtonUser as canCreateIButtonUserCore,
-  canCreateAppUser as canCreateAppUserCore,
-  fullAccessAccountCount as fullAccessAccountCountCore,
-  canCreateFullAccessAccount as canCreateFullAccessAccountCore,
-  updateIButtonUserName as updateIButtonUserNameCore,
-  removeIButtonUser as removeIButtonUserCore,
-  makeIButtonUser as makeIButtonUserCore,
-  appendIButtonUser as appendIButtonUserCore,
-  updateAppUserName as updateAppUserNameCore,
-  makeAppUser as makeAppUserCore,
-  appendAppUser as appendAppUserCore,
-  removeAppUser as removeAppUserCore,
-  updateAppUserAccess as updateAppUserAccessCore,
-} from "@/lib/core/users"
-
-import { useAutoLockCountdown, useAutoNightLock } from "@/lib/core/lock-timers"
 import { createSetUserNameHandler, useProfileSyncToAppUsers } from "@/lib/core/profile-sync"
 
 import type {
@@ -132,246 +118,100 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isSystemStatusExpanded, setIsSystemStatusExpanded] = useState(true)
 
-  // Scenes
-  const [scenesState, setScenesState] = useState<Scene[]>([])
-  const scenes = scenesState
-
-  // Lock state + timers
-  const [doorState, setDoorState] = useState<"lock" | "unlock">("lock")
-  const [autoLockDelay, setAutoLockDelay] = useState(30)
-  const [autoLockEnabled, setAutoLockEnabled] = useState(false)
-  const [countdown, setCountdown] = useState<number | null>(null)
-
-  const [autoNightLockEnabled, setAutoNightLockEnabled] = useState(false)
-  const [nightLockHour, setNightLockHour] = useState("10")
-  const [nightLockMinute, setNightLockMinute] = useState("00")
-  const [nightLockPeriod, setNightLockPeriod] = useState<"AM" | "PM">("PM")
-  const [lastNightLockDate, setLastNightLockDate] = useState<string | null>(null)
-
   // Access
   const [currentUserAccess, setCurrentUserAccess] = useState<AccessRole>("admin")
-  const isAdmin = currentUserAccess === "admin"
-  const isFull = currentUserAccess === "full"
-  const isOpenClose = currentUserAccess === "open-close"
 
-  // Trial / Premium
-  const [trial, _setTrial] = useState<TrialState>(() => loadTrial())
-  useEffect(() => {
-    saveTrial(trial)
-  }, [trial])
-
-  const [premium, _setPremium] = useState<PremiumState>(() => loadPremium())
-  useEffect(() => {
-    savePremium(premium)
-  }, [premium])
-
-  const trialDaysLeftValue = useMemo(() => trialDaysLeft(trial), [trial])
-  const adminHasActiveSubscription = useMemo(() => {
-    return adminHasActiveTrial(currentUserAccess, trial) || adminHasPremium(currentUserAccess, premium)
-  }, [currentUserAccess, trial, premium])
-
-  // Scenes: guard extracted
-  const canCreateScene = () =>
-    canCreateSceneCore({
-      currentUserAccess,
-      adminHasActiveSubscription,
-      scenesCount: scenes.length,
-    })
-
-  const setScenes = (next: Scene[]) => {
-    const normalized = normalizeNextScenes({ currentUserAccess, adminHasActiveSubscription, next })
-    setScenesState(normalized)
-  }
-
-  // Full Access activation gating
-  const [fullAccessCreatedByAdmin, setFullAccessCreatedByAdmin] = useState(false)
-  const fullIsActivated = fullAccessCreatedByAdmin
-  const isBlockedFull = isFull && !fullIsActivated
-  const canOperateFullRestrictedActions = !isBlockedFull
-
-  // UI prefs
-  const [quickControlsLocked, setQuickControlsLockedState] = useState<boolean>(() => loadQuickControlsLocked())
-  const setQuickControlsLocked = (locked: boolean) => {
-    setQuickControlsLockedState(locked)
-    saveQuickControlsLocked(locked)
-  }
-
-  // Profile
-  const [userNamesByRole, setUserNamesByRole] = useState<Record<AccessRole, string>>({
-    admin: "John Doe",
-    full: "Jane Smith",
-    "open-close": "Guest User",
-  })
-  const userName = userNamesByRole[currentUserAccess]
-  const [userEmail, setUserEmail] = useState("john.doe@example.com")
-
-  const currentUserId = useMemo(() => getCurrentUserId(currentUserAccess), [currentUserAccess])
-
-  // Name overrides (rename persistence)
-  const { nameOverrides, getEntityName, setEntityName } = useNameOverrides({
-    currentUserId,
+  // Subscription
+  const { trialDaysLeft: trialDaysLeftValue, adminHasActiveSubscription } = useSubscriptionState({
     currentUserAccess,
   })
 
+  // Profile (no appUsers dependency anymore)
+  const profile = useProfileState({ currentUserAccess })
+
   // Users
-  const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
-  const [appUsers, setAppUsers] = useState<AppUser[]>([])
+  const users = useUsersState({
+    currentUserAccess,
+    adminHasActiveSubscription,
+    canOperate: profile.canOperateFullRestrictedActions,
+    isOpenClose: profile.isOpenClose,
+    creatorIdentity: profile.creatorIdentity,
+    onFullAccessCreatedByAdmin: (p) => {
+      profile.setFullAccessCreatedByAdmin(true)
+      profile.setFullAccessProfileByAdmin(p)
+    },
+    onFullAccessProfileByAdminChange: (p) => {
+      profile.setFullAccessProfileByAdmin(p)
+    },
+  })
 
-  const canCreateIButtonUser = () =>
-    canCreateIButtonUserCore(currentUserAccess, adminHasActiveSubscription, iButtonUsers.length)
-  const canCreateAppUser = () => canCreateAppUserCore(currentUserAccess, adminHasActiveSubscription)
-
-  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
-
-  const creatorIdentity = useMemo(() => {
-    if (isFull && fullAccessProfileByAdmin) {
-      return { name: fullAccessProfileByAdmin.name, email: fullAccessProfileByAdmin.email }
-    }
-    return { name: userName, email: userEmail }
-  }, [isFull, fullAccessProfileByAdmin, userName, userEmail])
-
-  // Profile sync (extracted)
+  // Profile -> AppUsers sync (moved here)
   const setUserNameHandler = useMemo(
     () =>
       createSetUserNameHandler({
-        canOperate: canOperateFullRestrictedActions,
-        isOpenClose,
+        canOperate: profile.canOperateFullRestrictedActions,
+        isOpenClose: profile.isOpenClose,
         currentUserAccess,
-        isAdmin,
-        isFull,
-        setUserNamesByRole,
-        setAppUsers,
+        isAdmin: profile.isAdmin,
+        isFull: profile.isFull,
+        setUserNamesByRole: profile.setUserNamesByRole,
+        setAppUsers: users.setAppUsers,
       }),
     [
-      canOperateFullRestrictedActions,
-      isOpenClose,
+      profile.canOperateFullRestrictedActions,
+      profile.isOpenClose,
       currentUserAccess,
-      isAdmin,
-      isFull,
-      setUserNamesByRole,
-      setAppUsers,
+      profile.isAdmin,
+      profile.isFull,
+      profile.setUserNamesByRole,
+      users.setAppUsers,
     ],
   )
 
   useProfileSyncToAppUsers({
     currentUserAccess,
-    userNamesByRole,
-    isAdmin,
-    isFull,
-    setAppUsers,
+    userNamesByRole: profile.userNamesByRole,
+    isAdmin: profile.isAdmin,
+    isFull: profile.isFull,
+    setAppUsers: users.setAppUsers,
   })
 
-  // Session
-  const [sessionPassword, setSessionPassword] = useState<string>("")
+  // Scenes
+  const { scenes, setScenes, canCreateScene } = useScenesState({
+    currentUserAccess,
+    adminHasActiveSubscription,
+  })
 
-  // Doors (extracted)
+  // Lock/timers
+  const lock = useLockState()
+
+  // UI prefs
+  const { quickControlsLocked, setQuickControlsLocked } = useQuickControlsState()
+
+  // Session
+  const { sessionPassword, setSessionPassword } = useSessionState()
+
+  const currentUserId = useMemo(() => getCurrentUserId(currentUserAccess), [currentUserAccess])
+
+  // Name overrides
+  const { nameOverrides, getEntityName, setEntityName } = useNameOverrides({
+    currentUserId,
+    currentUserAccess,
+  })
+
+  // Doors
   const { doors, addDoor, updateDoor, removeDoor } = useDoorsState({ currentUserAccess })
 
-  // Controllers (extracted)
-  const {
-    controllers,
-    addController,
-    updateController,
-    removeController,
-    updateControllerStatus,
-    getActiveController,
-    restartController,
-  } = useControllersState({ canOperate: canOperateFullRestrictedActions })
+  // Controllers
+  const controllersApi = useControllersWiring({ canOperate: profile.canOperateFullRestrictedActions })
 
   // Full access computed
-  const fullAccessAccountCount = useMemo(() => fullAccessAccountCountCore(appUsers), [appUsers])
-  const canCreateFullAccessAccount = () => canCreateFullAccessAccountCore(appUsers)
-  const isFullAccessUserActivated = (): boolean => fullIsActivated
-  const canFullAccessAddUsers = (): boolean => (!isFull ? true : adminHasActiveSubscription)
-  const getFullAccessUserProfile = () => fullAccessProfileByAdmin
-
-  // Mutations: iButton/app users
-  const updateIButtonUser = (id: string, name: string) => {
-    if (!canOperateFullRestrictedActions) return
-    if (isOpenClose) return
-    setIButtonUsers((prev) => updateIButtonUserNameCore(prev, id, name))
-  }
-
-  const updateAppUser = (id: string, name: string) => {
-    if (!canOperateFullRestrictedActions) return
-    if (isOpenClose) return
-
-    setAppUsers((prev) => {
-      const result = updateAppUserNameCore(prev, { id, name, currentUserAccess })
-      if (result.fullAccessProfileByAdmin) setFullAccessProfileByAdmin(result.fullAccessProfileByAdmin)
-      return result.next
-    })
-  }
-
-  const addIButtonUser = () => {
-    if (!canOperateFullRestrictedActions) return `ibutton-blocked-${Date.now()}`
-    if (!canCreateIButtonUser()) return `ibutton-blocked-${Date.now()}`
-
-    const now = Date.now()
-    const newId = `ibutton-${now}`
-    const newUser = makeIButtonUserCore({
-      id: newId,
-      now,
-      currentUserAccess,
-      creatorName: creatorIdentity.name,
-    })
-
-    setIButtonUsers((prev) => appendIButtonUserCore(prev, newUser))
-    return newId
-  }
-
-  const removeIButtonUser = (id: string) => {
-    if (!canOperateFullRestrictedActions) return
-    if (isOpenClose) return
-    setIButtonUsers((prev) => removeIButtonUserCore(prev, id))
-  }
-
-  const addAppUser = (name: string, email: string, access: AccessRole) => {
-    if (!canOperateFullRestrictedActions) return
-    if (!canCreateAppUser()) return
-
-    if (isAdmin && access === "full") {
-      setFullAccessCreatedByAdmin(true)
-      setFullAccessProfileByAdmin({ name, email })
-    }
-
-    const now = Date.now()
-    const newId = `appuser-${now}`
-    const newUser = makeAppUserCore({
-      id: newId,
-      name,
-      email,
-      access,
-      currentUserAccess,
-      creatorName: creatorIdentity.name,
-    })
-
-    setAppUsers((prev) => appendAppUserCore(prev, newUser))
-  }
-
-  const removeAppUser = (id: string) => {
-    if (!canOperateFullRestrictedActions) return
-    if (isOpenClose) return
-    setAppUsers((prev) => removeAppUserCore(prev, id))
-  }
-
-  const updateAppUserAccess = (id: string, access: AccessRole) => {
-    if (!canOperateFullRestrictedActions) return
-    if (isOpenClose) return
-    setAppUsers((prev) => updateAppUserAccessCore(prev, id, access))
-  }
-
-  // Timers (extracted)
-  useAutoLockCountdown({ autoLockEnabled, doorState, autoLockDelay, setCountdown, setDoorState })
-
-  useAutoNightLock({
-    autoNightLockEnabled,
-    nightLockHour,
-    nightLockMinute,
-    nightLockPeriod,
-    lastNightLockDate,
-    setDoorState,
-    setLastNightLockDate,
+  const fullAccess = useFullAccessState({
+    appUsers: users.appUsers,
+    isFull: profile.isFull,
+    adminHasActiveSubscription,
+    fullIsActivated: profile.fullIsActivated,
+    fullAccessProfileByAdmin: profile.fullAccessProfileByAdmin,
   })
 
   return (
@@ -384,56 +224,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setScenes,
         canCreateScene,
 
-        countdown,
-        doorState,
-        setDoorState,
-        autoLockDelay,
-        setAutoLockDelay,
-        autoLockEnabled,
-        setAutoLockEnabled,
-        autoNightLockEnabled,
-        setAutoNightLockEnabled,
-        nightLockHour,
-        setNightLockHour,
-        nightLockMinute,
-        setNightLockMinute,
-        nightLockPeriod,
-        setNightLockPeriod,
-        lastNightLockDate,
-        setLastNightLockDate,
+        countdown: lock.countdown,
+        doorState: lock.doorState,
+        setDoorState: lock.setDoorState,
+        autoLockDelay: lock.autoLockDelay,
+        setAutoLockDelay: lock.setAutoLockDelay,
+        autoLockEnabled: lock.autoLockEnabled,
+        setAutoLockEnabled: lock.setAutoLockEnabled,
+        autoNightLockEnabled: lock.autoNightLockEnabled,
+        setAutoNightLockEnabled: lock.setAutoNightLockEnabled,
+        nightLockHour: lock.nightLockHour,
+        setNightLockHour: lock.setNightLockHour,
+        nightLockMinute: lock.nightLockMinute,
+        setNightLockMinute: lock.setNightLockMinute,
+        nightLockPeriod: lock.nightLockPeriod,
+        setNightLockPeriod: lock.setNightLockPeriod,
+        lastNightLockDate: lock.lastNightLockDate,
+        setLastNightLockDate: lock.setLastNightLockDate,
 
         quickControlsLocked,
         setQuickControlsLocked,
 
-        userName,
+        userName: profile.userName,
         setUserName: setUserNameHandler,
-        userEmail,
-        setUserEmail,
+        userEmail: profile.userEmail,
+        setUserEmail: profile.setUserEmail,
 
-        iButtonUsers,
-        canCreateIButtonUser,
+        iButtonUsers: users.iButtonUsers,
+        canCreateIButtonUser: users.canCreateIButtonUser,
 
-        appUsers,
-        canCreateAppUser,
+        appUsers: users.appUsers,
+        canCreateAppUser: users.canCreateAppUser,
 
         currentUserAccess,
         setCurrentUserAccess,
 
-        updateIButtonUser,
-        updateAppUser,
-        addIButtonUser,
-        removeIButtonUser,
-        addAppUser,
-        removeAppUser,
-        updateAppUserAccess,
+        updateIButtonUser: users.updateIButtonUser,
+        updateAppUser: users.updateAppUser,
+        addIButtonUser: users.addIButtonUser,
+        removeIButtonUser: users.removeIButtonUser,
+        addAppUser: users.addAppUser,
+        removeAppUser: users.removeAppUser,
+        updateAppUserAccess: users.updateAppUserAccess,
 
-        controllers,
-        addController,
-        updateController,
-        removeController,
-        updateControllerStatus,
-        getActiveController,
-        restartController,
+        controllers: controllersApi.controllers,
+        addController: controllersApi.addController,
+        updateController: controllersApi.updateController,
+        removeController: controllersApi.removeController,
+        updateControllerStatus: controllersApi.updateControllerStatus,
+        getActiveController: controllersApi.getActiveController,
+        restartController: controllersApi.restartController,
 
         sessionPassword,
         setSessionPassword,
@@ -451,11 +291,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         trialDaysLeft: trialDaysLeftValue,
         adminHasActiveSubscription,
 
-        fullAccessAccountCount,
-        canCreateFullAccessAccount,
-        isFullAccessUserActivated,
-        canFullAccessAddUsers,
-        getFullAccessUserProfile,
+        fullAccessAccountCount: fullAccess.fullAccessAccountCount,
+        canCreateFullAccessAccount: fullAccess.canCreateFullAccessAccount,
+        isFullAccessUserActivated: fullAccess.isFullAccessUserActivated,
+        canFullAccessAddUsers: fullAccess.canFullAccessAddUsers,
+        getFullAccessUserProfile: fullAccess.getFullAccessUserProfile,
       }}
     >
       {children}
