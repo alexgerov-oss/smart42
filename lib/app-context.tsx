@@ -4,8 +4,19 @@ import { createContext, useContext, useMemo, useState, useEffect, type ReactNode
 import { storage } from "@/lib/core/storage"
 import { getUserOverride, setUserOverride } from "@/lib/core/naming"
 import { canRenameEntity } from "@/lib/core/permissions"
+import type { TrialState } from "@/lib/core/trial"
+import type { PremiumState } from "@/lib/core/premium"
+import { loadTrial, saveTrial } from "@/lib/core/trial"
+import { loadPremium, savePremium } from "@/lib/core/premium"
 import { getCurrentUserId } from "@/lib/core/identity"
-import { validateControllerSerialNumber } from "@/lib/core/validators"
+import {
+  addControllerCore,
+  updateControllerCore,
+  removeControllerCore,
+  updateControllerStatusCore,
+  getActiveControllerCore,
+  markControllerRestartingCore,
+} from "@/lib/core/controllers"
 import { loadQuickControlsLocked, saveQuickControlsLocked } from "@/lib/core/ui-preferences"
 import { loadDoorsFromStorage, saveDoorsToStorage, canAdminManageDoors, getDefaultDoors } from "@/lib/core/doors"
 import type {
@@ -105,7 +116,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [autoLockDelay, setAutoLockDelay] = useState(30)
   const [autoLockEnabled, setAutoLockEnabled] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
+// Trial / Premium (loaded from storage)
+const [trial, setTrial] = useState<TrialState>(() => loadTrial())
+useEffect(() => {
+  saveTrial(trial)
+}, [trial])
 
+const [premium, setPremium] = useState<PremiumState>(() => loadPremium())
+useEffect(() => {
+  savePremium(premium)
+}, [premium])
   const [autoNightLockEnabled, setAutoNightLockEnabled] = useState(false)
   const [nightLockHour, setNightLockHour] = useState("10")
   const [nightLockMinute, setNightLockMinute] = useState("00")
@@ -122,7 +142,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const canOperateFullRestrictedActions = !isBlockedFull
 
   const [quickControlsLocked, setQuickControlsLockedState] = useState<boolean>(() => loadQuickControlsLocked())
-    
   const setQuickControlsLocked = (locked: boolean) => {
     setQuickControlsLockedState(locked)
     saveQuickControlsLocked(locked)
@@ -136,15 +155,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const userName = userNamesByRole[currentUserAccess]
   const [userEmail, setUserEmail] = useState("john.doe@example.com")
 
-  // ✅ FIX 1: currentUserId вече е изчисляемо (без setState в useEffect)
   const currentUserId = useMemo(() => getCurrentUserId(currentUserAccess), [currentUserAccess])
 
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
 
-  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(
-    null,
-  )
+  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
 
   const creatorIdentity = useMemo(() => {
     if (isFull && fullAccessProfileByAdmin) {
@@ -154,16 +170,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isFull, fullAccessProfileByAdmin, userName, userEmail])
 
   const [controllers, setControllers] = useState<Controller[]>([])
-
-    const [sessionPassword, setSessionPassword] = useState<string>("")
+  const [sessionPassword, setSessionPassword] = useState<string>("")
 
   const defaultDoors = useMemo(() => getDefaultDoors(), [])
   const [doors, setDoors] = useState<Door[]>(() => loadDoorsFromStorage(defaultDoors))
-  
   useEffect(() => {
     saveDoorsToStorage(doors)
   }, [doors])
-
 
   const [nameOverrides, setNameOverrides] = useState<NameOverrides>(() => storage.getJSON("nameOverrides", {}))
   useEffect(() => {
@@ -184,15 +197,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  // ✅ FIX 2: fullAccessAccountCount вече е изчисляемо (без setState в useEffect)
   const fullAccessAccountCount = useMemo(() => {
     return appUsers.filter((user) => user.access === "full").length
   }, [appUsers])
 
   const canCreateFullAccessAccount = (): boolean => fullAccessAccountCount < 1
   const isFullAccessUserActivated = (): boolean => fullIsActivated
-  const canFullAccessAddUsers = (adminHasActiveSubscription: boolean): boolean =>
-    !isFull ? true : adminHasActiveSubscription
+  const canFullAccessAddUsers = (adminHasActiveSubscription: boolean): boolean => (!isFull ? true : adminHasActiveSubscription)
   const getFullAccessUserProfile = () => fullAccessProfileByAdmin
 
   const updateIButtonUser = (id: string, name: string) => {
@@ -298,64 +309,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDoors((prev) => prev.filter((door) => door.id !== id))
   }
 
+  // ✅ Controllers (fixed)
   const addController = (serialNumber: string, ip?: string): boolean => {
     if (!canOperateFullRestrictedActions) return false
-    if (!validateControllerSerialNumber(serialNumber)) return false
-    if (controllers.some((c) => c.serialNumber === serialNumber.trim())) return false
 
-    setControllers((prev) => [
-      ...prev,
-      {
-        id: `controller-${Date.now()}`,
-        serialNumber: serialNumber.trim(),
-        ip: ip?.trim(),
-        status: "online",
-        addedAt: new Date().toISOString(),
-      },
-    ])
+    const result = addControllerCore(controllers, serialNumber, ip)
+    if (!result.ok) return false
+
+    setControllers(result.next)
     return true
   }
 
   const updateController = (id: string, serialNumber: string, ip?: string): boolean => {
     if (!canOperateFullRestrictedActions) return false
-    if (!validateControllerSerialNumber(serialNumber)) return false
-    if (controllers.some((c) => c.id !== id && c.serialNumber === serialNumber.trim())) return false
 
-    setControllers((prev) =>
-      prev.map((controller) =>
-        controller.id === id ? { ...controller, serialNumber: serialNumber.trim(), ip: ip?.trim() } : controller,
-      ),
-    )
+    const result = updateControllerCore(controllers, id, serialNumber, ip)
+    if (!result.ok) return false
+
+    setControllers(result.next)
     return true
   }
 
   const removeController = (id: string) => {
     if (!canOperateFullRestrictedActions) return
-    setControllers((prev) => prev.filter((controller) => controller.id !== id))
+    setControllers((prev) => removeControllerCore(prev, id))
   }
 
   const updateControllerStatus = (id: string, status: "online" | "offline") => {
     if (!canOperateFullRestrictedActions) return
-    setControllers((prev) => prev.map((controller) => (controller.id === id ? { ...controller, status } : controller)))
+    setControllers((prev) => updateControllerStatusCore(prev, id, status))
   }
 
   const getActiveController = (): Controller | null => {
-    return controllers.length > 0 ? controllers[0] : null
+    return getActiveControllerCore(controllers)
   }
 
   const restartController = (id: string) => {
     if (!canOperateFullRestrictedActions) return
 
-    setControllers((prev) =>
-      prev.map((controller) => (controller.id === id ? { ...controller, isRestarting: true } : controller)),
-    )
+    setControllers((prev) => markControllerRestartingCore(prev, id, true))
 
     setTimeout(() => {
-      setControllers((prev) =>
-        prev.map((controller) =>
-          controller.id === id ? { ...controller, isRestarting: false, status: "online" } : controller,
-        ),
-      )
+      setControllers((prev) => updateControllerStatusCore(markControllerRestartingCore(prev, id, false), id, "online"))
     }, 5000)
   }
 
@@ -378,8 +373,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Този ефект реално синхронизира "профилното име" в appUsers.
-  // Без него логиката/данните може да се разминат. Затова оставяме поведението и само изключваме правилото за lint.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const currentName = userNamesByRole[currentUserAccess]
@@ -391,16 +384,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else if (isFull) {
       setAppUsers((prev) =>
         prev.map((user) =>
-          user.id === "2" && user.access === "full"
-            ? { ...user, name: currentName, ownerDisplayName: currentName }
-            : user,
+          user.id === "2" && user.access === "full" ? { ...user, name: currentName, ownerDisplayName: currentName } : user,
         ),
       )
     }
   }, [currentUserAccess, userNamesByRole, isAdmin, isFull])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Таймер логика (тук setState в effect е нормално/нужно за брояч). Оставяме поведението 1:1.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!autoLockEnabled) {
