@@ -22,6 +22,22 @@ import {
 import { loadQuickControlsLocked, saveQuickControlsLocked } from "@/lib/core/ui-preferences"
 import { loadDoorsFromStorage, saveDoorsToStorage, canAdminManageDoors, getDefaultDoors } from "@/lib/core/doors"
 
+import {
+  canCreateIButtonUser as canCreateIButtonUserCore,
+  canCreateAppUser as canCreateAppUserCore,
+  fullAccessAccountCount as fullAccessAccountCountCore,
+  canCreateFullAccessAccount as canCreateFullAccessAccountCore,
+  updateIButtonUserName as updateIButtonUserNameCore,
+  removeIButtonUser as removeIButtonUserCore,
+  makeIButtonUser as makeIButtonUserCore,
+  appendIButtonUser as appendIButtonUserCore,
+  updateAppUserName as updateAppUserNameCore,
+  makeAppUser as makeAppUserCore,
+  appendAppUser as appendAppUserCore,
+  removeAppUser as removeAppUserCore,
+  updateAppUserAccess as updateAppUserAccessCore,
+} from "@/lib/core/users"
+
 import type {
   AccessRole,
   AppUser,
@@ -121,7 +137,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isSystemStatusExpanded, setIsSystemStatusExpanded] = useState(true)
 
-  // вътрешен state setter
+  // scenes (guarded)
   const [scenesState, setScenesState] = useState<Scene[]>([])
   const scenes = scenesState
 
@@ -157,13 +173,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return adminHasActiveTrial(currentUserAccess, trial) || adminHasPremium(currentUserAccess, premium)
   }, [currentUserAccess, trial, premium])
 
-  // ✅ Scenes: Open/Close няма право. В Free режим -> max 1.
+  // Scenes: Open/Close няма право. Free -> max 1.
   const canCreateScene = () => {
     if (isOpenClose) return false
     return adminHasActiveSubscription ? true : scenes.length < 1
   }
 
-  // ✅ setScenes guard (реално налага лимита, без да пипаме UI файлове)
   const setScenes = (next: Scene[]) => {
     if (isOpenClose) return
     if (!adminHasActiveSubscription && next.length > 1) {
@@ -197,21 +212,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
 
-  // ✅ iButtons: само Admin. В Free режим -> max 1.
-  const canCreateIButtonUser = () => {
-    if (!isAdmin) return false
-    return adminHasActiveSubscription ? true : iButtonUsers.length < 1
-  }
+  // ✅ now driven by core/users.ts
+  const canCreateIButtonUser = () => canCreateIButtonUserCore(currentUserAccess, adminHasActiveSubscription, iButtonUsers.length)
+  const canCreateAppUser = () => canCreateAppUserCore(currentUserAccess, adminHasActiveSubscription)
 
-  // ✅ App users: може само ако Admin има trial/premium. Open/Close никога.
-  const canCreateAppUser = () => {
-    if (isOpenClose) return false
-    return adminHasActiveSubscription
-  }
-
-  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(
-    null,
-  )
+  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
 
   const creatorIdentity = useMemo(() => {
     if (isFull && fullAccessProfileByAdmin) {
@@ -248,11 +253,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const fullAccessAccountCount = useMemo(() => {
-    return appUsers.filter((user) => user.access === "full").length
-  }, [appUsers])
-
-  const canCreateFullAccessAccount = (): boolean => fullAccessAccountCount < 1
+  const fullAccessAccountCount = useMemo(() => fullAccessAccountCountCore(appUsers), [appUsers])
+  const canCreateFullAccessAccount = () => canCreateFullAccessAccountCore(appUsers)
   const isFullAccessUserActivated = (): boolean => fullIsActivated
   const canFullAccessAddUsers = (): boolean => (!isFull ? true : adminHasActiveSubscription)
   const getFullAccessUserProfile = () => fullAccessProfileByAdmin
@@ -260,53 +262,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateIButtonUser = (id: string, name: string) => {
     if (!canOperateFullRestrictedActions) return
     if (isOpenClose) return
-    setIButtonUsers((prev) => prev.map((user) => (user.id === id ? { ...user, name } : user)))
+    setIButtonUsers((prev) => updateIButtonUserNameCore(prev, id, name))
   }
 
   const updateAppUser = (id: string, name: string) => {
     if (!canOperateFullRestrictedActions) return
     if (isOpenClose) return
 
-    setAppUsers((prev) =>
-      prev.map((user) => {
-        if (user.id !== id) return user
-
-        if (isAdmin && id === "2") {
-          const fullAccessUser = prev.find((u) => u.id === "2")
-          if (fullAccessUser) setFullAccessProfileByAdmin({ name, email: fullAccessUser.email || "" })
-          return { ...user, name, adminOverrideName: name }
-        }
-
-        return { ...user, name }
-      }),
-    )
+    setAppUsers((prev) => {
+      const result = updateAppUserNameCore(prev, { id, name, currentUserAccess })
+      if (result.fullAccessProfileByAdmin) setFullAccessProfileByAdmin(result.fullAccessProfileByAdmin)
+      return result.next
+    })
   }
 
   const addIButtonUser = () => {
     if (!canOperateFullRestrictedActions) return `ibutton-blocked-${Date.now()}`
     if (!canCreateIButtonUser()) return `ibutton-blocked-${Date.now()}`
 
-    const newId = `ibutton-${Date.now()}`
-    setIButtonUsers((prev) => [
-      ...prev,
-      {
-        id: newId,
-        name: "New iButton",
-        chipId: `CHIP${Date.now()}`,
-        createdBy: currentUserAccess,
-        createdByName: creatorIdentity.name,
-        createdByRole: currentUserAccess,
-        createdAt: new Date().toISOString(),
-      },
-    ])
+    const now = Date.now()
+    const newId = `ibutton-${now}`
+    const newUser = makeIButtonUserCore({
+      id: newId,
+      now,
+      currentUserAccess,
+      creatorName: creatorIdentity.name,
+    })
+
+    setIButtonUsers((prev) => appendIButtonUserCore(prev, newUser))
     return newId
   }
 
   const removeIButtonUser = (id: string) => {
-    if (id === "1") return
     if (!canOperateFullRestrictedActions) return
     if (isOpenClose) return
-    setIButtonUsers((prev) => prev.filter((user) => user.id !== id))
+    setIButtonUsers((prev) => removeIButtonUserCore(prev, id))
   }
 
   const addAppUser = (name: string, email: string, access: AccessRole) => {
@@ -318,34 +308,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setFullAccessProfileByAdmin({ name, email })
     }
 
-    const newId = `appuser-${Date.now()}`
-    setAppUsers((prev) => [
-      ...prev,
-      {
-        id: newId,
-        name,
-        email,
-        status: "invited",
-        access,
-        createdBy: currentUserAccess,
-        createdByName: creatorIdentity.name,
-        createdByRole: currentUserAccess,
-        createdAt: new Date().toISOString(),
-      },
-    ])
+    const now = Date.now()
+    const newId = `appuser-${now}`
+    const newUser = makeAppUserCore({
+      id: newId,
+      name,
+      email,
+      access,
+      currentUserAccess,
+      creatorName: creatorIdentity.name,
+    })
+
+    setAppUsers((prev) => appendAppUserCore(prev, newUser))
   }
 
   const removeAppUser = (id: string) => {
-    if (id === "1") return
     if (!canOperateFullRestrictedActions) return
     if (isOpenClose) return
-    setAppUsers((prev) => prev.filter((user) => user.id !== id))
+    setAppUsers((prev) => removeAppUserCore(prev, id))
   }
 
   const updateAppUserAccess = (id: string, access: AccessRole) => {
     if (!canOperateFullRestrictedActions) return
     if (isOpenClose) return
-    setAppUsers((prev) => prev.map((user) => (user.id === id ? { ...user, access } : user)))
+    setAppUsers((prev) => updateAppUserAccessCore(prev, id, access))
+  }
+
+  // Controllers
+  const addController = (serialNumber: string, ip?: string): boolean => {
+    if (!canOperateFullRestrictedActions) return false
+    const result = addControllerCore(controllers, serialNumber, ip)
+    if (!result.ok) return false
+    setControllers(result.next)
+    return true
+  }
+
+  const updateController = (id: string, serialNumber: string, ip?: string): boolean => {
+    if (!canOperateFullRestrictedActions) return false
+    const result = updateControllerCore(controllers, id, serialNumber, ip)
+    if (!result.ok) return false
+    setControllers(result.next)
+    return true
+  }
+
+  const removeController = (id: string) => {
+    if (!canOperateFullRestrictedActions) return
+    setControllers((prev) => removeControllerCore(prev, id))
+  }
+
+  const updateControllerStatus = (id: string, status: "online" | "offline") => {
+    if (!canOperateFullRestrictedActions) return
+    setControllers((prev) => updateControllerStatusCore(prev, id, status))
+  }
+
+  const getActiveController = (): Controller | null => getActiveControllerCore(controllers)
+
+  const restartController = (id: string) => {
+    if (!canOperateFullRestrictedActions) return
+    setControllers((prev) => markControllerRestartingCore(prev, id, true))
+    setTimeout(() => {
+      setControllers((prev) => updateControllerStatusCore(markControllerRestartingCore(prev, id, false), id, "online"))
+    }, 5000)
   }
 
   const addDoor = (systemName: string): string | null => {
@@ -369,50 +392,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDoors((prev) => prev.filter((door) => door.id !== id))
   }
 
-  const addController = (serialNumber: string, ip?: string): boolean => {
-    if (!canOperateFullRestrictedActions) return false
-
-    const result = addControllerCore(controllers, serialNumber, ip)
-    if (!result.ok) return false
-
-    setControllers(result.next)
-    return true
-  }
-
-  const updateController = (id: string, serialNumber: string, ip?: string): boolean => {
-    if (!canOperateFullRestrictedActions) return false
-
-    const result = updateControllerCore(controllers, id, serialNumber, ip)
-    if (!result.ok) return false
-
-    setControllers(result.next)
-    return true
-  }
-
-  const removeController = (id: string) => {
-    if (!canOperateFullRestrictedActions) return
-    setControllers((prev) => removeControllerCore(prev, id))
-  }
-
-  const updateControllerStatus = (id: string, status: "online" | "offline") => {
-    if (!canOperateFullRestrictedActions) return
-    setControllers((prev) => updateControllerStatusCore(prev, id, status))
-  }
-
-  const getActiveController = (): Controller | null => {
-    return getActiveControllerCore(controllers)
-  }
-
-  const restartController = (id: string) => {
-    if (!canOperateFullRestrictedActions) return
-
-    setControllers((prev) => markControllerRestartingCore(prev, id, true))
-
-    setTimeout(() => {
-      setControllers((prev) => updateControllerStatusCore(markControllerRestartingCore(prev, id, false), id, "online"))
-    }, 5000)
-  }
-
   const handleSetUserName = (name: string) => {
     if (!canOperateFullRestrictedActions) return
     if (isOpenClose) return
@@ -426,9 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (isFull) {
       setAppUsers((prev) =>
-        prev.map((user) =>
-          user.id === "2" ? { ...user, name, ownerDisplayName: name, access: currentUserAccess } : user,
-        ),
+        prev.map((user) => (user.id === "2" ? { ...user, name, ownerDisplayName: name, access: currentUserAccess } : user)),
       )
     }
   }
@@ -466,7 +443,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const interval = setInterval(() => {
         setCountdown((prev) => {
           if (prev === null || prev <= 0) return null
-
           const newCount = prev - 1
           if (newCount <= 0) {
             setDoorState("lock")
