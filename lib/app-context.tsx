@@ -1,9 +1,10 @@
 "use client"
 
 import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react"
-import { storage } from "@/lib/core/storage"
-import { getUserOverride, setUserOverride } from "@/lib/core/naming"
-import { canRenameEntity } from "@/lib/core/permissions"
+import { useNameOverrides } from "@/lib/core/name-overrides"
+import { useDoorsState } from "@/lib/core/doors-state"
+import { useControllersState } from "@/lib/core/controllers-state"
+import { canCreateScene as canCreateSceneCore, normalizeNextScenes } from "@/lib/core/scenes-guard"
 
 import type { TrialState } from "@/lib/core/trial"
 import type { PremiumState } from "@/lib/core/premium"
@@ -11,16 +12,7 @@ import { loadTrial, saveTrial, trialDaysLeft, adminHasActiveTrial } from "@/lib/
 import { loadPremium, savePremium, adminHasPremium } from "@/lib/core/premium"
 
 import { getCurrentUserId } from "@/lib/core/identity"
-import {
-  addControllerCore,
-  updateControllerCore,
-  removeControllerCore,
-  updateControllerStatusCore,
-  getActiveControllerCore,
-  markControllerRestartingCore,
-} from "@/lib/core/controllers"
 import { loadQuickControlsLocked, saveQuickControlsLocked } from "@/lib/core/ui-preferences"
-import { loadDoorsFromStorage, saveDoorsToStorage, canAdminManageDoors, getDefaultDoors } from "@/lib/core/doors"
 
 import {
   canCreateIButtonUser as canCreateIButtonUserCore,
@@ -37,6 +29,9 @@ import {
   removeAppUser as removeAppUserCore,
   updateAppUserAccess as updateAppUserAccessCore,
 } from "@/lib/core/users"
+
+import { useAutoLockCountdown, useAutoNightLock } from "@/lib/core/lock-timers"
+import { createSetUserNameHandler, useProfileSyncToAppUsers } from "@/lib/core/profile-sync"
 
 import type {
   AccessRole,
@@ -137,10 +132,11 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isSystemStatusExpanded, setIsSystemStatusExpanded] = useState(true)
 
-  // scenes (guarded)
+  // Scenes
   const [scenesState, setScenesState] = useState<Scene[]>([])
   const scenes = scenesState
 
+  // Lock state + timers
   const [doorState, setDoorState] = useState<"lock" | "unlock">("lock")
   const [autoLockDelay, setAutoLockDelay] = useState(30)
   const [autoLockEnabled, setAutoLockEnabled] = useState(false)
@@ -152,6 +148,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [nightLockPeriod, setNightLockPeriod] = useState<"AM" | "PM">("PM")
   const [lastNightLockDate, setLastNightLockDate] = useState<string | null>(null)
 
+  // Access
   const [currentUserAccess, setCurrentUserAccess] = useState<AccessRole>("admin")
   const isAdmin = currentUserAccess === "admin"
   const isFull = currentUserAccess === "full"
@@ -173,32 +170,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return adminHasActiveTrial(currentUserAccess, trial) || adminHasPremium(currentUserAccess, premium)
   }, [currentUserAccess, trial, premium])
 
-  // Scenes: Open/Close няма право. Free -> max 1.
-  const canCreateScene = () => {
-    if (isOpenClose) return false
-    return adminHasActiveSubscription ? true : scenes.length < 1
-  }
+  // Scenes: guard extracted
+  const canCreateScene = () =>
+    canCreateSceneCore({
+      currentUserAccess,
+      adminHasActiveSubscription,
+      scenesCount: scenes.length,
+    })
 
   const setScenes = (next: Scene[]) => {
-    if (isOpenClose) return
-    if (!adminHasActiveSubscription && next.length > 1) {
-      setScenesState(next.slice(0, 1))
-      return
-    }
-    setScenesState(next)
+    const normalized = normalizeNextScenes({ currentUserAccess, adminHasActiveSubscription, next })
+    setScenesState(normalized)
   }
 
+  // Full Access activation gating
   const [fullAccessCreatedByAdmin, setFullAccessCreatedByAdmin] = useState(false)
   const fullIsActivated = fullAccessCreatedByAdmin
   const isBlockedFull = isFull && !fullIsActivated
   const canOperateFullRestrictedActions = !isBlockedFull
 
+  // UI prefs
   const [quickControlsLocked, setQuickControlsLockedState] = useState<boolean>(() => loadQuickControlsLocked())
   const setQuickControlsLocked = (locked: boolean) => {
     setQuickControlsLockedState(locked)
     saveQuickControlsLocked(locked)
   }
 
+  // Profile
   const [userNamesByRole, setUserNamesByRole] = useState<Record<AccessRole, string>>({
     admin: "John Doe",
     full: "Jane Smith",
@@ -209,11 +207,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const currentUserId = useMemo(() => getCurrentUserId(currentUserAccess), [currentUserAccess])
 
+  // Name overrides (rename persistence)
+  const { nameOverrides, getEntityName, setEntityName } = useNameOverrides({
+    currentUserId,
+    currentUserAccess,
+  })
+
+  // Users
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
 
-  // ✅ now driven by core/users.ts
-  const canCreateIButtonUser = () => canCreateIButtonUserCore(currentUserAccess, adminHasActiveSubscription, iButtonUsers.length)
+  const canCreateIButtonUser = () =>
+    canCreateIButtonUserCore(currentUserAccess, adminHasActiveSubscription, iButtonUsers.length)
   const canCreateAppUser = () => canCreateAppUserCore(currentUserAccess, adminHasActiveSubscription)
 
   const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
@@ -225,40 +230,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { name: userName, email: userEmail }
   }, [isFull, fullAccessProfileByAdmin, userName, userEmail])
 
-  const [controllers, setControllers] = useState<Controller[]>([])
+  // Profile sync (extracted)
+  const setUserNameHandler = useMemo(
+    () =>
+      createSetUserNameHandler({
+        canOperate: canOperateFullRestrictedActions,
+        isOpenClose,
+        currentUserAccess,
+        isAdmin,
+        isFull,
+        setUserNamesByRole,
+        setAppUsers,
+      }),
+    [
+      canOperateFullRestrictedActions,
+      isOpenClose,
+      currentUserAccess,
+      isAdmin,
+      isFull,
+      setUserNamesByRole,
+      setAppUsers,
+    ],
+  )
+
+  useProfileSyncToAppUsers({
+    currentUserAccess,
+    userNamesByRole,
+    isAdmin,
+    isFull,
+    setAppUsers,
+  })
+
+  // Session
   const [sessionPassword, setSessionPassword] = useState<string>("")
 
-  const defaultDoors = useMemo(() => getDefaultDoors(), [])
-  const [doors, setDoors] = useState<Door[]>(() => loadDoorsFromStorage(defaultDoors))
-  useEffect(() => {
-    saveDoorsToStorage(doors)
-  }, [doors])
+  // Doors (extracted)
+  const { doors, addDoor, updateDoor, removeDoor } = useDoorsState({ currentUserAccess })
 
-  const [nameOverrides, setNameOverrides] = useState<NameOverrides>(() => storage.getJSON("nameOverrides", {}))
-  useEffect(() => {
-    storage.setJSON("nameOverrides", nameOverrides)
-  }, [nameOverrides])
+  // Controllers (extracted)
+  const {
+    controllers,
+    addController,
+    updateController,
+    removeController,
+    updateControllerStatus,
+    getActiveController,
+    restartController,
+  } = useControllersState({ canOperate: canOperateFullRestrictedActions })
 
-  const getEntityName = (entityType: EntityType, entityId: string, defaultName: string): string => {
-    return getUserOverride(nameOverrides, currentUserId, entityType, entityId) ?? defaultName
-  }
-
-  const setEntityName = (entityType: EntityType, entityId: string, customName: string) => {
-    if (!canRenameEntity(currentUserAccess, entityType)) return
-
-    setNameOverrides((prev) => {
-      const updated = setUserOverride(prev, currentUserId, entityType, entityId, customName)
-      storage.setJSON("nameOverrides", updated)
-      return updated
-    })
-  }
-
+  // Full access computed
   const fullAccessAccountCount = useMemo(() => fullAccessAccountCountCore(appUsers), [appUsers])
   const canCreateFullAccessAccount = () => canCreateFullAccessAccountCore(appUsers)
   const isFullAccessUserActivated = (): boolean => fullIsActivated
   const canFullAccessAddUsers = (): boolean => (!isFull ? true : adminHasActiveSubscription)
   const getFullAccessUserProfile = () => fullAccessProfileByAdmin
 
+  // Mutations: iButton/app users
   const updateIButtonUser = (id: string, name: string) => {
     if (!canOperateFullRestrictedActions) return
     if (isOpenClose) return
@@ -334,157 +361,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAppUsers((prev) => updateAppUserAccessCore(prev, id, access))
   }
 
-  // Controllers
-  const addController = (serialNumber: string, ip?: string): boolean => {
-    if (!canOperateFullRestrictedActions) return false
-    const result = addControllerCore(controllers, serialNumber, ip)
-    if (!result.ok) return false
-    setControllers(result.next)
-    return true
-  }
+  // Timers (extracted)
+  useAutoLockCountdown({ autoLockEnabled, doorState, autoLockDelay, setCountdown, setDoorState })
 
-  const updateController = (id: string, serialNumber: string, ip?: string): boolean => {
-    if (!canOperateFullRestrictedActions) return false
-    const result = updateControllerCore(controllers, id, serialNumber, ip)
-    if (!result.ok) return false
-    setControllers(result.next)
-    return true
-  }
-
-  const removeController = (id: string) => {
-    if (!canOperateFullRestrictedActions) return
-    setControllers((prev) => removeControllerCore(prev, id))
-  }
-
-  const updateControllerStatus = (id: string, status: "online" | "offline") => {
-    if (!canOperateFullRestrictedActions) return
-    setControllers((prev) => updateControllerStatusCore(prev, id, status))
-  }
-
-  const getActiveController = (): Controller | null => getActiveControllerCore(controllers)
-
-  const restartController = (id: string) => {
-    if (!canOperateFullRestrictedActions) return
-    setControllers((prev) => markControllerRestartingCore(prev, id, true))
-    setTimeout(() => {
-      setControllers((prev) => updateControllerStatusCore(markControllerRestartingCore(prev, id, false), id, "online"))
-    }, 5000)
-  }
-
-  const addDoor = (systemName: string): string | null => {
-    if (!canAdminManageDoors(currentUserAccess)) return null
-    const newId = `door-${Date.now()}`
-    setDoors((prev) => [
-      ...prev,
-      { id: newId, systemName: systemName.trim(), createdBy: currentUserAccess, createdAt: new Date().toISOString() },
-    ])
-    return newId
-  }
-
-  const updateDoor = (id: string, systemName: string): boolean => {
-    if (!canAdminManageDoors(currentUserAccess)) return false
-    setDoors((prev) => prev.map((door) => (door.id === id ? { ...door, systemName: systemName.trim() } : door)))
-    return true
-  }
-
-  const removeDoor = (id: string) => {
-    if (!canAdminManageDoors(currentUserAccess)) return
-    setDoors((prev) => prev.filter((door) => door.id !== id))
-  }
-
-  const handleSetUserName = (name: string) => {
-    if (!canOperateFullRestrictedActions) return
-    if (isOpenClose) return
-
-    setUserNamesByRole((prev) => ({ ...prev, [currentUserAccess]: name }))
-
-    if (isAdmin) {
-      setAppUsers((prev) => prev.map((user) => (user.id === "1" ? { ...user, name } : user)))
-      return
-    }
-
-    if (isFull) {
-      setAppUsers((prev) =>
-        prev.map((user) => (user.id === "2" ? { ...user, name, ownerDisplayName: name, access: currentUserAccess } : user)),
-      )
-    }
-  }
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    const currentName = userNamesByRole[currentUserAccess]
-
-    if (isAdmin) {
-      setAppUsers((prev) =>
-        prev.map((user) => (user.id === "1" ? { ...user, name: currentName, access: currentUserAccess } : user)),
-      )
-    } else if (isFull) {
-      setAppUsers((prev) =>
-        prev.map((user) =>
-          user.id === "2" && user.access === "full"
-            ? { ...user, name: currentName, ownerDisplayName: currentName }
-            : user,
-        ),
-      )
-    }
-  }, [currentUserAccess, userNamesByRole, isAdmin, isFull])
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!autoLockEnabled) {
-      setCountdown(null)
-      return
-    }
-
-    if (doorState === "unlock" && autoLockEnabled) {
-      setCountdown(autoLockDelay)
-
-      const interval = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev === null || prev <= 0) return null
-          const newCount = prev - 1
-          if (newCount <= 0) {
-            setDoorState("lock")
-            return null
-          }
-          return newCount
-        })
-      }, 1000)
-
-      return () => clearInterval(interval)
-    }
-
-    setCountdown(null)
-  }, [doorState, autoLockDelay, autoLockEnabled])
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  useEffect(() => {
-    if (!autoNightLockEnabled) return
-
-    const checkNightLock = () => {
-      const now = new Date()
-      const currentDate = now.toDateString()
-
-      let targetHour = Number.parseInt(nightLockHour)
-      if (nightLockPeriod === "PM" && targetHour !== 12) targetHour += 12
-      else if (nightLockPeriod === "AM" && targetHour === 12) targetHour = 0
-
-      const currentHour = now.getHours()
-      const currentMinute = now.getMinutes()
-      const targetMinute = Number.parseInt(nightLockMinute)
-
-      if (currentHour === targetHour && currentMinute === targetMinute) {
-        setDoorState("lock")
-        setLastNightLockDate(currentDate)
-      }
-    }
-
-    const interval = setInterval(checkNightLock, 30000)
-    checkNightLock()
-
-    return () => clearInterval(interval)
-  }, [autoNightLockEnabled, nightLockHour, nightLockMinute, nightLockPeriod, lastNightLockDate])
+  useAutoNightLock({
+    autoNightLockEnabled,
+    nightLockHour,
+    nightLockMinute,
+    nightLockPeriod,
+    lastNightLockDate,
+    setDoorState,
+    setLastNightLockDate,
+  })
 
   return (
     <AppContext.Provider
@@ -518,7 +406,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setQuickControlsLocked,
 
         userName,
-        setUserName: handleSetUserName,
+        setUserName: setUserNameHandler,
         userEmail,
         setUserEmail,
 
