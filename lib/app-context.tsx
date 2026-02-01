@@ -4,10 +4,12 @@ import { createContext, useContext, useMemo, useState, useEffect, type ReactNode
 import { storage } from "@/lib/core/storage"
 import { getUserOverride, setUserOverride } from "@/lib/core/naming"
 import { canRenameEntity } from "@/lib/core/permissions"
+
 import type { TrialState } from "@/lib/core/trial"
 import type { PremiumState } from "@/lib/core/premium"
-import { loadTrial, saveTrial } from "@/lib/core/trial"
-import { loadPremium, savePremium } from "@/lib/core/premium"
+import { loadTrial, saveTrial, trialDaysLeft, adminHasActiveTrial } from "@/lib/core/trial"
+import { loadPremium, savePremium, adminHasPremium } from "@/lib/core/premium"
+
 import { getCurrentUserId } from "@/lib/core/identity"
 import {
   addControllerCore,
@@ -19,6 +21,7 @@ import {
 } from "@/lib/core/controllers"
 import { loadQuickControlsLocked, saveQuickControlsLocked } from "@/lib/core/ui-preferences"
 import { loadDoorsFromStorage, saveDoorsToStorage, canAdminManageDoors, getDefaultDoors } from "@/lib/core/doors"
+
 import type {
   AccessRole,
   AppUser,
@@ -99,6 +102,10 @@ interface AppContextType {
   getEntityName: (entityType: EntityType, entityId: string, defaultName: string) => string
   setEntityName: (entityType: EntityType, entityId: string, customName: string) => void
 
+  // ✅ Step 14 additions
+  trialDaysLeft: number
+  adminHasActiveSubscription: boolean
+
   fullAccessAccountCount: number
   canCreateFullAccessAccount: () => boolean
   isFullAccessUserActivated: () => boolean
@@ -116,25 +123,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [autoLockDelay, setAutoLockDelay] = useState(30)
   const [autoLockEnabled, setAutoLockEnabled] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
-// Trial / Premium (loaded from storage)
-const [trial, setTrial] = useState<TrialState>(() => loadTrial())
-useEffect(() => {
-  saveTrial(trial)
-}, [trial])
 
-const [premium, setPremium] = useState<PremiumState>(() => loadPremium())
-useEffect(() => {
-  savePremium(premium)
-}, [premium])
   const [autoNightLockEnabled, setAutoNightLockEnabled] = useState(false)
   const [nightLockHour, setNightLockHour] = useState("10")
   const [nightLockMinute, setNightLockMinute] = useState("00")
   const [nightLockPeriod, setNightLockPeriod] = useState<"AM" | "PM">("PM")
   const [lastNightLockDate, setLastNightLockDate] = useState<string | null>(null)
 
+  // ✅ currentUserAccess трябва да е ДЕКЛАРИРАН преди да го ползваме в trial/premium computed
   const [currentUserAccess, setCurrentUserAccess] = useState<AccessRole>("admin")
   const isAdmin = currentUserAccess === "admin"
   const isFull = currentUserAccess === "full"
+
+  // Trial / Premium (loaded from storage)
+  const [trial, _setTrial] = useState<TrialState>(() => loadTrial())
+  useEffect(() => {
+    saveTrial(trial)
+  }, [trial])
+
+  const [premium, _setPremium] = useState<PremiumState>(() => loadPremium())
+  useEffect(() => {
+    savePremium(premium)
+  }, [premium])
+
+  // ✅ Step 14 computed values
+  const trialDaysLeftValue = useMemo(() => trialDaysLeft(trial), [trial])
+  const adminHasActiveSubscription = useMemo(() => {
+    return adminHasActiveTrial(currentUserAccess, trial) || adminHasPremium(currentUserAccess, premium)
+  }, [currentUserAccess, trial, premium])
 
   const [fullAccessCreatedByAdmin, setFullAccessCreatedByAdmin] = useState(false)
   const fullIsActivated = fullAccessCreatedByAdmin
@@ -160,7 +176,9 @@ useEffect(() => {
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
 
-  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
+  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(
+    null,
+  )
 
   const creatorIdentity = useMemo(() => {
     if (isFull && fullAccessProfileByAdmin) {
@@ -203,7 +221,8 @@ useEffect(() => {
 
   const canCreateFullAccessAccount = (): boolean => fullAccessAccountCount < 1
   const isFullAccessUserActivated = (): boolean => fullIsActivated
-  const canFullAccessAddUsers = (adminHasActiveSubscription: boolean): boolean => (!isFull ? true : adminHasActiveSubscription)
+  const canFullAccessAddUsers = (adminHasActiveSubscriptionParam: boolean): boolean =>
+    !isFull ? true : adminHasActiveSubscriptionParam
   const getFullAccessUserProfile = () => fullAccessProfileByAdmin
 
   const updateIButtonUser = (id: string, name: string) => {
@@ -384,7 +403,9 @@ useEffect(() => {
     } else if (isFull) {
       setAppUsers((prev) =>
         prev.map((user) =>
-          user.id === "2" && user.access === "full" ? { ...user, name: currentName, ownerDisplayName: currentName } : user,
+          user.id === "2" && user.access === "full"
+            ? { ...user, name: currentName, ownerDisplayName: currentName }
+            : user,
         ),
       )
     }
@@ -506,6 +527,11 @@ useEffect(() => {
         nameOverrides,
         getEntityName,
         setEntityName,
+
+        // ✅ Step 14 exposed values
+        trialDaysLeft: trialDaysLeftValue,
+        adminHasActiveSubscription,
+
         fullAccessAccountCount,
         canCreateFullAccessAccount,
         isFullAccessUserActivated,
