@@ -39,6 +39,8 @@ interface AppContextType {
 
   scenes: Scene[]
   setScenes: (scenes: Scene[]) => void
+  // ✅ Step 16
+  canCreateScene: () => boolean
 
   countdown: number | null
   doorState: "lock" | "unlock"
@@ -68,6 +70,9 @@ interface AppContextType {
   setUserEmail: (email: string) => void
 
   iButtonUsers: IButtonUser[]
+  // ✅ Step 17
+  canCreateIButtonUser: () => boolean
+
   appUsers: AppUser[]
 
   currentUserAccess: AccessRole
@@ -109,7 +114,7 @@ interface AppContextType {
   fullAccessAccountCount: number
   canCreateFullAccessAccount: () => boolean
   isFullAccessUserActivated: () => boolean
-  canFullAccessAddUsers: (adminHasActiveSubscription: boolean) => boolean
+  canFullAccessAddUsers: () => boolean
   getFullAccessUserProfile: () => { name: string; email: string } | null
 }
 
@@ -130,7 +135,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [nightLockPeriod, setNightLockPeriod] = useState<"AM" | "PM">("PM")
   const [lastNightLockDate, setLastNightLockDate] = useState<string | null>(null)
 
-  // ✅ currentUserAccess трябва да е ДЕКЛАРИРАН преди да го ползваме в trial/premium computed
+  // currentUserAccess трябва да е деклариран преди да го ползваме в computed
   const [currentUserAccess, setCurrentUserAccess] = useState<AccessRole>("admin")
   const isAdmin = currentUserAccess === "admin"
   const isFull = currentUserAccess === "full"
@@ -146,11 +151,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     savePremium(premium)
   }, [premium])
 
-  // ✅ Step 14 computed values
+  // Step 14 computed values
   const trialDaysLeftValue = useMemo(() => trialDaysLeft(trial), [trial])
   const adminHasActiveSubscription = useMemo(() => {
     return adminHasActiveTrial(currentUserAccess, trial) || adminHasPremium(currentUserAccess, premium)
   }, [currentUserAccess, trial, premium])
+
+  // ✅ Step 16 guard
+  const canCreateScene = () => (adminHasActiveSubscription ? true : scenes.length < 1)
 
   const [fullAccessCreatedByAdmin, setFullAccessCreatedByAdmin] = useState(false)
   const fullIsActivated = fullAccessCreatedByAdmin
@@ -175,6 +183,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
   const [appUsers, setAppUsers] = useState<AppUser[]>([])
+
+  // ✅ Step 17 guard (след като имаме iButtonUsers state)
+  const canCreateIButtonUser = () => (adminHasActiveSubscription ? true : iButtonUsers.length < 1)
 
   const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(
     null,
@@ -221,8 +232,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const canCreateFullAccessAccount = (): boolean => fullAccessAccountCount < 1
   const isFullAccessUserActivated = (): boolean => fullIsActivated
-  const canFullAccessAddUsers = (adminHasActiveSubscriptionParam: boolean): boolean =>
-    !isFull ? true : adminHasActiveSubscriptionParam
+  const canFullAccessAddUsers = (): boolean => (!isFull ? true : adminHasActiveSubscription)
   const getFullAccessUserProfile = () => fullAccessProfileByAdmin
 
   const updateIButtonUser = (id: string, name: string) => {
@@ -250,6 +260,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addIButtonUser = () => {
     if (!canOperateFullRestrictedActions) return `ibutton-blocked-${Date.now()}`
+    // ✅ Step 17 enforcement
+    if (!canCreateIButtonUser()) return `ibutton-blocked-${Date.now()}`
+
     const newId = `ibutton-${Date.now()}`
     setIButtonUsers((prev) => [
       ...prev,
@@ -328,7 +341,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDoors((prev) => prev.filter((door) => door.id !== id))
   }
 
-  // ✅ Controllers (fixed)
+  // Controllers (fixed)
   const addController = (serialNumber: string, ip?: string): boolean => {
     if (!canOperateFullRestrictedActions) return false
 
@@ -474,8 +487,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         isSystemStatusExpanded,
         setIsSystemStatusExpanded,
+
         scenes,
         setScenes,
+        canCreateScene,
+
         countdown,
         doorState,
         setDoorState,
@@ -499,7 +515,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUserName: handleSetUserName,
         userEmail,
         setUserEmail,
+
         iButtonUsers,
+        canCreateIButtonUser,
+
         appUsers,
         currentUserAccess,
         setCurrentUserAccess,
@@ -528,7 +547,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getEntityName,
         setEntityName,
 
-        // ✅ Step 14 exposed values
+        // Step 14 exposed values
         trialDaysLeft: trialDaysLeftValue,
         adminHasActiveSubscription,
 
