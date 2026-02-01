@@ -1,8 +1,11 @@
 "use client"
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
-import { useNameOverrides } from "@/lib/core/name-overrides"
+import { createContext, useContext, type ReactNode } from "react"
 import { useDoorsState } from "@/lib/core/doors-state"
+
+import { useAccessState } from "@/lib/core/access-state"
+import { useSystemStatusState } from "@/lib/core/system-status-state"
+import { useIdentityState } from "@/lib/core/identity-state"
 
 import { useSubscriptionState } from "@/lib/core/subscription-state"
 import { useQuickControlsState } from "@/lib/core/quick-controls-state"
@@ -13,11 +16,9 @@ import { useLockState } from "@/lib/core/lock-state"
 import { useProfileState } from "@/lib/core/profile-state"
 
 import { useUsersState } from "@/lib/core/users-state"
+import { useProfileSyncState } from "@/lib/core/profile-sync-state"
 import { useFullAccessState } from "@/lib/core/full-access-state"
 import { useControllersWiring } from "@/lib/core/controllers-wiring"
-
-import { getCurrentUserId } from "@/lib/core/identity"
-import { createSetUserNameHandler, useProfileSyncToAppUsers } from "@/lib/core/profile-sync"
 
 import type {
   AccessRole,
@@ -116,17 +117,18 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [isSystemStatusExpanded, setIsSystemStatusExpanded] = useState(true)
+  // System UI
+  const { isSystemStatusExpanded, setIsSystemStatusExpanded } = useSystemStatusState(true)
 
   // Access
-  const [currentUserAccess, setCurrentUserAccess] = useState<AccessRole>("admin")
+  const { currentUserAccess, setCurrentUserAccess } = useAccessState("admin")
 
   // Subscription
   const { trialDaysLeft: trialDaysLeftValue, adminHasActiveSubscription } = useSubscriptionState({
     currentUserAccess,
   })
 
-  // Profile (no appUsers dependency anymore)
+  // Profile base state (no sync inside)
   const profile = useProfileState({ currentUserAccess })
 
   // Users
@@ -145,34 +147,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
   })
 
-  // Profile -> AppUsers sync (moved here)
-  const setUserNameHandler = useMemo(
-    () =>
-      createSetUserNameHandler({
-        canOperate: profile.canOperateFullRestrictedActions,
-        isOpenClose: profile.isOpenClose,
-        currentUserAccess,
-        isAdmin: profile.isAdmin,
-        isFull: profile.isFull,
-        setUserNamesByRole: profile.setUserNamesByRole,
-        setAppUsers: users.setAppUsers,
-      }),
-    [
-      profile.canOperateFullRestrictedActions,
-      profile.isOpenClose,
-      currentUserAccess,
-      profile.isAdmin,
-      profile.isFull,
-      profile.setUserNamesByRole,
-      users.setAppUsers,
-    ],
-  )
-
-  useProfileSyncToAppUsers({
+  // Profile sync (extracted)
+  const { setUserName: setUserNameHandler } = useProfileSyncState({
     currentUserAccess,
-    userNamesByRole: profile.userNamesByRole,
     isAdmin: profile.isAdmin,
     isFull: profile.isFull,
+    isOpenClose: profile.isOpenClose,
+    canOperate: profile.canOperateFullRestrictedActions,
+    userNamesByRole: profile.userNamesByRole,
+    setUserNamesByRole: profile.setUserNamesByRole,
     setAppUsers: users.setAppUsers,
   })
 
@@ -191,13 +174,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Session
   const { sessionPassword, setSessionPassword } = useSessionState()
 
-  const currentUserId = useMemo(() => getCurrentUserId(currentUserAccess), [currentUserAccess])
-
-  // Name overrides
-  const { nameOverrides, getEntityName, setEntityName } = useNameOverrides({
-    currentUserId,
-    currentUserAccess,
-  })
+  // Identity + name overrides
+  const identity = useIdentityState({ currentUserAccess })
 
   // Doors
   const { doors, addDoor, updateDoor, removeDoor } = useDoorsState({ currentUserAccess })
@@ -283,10 +261,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateDoor,
         removeDoor,
 
-        currentUserId,
-        nameOverrides,
-        getEntityName,
-        setEntityName,
+        currentUserId: identity.currentUserId,
+        nameOverrides: identity.nameOverrides,
+        getEntityName: identity.getEntityName,
+        setEntityName: identity.setEntityName,
 
         trialDaysLeft: trialDaysLeftValue,
         adminHasActiveSubscription,
