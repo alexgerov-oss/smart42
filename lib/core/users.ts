@@ -2,11 +2,22 @@ import type { AccessRole, AppUser, IButtonUser } from "@/lib/core/types"
 
 export type CreatorIdentity = { name: string; email: string }
 
+/**
+ * iButtons:
+ * - Open/Close не може да добавя
+ * - Ако има trial/premium (active plan) -> unlimited
+ * - Ако няма -> само 1 общо
+ */
 export function canCreateIButtonUser(role: AccessRole, adminHasActiveSubscription: boolean, currentCount: number): boolean {
-  if (role !== "admin") return false
+  if (role === "open-close") return false
   return adminHasActiveSubscription ? true : currentCount < 1
 }
 
+/**
+ * App users:
+ * - Open/Close не може
+ * - Трябва active plan (trial/premium)
+ */
 export function canCreateAppUser(role: AccessRole, adminHasActiveSubscription: boolean): boolean {
   if (role === "open-close") return false
   return adminHasActiveSubscription
@@ -49,6 +60,8 @@ export function makeIButtonUser(params: {
 }
 
 export function appendIButtonUser(users: IButtonUser[], newUser: IButtonUser): IButtonUser[] {
+  // basic safety: avoid duplicate id
+  if (users.some((u) => u.id === newUser.id)) return users
   return [...users, newUser]
 }
 
@@ -94,6 +107,12 @@ export function makeAppUser(params: {
 }
 
 export function appendAppUser(users: AppUser[], newUser: AppUser): AppUser[] {
+  const emailKey = (newUser.email || "").trim().toLowerCase()
+  if (!emailKey) return users
+
+  const exists = users.some((u) => (u.email || "").trim().toLowerCase() === emailKey)
+  if (exists) return users
+
   return [...users, newUser]
 }
 

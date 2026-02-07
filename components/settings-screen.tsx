@@ -59,26 +59,31 @@ export default function SettingsScreen({
   const [showControllerDialog, setShowControllerDialog] = useState(false)
   const [serialNumber, setSerialNumber] = useState("")
   const [controllerIp, setControllerIp] = useState("")
-  const [showControllerInfo, setShowControllerInfo] = useState(false)
   const [editingControllerId, setEditingControllerId] = useState<string | null>(null)
   const [validationError, setValidationError] = useState<string>("")
+
   const [showPremiumDialog, setShowPremiumDialog] = useState(false)
+
   const [showEditIButtonDialog, setShowEditIButtonDialog] = useState(false)
   const [showEditAppUserDialog, setShowEditAppUserDialog] = useState(false)
   const [showInviteAppUserDialog, setShowInviteAppUserDialog] = useState(false)
+
   const [inviteUserName, setInviteUserName] = useState("")
   const [inviteUserEmail, setInviteUserEmail] = useState("")
-  const [inviteUserAccess, setInviteUserAccess] = useState<"full" | "open-close">("full")
+  const [inviteUserAccess, setInviteUserAccess] = useState<"full" | "open-close">("open-close")
+
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState<string | null>(null)
-  const [editingUserAccess, setEditingUserAccess] = useState<"full" | "open-close">("full")
+  const [editingUserAccess, setEditingUserAccess] = useState<"full" | "open-close">("open-close")
+
   const [isListeningMode, setIsListeningMode] = useState(false)
   const [newIButtonChipId, setNewIButtonChipId] = useState("A1F3-C92D")
   const [newIButtonName, setNewIButtonName] = useState("")
   const [registeringIButtonId, setRegisteringIButtonId] = useState<string | null>(null)
+
   const [restartTimeoutId, setRestartTimeoutId] = useState<NodeJS.Timeout | null>(null)
-  const [restartPendingConfirmation, setRestartPendingConfirmation] = useState(false)
   const [showRestartConfirmDialog, setShowRestartConfirmDialog] = useState(false)
+
   const [deleteIButtonId, setDeleteIButtonId] = useState<string | null>(null)
   const [deleteAppUserId, setDeleteAppUserId] = useState<string | null>(null)
 
@@ -97,40 +102,43 @@ export default function SettingsScreen({
     setNightLockMinute,
     nightLockPeriod,
     setNightLockPeriod,
-    userName,
+
     iButtonUsers,
     appUsers,
     updateIButtonUser,
-    updateAppUser,
     addIButtonUser,
     removeIButtonUser,
     addAppUser,
     removeAppUser,
     updateAppUserAccess,
+
     controllers,
     addController,
     updateController,
     getActiveController,
     restartController,
     removeController,
+
     currentUserAccess,
     quickControlsLocked,
     setQuickControlsLocked,
     getEntityName,
     setEntityName,
+
     canCreateFullAccessAccount,
     isFullAccessUserActivated,
-    canFullAccessAddUsers,
   } = useAppContext()
 
   const controller = getActiveController()
-
   const isAdmin = currentUserAccess === "admin"
 
-  // Permission context with proper trial/premium information
+  // ✅ Trial + Premium = едно и също ("active plan")
+  const hasPlan = Boolean(isPremium || isOnTrial || adminHasActiveSubscription)
+
+  // Permission context
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: adminHasActiveSubscription || isPremium,
+    adminHasActiveSubscription: hasPlan,
     isTrialActive: isOnTrial,
     isTrialExpired: isTrialExpired,
   }
@@ -142,28 +150,19 @@ export default function SettingsScreen({
   const canRenameIButtons = Permissions.canRenameIButtons(permissionContext)
   const canRenameAppUsers = Permissions.canRenameAppUsers(permissionContext)
 
-  // Use centralized permission check
-  // Note: canAddAppUsers already handles the logic
-
-  const isFreeAdmin = currentUserAccess === "admin" && !isPremium
-  const canAddIButton = isFreeAdmin ? iButtonUsers.length === 0 : true
+  // ✅ Ако admin НЯМА plan -> 1 iButton лимит
+  const isFreeAdmin = isAdmin && !hasPlan
 
   const visibleIButtonUsers =
-    currentUserAccess === "admin"
-      ? iButtonUsers // Admin sees all
-      : iButtonUsers.filter((user) => user.createdBy === currentUserAccess) // Full access sees only their own
+    currentUserAccess === "admin" ? iButtonUsers : iButtonUsers.filter((user) => user.createdBy === currentUserAccess)
 
   const visibleAppUsers =
-    currentUserAccess === "admin"
-      ? appUsers // Admin sees all
-      : appUsers.filter((user) => user.createdBy === currentUserAccess) // Full access sees only their own
+    currentUserAccess === "admin" ? appUsers : appUsers.filter((user) => user.createdBy === currentUserAccess)
 
   const canEditItem = (itemCreatedBy: "admin" | "full" | "open-close", itemId?: string) => {
     if (currentUserAccess === "admin") return true
-
     // Full Access cannot edit/delete their own default user (id: "2")
     if (currentUserAccess === "full" && itemId === "2") return false
-
     return itemCreatedBy === currentUserAccess
   }
 
@@ -192,33 +191,6 @@ export default function SettingsScreen({
     setShowControllerDialog(true)
   }
 
-  const handleSaveController = () => {
-    setValidationError("")
-
-    if (!serialNumber.trim()) {
-      setValidationError("Serial number is required")
-      return
-    }
-
-    const success = editingControllerId
-      ? updateController(editingControllerId, serialNumber, controllerIp)
-      : addController(serialNumber, controllerIp)
-
-    if (!success) {
-      setValidationError(
-        editingControllerId
-          ? "Invalid serial number or serial already exists"
-          : "Invalid serial number (8-20 alphanumeric characters) or serial already exists",
-      )
-      return
-    }
-
-    setShowControllerDialog(false)
-    setSerialNumber("")
-    setControllerIp("")
-    setEditingControllerId(null)
-  }
-
   const handleCancelControllerDialog = () => {
     setShowControllerDialog(false)
     setSerialNumber("")
@@ -237,49 +209,14 @@ export default function SettingsScreen({
 
   useEffect(() => {
     return () => {
-      if (restartTimeoutId) {
-        clearTimeout(restartTimeoutId)
-      }
+      if (restartTimeoutId) clearTimeout(restartTimeoutId)
     }
   }, [restartTimeoutId])
-
-  const handleRestartClick = () => {
-    if (!controller) return
-    setShowRestartConfirmDialog(true)
-  }
 
   const confirmRestart = () => {
     if (!controller) return
     restartController(controller.id)
     setShowRestartConfirmDialog(false)
-  }
-
-  const simulateIButtonRegistration = () => {
-    if (controllers.length === 0) {
-      toast({
-        title: "No controller found",
-        description: "Please add a controller first",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (currentUserAccess === "open-close" && iButtonUsers.length >= 1) {
-      toast({
-        title: "iButton Limit Reached",
-        description:
-          "Users with Open/Close Only access can add only one iButton. Upgrade to Premium for unlimited access.",
-        variant: "default",
-      })
-      return
-    }
-
-    // Create the iButton entry immediately
-    const newId = addIButtonUser()
-    setRegisteringIButtonId(newId)
-    setIsListeningMode(true)
-    setNewIButtonChipId("A1F3-C92D")
-    setNewIButtonName("")
   }
 
   const handleIButtonNameChange = (name: string) => {
@@ -290,9 +227,7 @@ export default function SettingsScreen({
   }
 
   const saveNewIButton = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
     if (newIButtonName.trim() || registeringIButtonId) {
       const finalName = newIButtonName.trim() || "Unnamed iButton"
@@ -317,22 +252,27 @@ export default function SettingsScreen({
   const handleOpenInviteDialog = () => {
     setInviteUserName("")
     setInviteUserEmail("")
-    setInviteUserAccess(currentUserAccess === "full" ? "open-close" : "full")
+    setInviteUserAccess("open-close")
     setShowInviteAppUserDialog(true)
   }
 
-  const handleSendInvitation = () => {
-    if (!canAddAppUsers) {
-      // Default to restrictive - silently abort if permission check fails
-      return
-    }
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const canSendInvitation =
+    inviteUserName.trim() !== "" && inviteUserEmail.trim() !== "" && isValidEmail(inviteUserEmail.trim())
 
+  const getAppUserDisplayName = (user: { id: string; name: string }) => {
+    return getEntityName("appusers", user.id, user.name)
+  }
+
+  const handleSendInvitation = () => {
+    if (!canAddAppUsers) return
     if (!canSendInvitation) return
 
-    const finalAccess = currentUserAccess === "full" ? "open-close" : inviteUserAccess
+    const finalAccess = inviteUserAccess // ✅ НЕ го сменяме автоматично
 
+    // Full Access: само admin + само ако няма вече друг full
     if (finalAccess === "full") {
-      if (currentUserAccess !== "admin") {
+      if (!isAdmin) {
         toast({
           title: "Access Denied",
           description: "Only Admin can create Full Access users.",
@@ -350,46 +290,35 @@ export default function SettingsScreen({
       }
     }
 
-    addAppUser(inviteUserName.trim(), inviteUserEmail.trim(), finalAccess)
+    const ok = addAppUser(inviteUserName.trim(), inviteUserEmail.trim(), finalAccess)
+
     setInviteUserName("")
     setInviteUserEmail("")
-    setInviteUserAccess("full")
+    setInviteUserAccess("open-close")
     setShowInviteAppUserDialog(false)
-    toast({
-      title: "Invitation sent",
-      description: "The user will receive an email to join.",
-    })
-  }
 
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  }
-
-  const canSendInvitation =
-    inviteUserName.trim() !== "" && inviteUserEmail.trim() !== "" && isValidEmail(inviteUserEmail.trim())
-
-  const getAppUserDisplayName = (user: {
-    id: string
-    name: string
-    ownerDisplayName?: string
-    adminOverrideName?: string
-  }) => {
-    // Use per-user name override if exists
-    return getEntityName("appusers", user.id, user.name)
+    if (ok) {
+      toast({
+        title: "Invitation sent",
+        description: "The user will receive an email to join.",
+      })
+    } else {
+      toast({
+        title: "Invitation not sent",
+        description: "User was not added. Check subscription/trial and duplicate email.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleDeleteIButton = (id: string) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     removeIButtonUser(id)
     setDeleteIButtonId(null)
   }
 
   const handleDeleteAppUser = (id: string) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     removeAppUser(id)
     setDeleteAppUserId(null)
   }
@@ -398,23 +327,17 @@ export default function SettingsScreen({
   const appUserToDelete = appUsers.find((u) => u.id === deleteAppUserId)
 
   const handleToggleQuickControlsLock = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setQuickControlsLocked(!quickControlsLocked)
   }
 
   const areQuickControlsDisabled = quickControlsLocked
 
   const handleSaveIButtonName = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
     if (editingUserId && editingName) {
       setEntityName("ibuttons", editingUserId, editingName)
-      // Remove the global name update - each user sees their own local version
-      // updateIButtonUser(editingUserId, editingName) // REMOVED
     }
     setShowEditIButtonDialog(false)
     setEditingUserId(null)
@@ -422,13 +345,10 @@ export default function SettingsScreen({
   }
 
   const handleSaveAppUserName = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
     if (editingUserId && editingName) {
       setEntityName("appusers", editingUserId, editingName)
-      // REMOVED: updateAppUser(editingUserId, editingName) - this would update the global name
     }
     setShowEditAppUserDialog(false)
     setEditingUserId(null)
@@ -436,20 +356,33 @@ export default function SettingsScreen({
   }
 
   const handleAddIButtonUser = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
+    // ✅ Ако admin няма plan -> максимум 1 iButton
     if (isFreeAdmin && iButtonUsers.length >= 1) {
       toast({
-        title: "Upgrade Required",
-        description: "Upgrade to add more iButtons.",
+        title: "iButton not added",
+        description: "You cannot add more Ibuttons in the current plan. Get trial or premium.",
         variant: "destructive",
       })
       return
     }
 
     const newId = addIButtonUser()
+
+    // ✅ Ако core върне blocked id -> не влизаме в listening mode
+    if (typeof newId === "string" && newId.startsWith("ibutton-blocked-")) {
+      // Ако реално има plan, това означава че app-context не подава правилно trial/premium надолу.
+      toast({
+        title: "iButton not added",
+        description: hasPlan
+          ? "Trial/Premium is active but the app is still in free mode. Please refresh the page."
+          : "You cannot add more Ibuttons in the current plan. Get trial or premium.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setRegisteringIButtonId(newId)
     setIsListeningMode(true)
     setNewIButtonChipId("A1F3-C92D")
@@ -457,52 +390,37 @@ export default function SettingsScreen({
   }
 
   const handleToggleAutoLock = (checked: boolean) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setAutoLockEnabled(checked)
   }
 
   const handleAutoLockDelayChange = (value: number[]) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setAutoLockDelay(value[0])
   }
 
   const handleToggleAutoNightLock = (checked: boolean) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setAutoNightLockEnabled(checked)
   }
 
   const handleNightLockTimeChange = (hour: string, minute: string, period: "AM" | "PM") => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setNightLockHour(hour)
     setNightLockMinute(minute)
     setNightLockPeriod(period)
   }
 
   const handleAddController = () => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
-    if (editingControllerId) {
-      const success = updateController(editingControllerId, serialNumber, controllerIp)
-      if (!success) {
-        setValidationError("Invalid serial number or duplicate found")
-        return
-      }
-    } else {
-      const success = addController(serialNumber, controllerIp)
-      if (!success) {
-        setValidationError("Invalid serial number or duplicate found")
-        return
-      }
+    const success = editingControllerId
+      ? updateController(editingControllerId, serialNumber, controllerIp)
+      : addController(serialNumber, controllerIp)
+
+    if (!success) {
+      setValidationError("Invalid serial number or duplicate found")
+      return
     }
 
     setSerialNumber("")
@@ -513,27 +431,25 @@ export default function SettingsScreen({
   }
 
   const handleRestartController = (id: string) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setShowRestartConfirmDialog(true)
   }
 
   const handleDeleteController = (id: string) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) {
-      return
-    }
+    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     removeController(id)
   }
+
+  // ✅ За EDIT: показваме Full само ако е свободен слот ИЛИ ако редактираме текущия Full user
+  const editingUserCurrentAccess =
+    editingUserId ? (appUsers.find((u) => u.id === editingUserId)?.access as "admin" | "full" | "open-close" | undefined) : undefined
+  const canShowFullInEdit = canCreateFullAccessAccount() || editingUserCurrentAccess === "full"
 
   return (
     <div className="flex min-h-screen flex-col pb-20">
       <div className="bg-black border-b border-border p-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => onNavigate("dashboard")}
-            className="text-foreground hover:text-primary transition-colors"
-          >
+          <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-6 w-6" />
           </button>
           <h1 className="text-xl font-bold text-foreground">Settings</h1>
@@ -559,13 +475,6 @@ export default function SettingsScreen({
                 )}
               </div>
 
-              {!canManageControllers && (
-                <div className="flex items-start gap-2 rounded-lg border border-muted bg-muted/50 p-3">
-                  <LockIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">Controller management is available for Admin only</p>
-                </div>
-              )}
-
               {controller && (
                 <div className="rounded-lg bg-background p-3 space-y-2">
                   <div className="flex items-center justify-between">
@@ -579,13 +488,16 @@ export default function SettingsScreen({
                       ) : (
                         <>
                           <div
-                            className={`h-2 w-2 rounded-full ${controller.status === "online" ? "bg-green-500" : "bg-red-500"}`}
+                            className={`h-2 w-2 rounded-full ${
+                              controller.status === "online" ? "bg-green-500" : "bg-red-500"
+                            }`}
                           />
                           <span className="text-xs text-muted-foreground capitalize">{controller.status}</span>
                         </>
                       )}
                     </div>
                   </div>
+
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">{controller.serialNumber}</p>
                     <Button
@@ -597,6 +509,7 @@ export default function SettingsScreen({
                       <SquarePen className="h-4 w-4" />
                     </Button>
                   </div>
+
                   {controller.ip && (
                     <div className="mt-3 pt-3 border-t border-border space-y-1">
                       <p className="text-xs text-muted-foreground">IP Address</p>
@@ -607,12 +520,7 @@ export default function SettingsScreen({
               )}
 
               {!controller && (
-                <Button
-                  onClick={handleAddControllerClick}
-                  variant="default"
-                  className="w-full"
-                  disabled={!canManageControllers}
-                >
+                <Button onClick={handleAddControllerClick} variant="default" className="w-full" disabled={!canManageControllers}>
                   Add Controller
                 </Button>
               )}
@@ -622,6 +530,7 @@ export default function SettingsScreen({
                   <DialogHeader>
                     <DialogTitle>{editingControllerId ? "Edit Controller" : "Add Controller"}</DialogTitle>
                   </DialogHeader>
+
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="serial" className="text-sm font-medium">
@@ -636,6 +545,7 @@ export default function SettingsScreen({
                       />
                       <p className="text-xs text-muted-foreground">≥8 alphanumeric characters</p>
                     </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="ip" className="text-sm font-medium">
                         Controller IP <span className="text-muted-foreground text-xs">(Optional)</span>
@@ -648,12 +558,14 @@ export default function SettingsScreen({
                         className="bg-background border-border"
                       />
                     </div>
+
                     {validationError && (
                       <div className="rounded-lg bg-destructive/10 p-3">
                         <p className="text-sm text-destructive">{validationError}</p>
                       </div>
                     )}
                   </div>
+
                   <DialogFooter className="flex-row gap-2">
                     <Button onClick={handleCancelControllerDialog} variant="outline" className="flex-1 bg-transparent">
                       Cancel
@@ -689,9 +601,7 @@ export default function SettingsScreen({
               )}
             </div>
 
-            {areQuickControlsDisabled && (
-              <p className="text-xs text-muted-foreground">Quick controls are locked by the administrator.</p>
-            )}
+            {areQuickControlsDisabled && <p className="text-xs text-muted-foreground">Quick controls are locked by the administrator.</p>}
 
             {/* Automatic Lock */}
             <div className="space-y-3">
@@ -737,9 +647,7 @@ export default function SettingsScreen({
               <div className="flex items-center justify-between rounded-lg bg-background p-3">
                 <div className="flex items-center gap-6">
                   <div className={`p-2 rounded-lg ${autoNightLockEnabled ? "bg-primary/20" : "bg-muted"}`}>
-                    <LockIcon
-                      className={`h-5 w-5 ${autoNightLockEnabled ? "text-primary" : "text-muted-foreground"}`}
-                    />
+                    <LockIcon className={`h-5 w-5 ${autoNightLockEnabled ? "text-primary" : "text-muted-foreground"}`} />
                   </div>
                   <Label htmlFor="night-lock" className="text-sm font-medium text-foreground">
                     Automatic Night Lock
@@ -757,15 +665,12 @@ export default function SettingsScreen({
               {autoNightLockEnabled && (
                 <div className="space-y-3 rounded-lg bg-background p-3">
                   <Label className="text-sm font-medium text-foreground text-center block">Lock Time</Label>
-
                   <div className="flex justify-center">
                     <CircularTimePicker
                       hour={nightLockHour}
                       minute={nightLockMinute}
                       period={nightLockPeriod}
-                      onTimeChange={(h, m, p) => {
-                        handleNightLockTimeChange(h, m, p)
-                      }}
+                      onTimeChange={(h, m, p) => handleNightLockTimeChange(h, m, p)}
                       label="Lock at"
                       disabled={areQuickControlsDisabled}
                     />
@@ -785,10 +690,8 @@ export default function SettingsScreen({
               {isListeningMode && (
                 <div className="space-y-4 rounded-lg border border-primary bg-primary/10 p-4">
                   <div className="flex items-start gap-2">
-                    <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-foreground">
-                      Controller is in listening mode. Touch an iButton to register it.
-                    </p>
+                    <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    <p className="text-sm text-foreground">Controller is in listening mode. Touch an iButton to register it.</p>
                   </div>
 
                   <div className="space-y-3">
@@ -837,6 +740,7 @@ export default function SettingsScreen({
                           </p>
                         )}
                       </div>
+
                       {canRenameIButtons && canEditItem(user.createdBy, user.id) && (
                         <Button
                           onClick={() => {
@@ -851,6 +755,7 @@ export default function SettingsScreen({
                           <SquarePen className="h-4 w-4" />
                         </Button>
                       )}
+
                       {user.id !== "1" && canEditItem(user.createdBy, user.id) && (
                         <Button
                           onClick={() => setDeleteIButtonId(user.id)}
@@ -868,16 +773,13 @@ export default function SettingsScreen({
 
               {!isListeningMode && (
                 <>
-                  <Button
-                    onClick={handleAddIButtonUser}
-                    className="w-full relative flex items-center gap-2"
-                    disabled={!canAddIButtons}
-                  >
+                  <Button onClick={handleAddIButtonUser} className="w-full relative flex items-center gap-2" disabled={!canAddIButtons}>
                     {!canAddIButtons && <LockIcon className="h-4 w-4" />}
                     Add iButton User
                   </Button>
+
                   {isFreeAdmin && iButtonUsers.length >= 1 && (
-                    <p className="text-sm text-muted-foreground">Upgrade to add more iButtons.</p>
+                    <p className="text-sm text-muted-foreground">Get trial or premium to add more iButtons.</p>
                   )}
                 </>
               )}
@@ -892,80 +794,66 @@ export default function SettingsScreen({
               <h2 className="text-lg font-semibold text-foreground">App Users</h2>
 
               <div className="space-y-2">
-                {visibleAppUsers.map((user) => {
-                  const displayName = getAppUserDisplayName(user)
-                  return (
-                    <div key={user.id} className="py-2 border-b last:border-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium">{getAppUserDisplayName(user)}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {user.email} •{" "}
-                            {user.access === "admin"
-                              ? "Admin"
-                              : user.access === "full"
-                                ? "Full Access"
-                                : "Open/Close Only"}
-                            {user.status === "invited" ? " • Invited" : " • Active"}
+                {visibleAppUsers.map((user) => (
+                  <div key={user.id} className="py-2 border-b last:border-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{getAppUserDisplayName(user)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {user.email} •{" "}
+                          {user.access === "admin" ? "Admin" : user.access === "full" ? "Full Access" : "Open/Close Only"}
+                          {user.status === "invited" ? " • Invited" : " • Active"}
+                        </p>
+                        {isAdmin && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Created by: {user.createdByName} • {new Date(user.createdAt).toLocaleDateString()}{" "}
+                            {new Date(user.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </p>
-                          {isAdmin && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Created by: {user.createdByName} • {new Date(user.createdAt).toLocaleDateString()}{" "}
-                              {new Date(user.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                          )}
-                        </div>
-                        {user.id !== "1" && canRenameAppUsers && canEditItem(user.createdBy, user.id) && (
-                          <>
-                            <Button
-                              onClick={() => {
-                                setEditingUserId(user.id)
-                                setEditingName(getAppUserDisplayName(user))
-                                setEditingUserAccess(user.access === "admin" ? "full" : user.access)
-                                setShowEditAppUserDialog(true)
-                              }}
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs text-primary"
-                            >
-                              <SquarePen className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              onClick={() => setDeleteAppUserId(user.id)}
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
                         )}
                       </div>
+
+                      {user.id !== "1" && canRenameAppUsers && canEditItem(user.createdBy, user.id) && (
+                        <>
+                          <Button
+                            onClick={() => {
+                              setEditingUserId(user.id)
+                              setEditingName(getAppUserDisplayName(user))
+                              setEditingUserAccess(user.access === "admin" ? "full" : (user.access as any))
+                              setShowEditAppUserDialog(true)
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-primary"
+                          >
+                            <SquarePen className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            onClick={() => setDeleteAppUserId(user.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  )
-                })}
+                  </div>
+                ))}
               </div>
 
-              <Button
-                onClick={handleOpenInviteDialog}
-                className="w-full relative flex items-center gap-2"
-                disabled={!canAddAppUsers}
-              >
+              <Button onClick={handleOpenInviteDialog} className="w-full relative flex items-center gap-2" disabled={!canAddAppUsers}>
                 {!canAddAppUsers && <LockIcon className="h-4 w-4" />}
                 Add User
               </Button>
 
-              {currentUserAccess === "admin" && !isPremium && (
-                <p className="text-sm text-muted-foreground">Upgrade to add app users.</p>
-              )}
+              {isAdmin && !hasPlan && <p className="text-sm text-muted-foreground">Get trial or premium to add app users.</p>}
             </CardContent>
           </Card>
         )}
       </div>
 
+      {/* Bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
         <div className="flex items-center justify-around p-4">
           <button
@@ -983,7 +871,7 @@ export default function SettingsScreen({
 
           <button
             onClick={() => {
-              if (isPremium) {
+              if (hasPlan) {
                 onNavigate("activity-log")
               } else {
                 onNavigate("subscription")
@@ -996,7 +884,7 @@ export default function SettingsScreen({
           >
             <div className="relative">
               <Activity className="h-6 w-6" />
-              {!isPremium && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
+              {!hasPlan && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
             </div>
             <span className="text-xs">Activity</span>
           </button>
@@ -1043,44 +931,36 @@ export default function SettingsScreen({
         </div>
       </div>
 
+      {/* Trial/Premium dialog (kept) */}
       <AlertDialog open={showPremiumDialog} onOpenChange={setShowPremiumDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Premium Required</AlertDialogTitle>
-            <AlertDialogDescription>Premium required to add more users or iButtons.</AlertDialogDescription>
+            <AlertDialogTitle>Trial or Premium Required</AlertDialogTitle>
+            <AlertDialogDescription>Trial or Premium required to add more users or iButtons.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onNavigate("subscription")}>Get Premium</AlertDialogAction>
+            <AlertDialogAction onClick={() => onNavigate("subscription")}>Get Trial / Premium</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Edit iButton */}
       <AlertDialog open={showEditIButtonDialog} onOpenChange={setShowEditIButtonDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Edit iButton Name</AlertDialogTitle>
             <AlertDialogDescription>Enter a new name for this iButton.</AlertDialogDescription>
           </AlertDialogHeader>
-          <Input
-            value={editingName || ""}
-            onChange={(e) => setEditingName(e.target.value)}
-            placeholder="iButton name"
-            className="my-4"
-          />
+          <Input value={editingName || ""} onChange={(e) => setEditingName(e.target.value)} placeholder="iButton name" className="my-4" />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                handleSaveIButtonName()
-              }}
-            >
-              Save
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleSaveIButtonName}>Save</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Edit App User */}
       <AlertDialog open={showEditAppUserDialog} onOpenChange={setShowEditAppUserDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1090,21 +970,15 @@ export default function SettingsScreen({
           <div className="space-y-4 my-4">
             <Input value={editingName || ""} onChange={(e) => setEditingName(e.target.value)} placeholder="User name" />
             {editingUserId && appUsers.find((u) => u.id === editingUserId)?.email && (
-              <Input
-                value={appUsers.find((u) => u.id === editingUserId)?.email || ""}
-                disabled
-                className="opacity-50 cursor-not-allowed"
-              />
+              <Input value={appUsers.find((u) => u.id === editingUserId)?.email || ""} disabled className="opacity-50 cursor-not-allowed" />
             )}
-            <Select
-              value={editingUserAccess}
-              onValueChange={(val) => setEditingUserAccess(val as "full" | "open-close")}
-            >
+
+            <Select value={editingUserAccess} onValueChange={(val) => setEditingUserAccess(val as any)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="full">Full Access</SelectItem>
+                {canShowFullInEdit && <SelectItem value="full">Full Access</SelectItem>}
                 <SelectItem value="open-close">Open/Close Only</SelectItem>
               </SelectContent>
             </Select>
@@ -1114,7 +988,7 @@ export default function SettingsScreen({
             <AlertDialogAction
               onClick={() => {
                 handleSaveAppUserName()
-                updateAppUserAccess(editingUserId!, editingUserAccess)
+                if (editingUserId) updateAppUserAccess(editingUserId, editingUserAccess as any)
                 setShowEditAppUserDialog(false)
               }}
             >
@@ -1124,40 +998,41 @@ export default function SettingsScreen({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Invite App User */}
       <Dialog open={showInviteAppUserDialog} onOpenChange={setShowInviteAppUserDialog}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Invite New User</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4 py-4">
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">Name</label>
-              <Input
-                value={inviteUserName}
-                onChange={(e) => setInviteUserName(e.target.value)}
-                placeholder="Enter user name"
-              />
+              <Input value={inviteUserName} onChange={(e) => setInviteUserName(e.target.value)} placeholder="Enter user name" />
             </div>
+
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">Email</label>
-              <Input
-                type="email"
-                value={inviteUserEmail}
-                onChange={(e) => setInviteUserEmail(e.target.value)}
-                placeholder="user@example.com"
-              />
+              <Input type="email" value={inviteUserEmail} onChange={(e) => setInviteUserEmail(e.target.value)} placeholder="user@example.com" />
             </div>
+
             {currentUserAccess !== "full" && (
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-foreground">Access Level</Label>
+
                 <Select value={inviteUserAccess} onValueChange={(value: any) => setInviteUserAccess(value)}>
                   <SelectTrigger className="bg-background border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
+
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="full" className="text-foreground">
-                      Full Access
-                    </SelectItem>
+                    {/* ✅ Full Access изчезва, ако вече има 1 full */}
+                    {isAdmin && canCreateFullAccessAccount() && (
+                      <SelectItem value="full" className="text-foreground">
+                        Full Access
+                      </SelectItem>
+                    )}
+
                     <SelectItem value="open-close" className="text-foreground">
                       Open/Close Only
                     </SelectItem>
@@ -1166,6 +1041,7 @@ export default function SettingsScreen({
               </div>
             )}
           </div>
+
           <DialogFooter>
             <DialogCancel>Cancel</DialogCancel>
             <DialogAction disabled={!canSendInvitation} onClick={handleSendInvitation}>
@@ -1175,6 +1051,7 @@ export default function SettingsScreen({
         </DialogContent>
       </Dialog>
 
+      {/* Delete iButton */}
       <AlertDialog open={deleteIButtonId !== null} onOpenChange={() => setDeleteIButtonId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1195,6 +1072,7 @@ export default function SettingsScreen({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete App User */}
       <AlertDialog open={deleteAppUserId !== null} onOpenChange={() => setDeleteAppUserId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1215,6 +1093,7 @@ export default function SettingsScreen({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Restart confirm */}
       <AlertDialog open={showRestartConfirmDialog} onOpenChange={setShowRestartConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -79,7 +79,8 @@ interface AppContextType {
   updateAppUser: (id: string, name: string) => void
   addIButtonUser: () => string
   removeIButtonUser: (id: string) => void
-  addAppUser: (name: string, email: string, access: AccessRole) => void
+  addAppUser: (name: string, email: string, access: AccessRole) => boolean
+
   removeAppUser: (id: string) => void
   updateAppUserAccess: (id: string, access: AccessRole) => void
 
@@ -132,20 +133,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const profile = useProfileState({ currentUserAccess })
 
   // Users
-  const users = useUsersState({
-    currentUserAccess,
-    adminHasActiveSubscription,
-    canOperate: profile.canOperateFullRestrictedActions,
-    isOpenClose: profile.isOpenClose,
-    creatorIdentity: profile.creatorIdentity,
-    onFullAccessCreatedByAdmin: (p) => {
-      profile.setFullAccessCreatedByAdmin(true)
-      profile.setFullAccessProfileByAdmin(p)
-    },
-    onFullAccessProfileByAdminChange: (p) => {
-      profile.setFullAccessProfileByAdmin(p)
-    },
-  })
+const users = useUsersState({
+  currentUserAccess,
+  adminHasActiveSubscription, // ✅ това вече трябва да означава Trial OR Premium (за админ)
+  canOperate: profile.canOperateFullRestrictedActions,
+  isOpenClose: profile.isOpenClose,
+  creatorIdentity: profile.creatorIdentity,
+  onFullAccessCreatedByAdmin: (p) => {
+    profile.setFullAccessCreatedByAdmin(true)
+    profile.setFullAccessProfileByAdmin(p)
+  },
+  onFullAccessProfileByAdminChange: (p) => {
+    profile.setFullAccessProfileByAdmin(p)
+  },
+})
 
   // Profile sync (extracted)
   const { setUserName: setUserNameHandler } = useProfileSyncState({

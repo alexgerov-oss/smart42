@@ -1,7 +1,7 @@
 "use client"
 
 import type { AccessRole, AppUser } from "@/lib/core/types"
-import { createSetUserNameHandler, useProfileSyncToAppUsers } from "@/lib/core/profile-sync"
+import { createSetUserNameHandler } from "@/lib/core/profile-sync"
 
 export function useProfileSyncState(opts: {
   currentUserAccess: AccessRole
@@ -19,11 +19,13 @@ export function useProfileSyncState(opts: {
     isFull,
     isOpenClose,
     canOperate,
-    userNamesByRole,
     setUserNamesByRole,
     setAppUsers,
   } = opts
 
+  // IMPORTANT:
+  // НЕ викаме useProfileSyncToAppUsers тук, защото може да презаписва appUsers
+  // и да "изяжда" новодобавените покани.
   const setUserName = createSetUserNameHandler({
     canOperate,
     isOpenClose,
@@ -31,14 +33,6 @@ export function useProfileSyncState(opts: {
     isAdmin,
     isFull,
     setUserNamesByRole,
-    setAppUsers,
-  })
-
-  useProfileSyncToAppUsers({
-    currentUserAccess,
-    userNamesByRole,
-    isAdmin,
-    isFull,
     setAppUsers,
   })
 

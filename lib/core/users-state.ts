@@ -17,6 +17,8 @@ import {
   updateAppUserAccess as updateAppUserAccessCore,
 } from "@/lib/core/users"
 
+import { loadAppUsers, loadIButtonUsers, saveAppUsers, saveIButtonUsers } from "@/lib/core/users-persistence"
+
 export function useUsersState(opts: {
   currentUserAccess: AccessRole
   adminHasActiveSubscription: boolean
@@ -37,8 +39,28 @@ export function useUsersState(opts: {
     onFullAccessProfileByAdminChange,
   } = opts
 
-  const [iButtonUsers, setIButtonUsers] = useState<IButtonUser[]>([])
-  const [appUsers, setAppUsers] = useState<AppUser[]>([])
+  const [iButtonUsers, _setIButtonUsers] = useState<IButtonUser[]>(() => loadIButtonUsers())
+  const [appUsers, _setAppUsers] = useState<AppUser[]>(() => loadAppUsers())
+
+  // Persisting setters
+  const setIButtonUsers: React.Dispatch<React.SetStateAction<IButtonUser[]>> = (value) => {
+    _setIButtonUsers((prev) => {
+      const next = typeof value === "function" ? (value as (p: IButtonUser[]) => IButtonUser[])(prev) : value
+      saveIButtonUsers(next)
+      return next
+    })
+  }
+
+  const setAppUsers: React.Dispatch<React.SetStateAction<AppUser[]>> = (value) => {
+    _setAppUsers((prev) => {
+      const next = typeof value === "function" ? (value as (p: AppUser[]) => AppUser[])(prev) : value
+      saveAppUsers(next)
+      return next
+    })
+  }
+
+  // ✅ Admin не трябва да бъде “тайно блокиран” от canOperate (plan-а го ограничава)
+  const canMutate = (currentUserAccess === "admin" ? true : canOperate) && !isOpenClose
 
   const canCreateIButtonUser = () =>
     canCreateIButtonUserCore(currentUserAccess, adminHasActiveSubscription, iButtonUsers.length)
@@ -46,14 +68,12 @@ export function useUsersState(opts: {
   const canCreateAppUser = () => canCreateAppUserCore(currentUserAccess, adminHasActiveSubscription)
 
   const updateIButtonUser = (id: string, name: string) => {
-    if (!canOperate) return
-    if (isOpenClose) return
+    if (!canMutate) return
     setIButtonUsers((prev) => updateIButtonUserNameCore(prev, id, name))
   }
 
   const updateAppUser = (id: string, name: string) => {
-    if (!canOperate) return
-    if (isOpenClose) return
+    if (!canMutate) return
 
     setAppUsers((prev) => {
       const result = updateAppUserNameCore(prev, { id, name, currentUserAccess })
@@ -65,7 +85,7 @@ export function useUsersState(opts: {
   }
 
   const addIButtonUser = () => {
-    if (!canOperate) return `ibutton-blocked-${Date.now()}`
+    if (!canMutate) return `ibutton-blocked-${Date.now()}`
     if (!canCreateIButtonUser()) return `ibutton-blocked-${Date.now()}`
 
     const now = Date.now()
@@ -82,42 +102,60 @@ export function useUsersState(opts: {
   }
 
   const removeIButtonUser = (id: string) => {
-    if (!canOperate) return
-    if (isOpenClose) return
+    if (!canMutate) return
     setIButtonUsers((prev) => removeIButtonUserCore(prev, id))
   }
 
-  const addAppUser = (name: string, email: string, access: AccessRole) => {
-    if (!canOperate) return
-    if (!canCreateAppUser()) return
+  // ✅ Стабилно добавяне с проверка за план + duplicate email
+  const addAppUser = (name: string, email: string, access: AccessRole): boolean => {
+    if (!canMutate) return false
+    if (!canCreateAppUser()) return false
 
-    if (currentUserAccess === "admin" && access === "full") {
-      onFullAccessCreatedByAdmin({ name, email })
-    }
+    const cleanName = name.trim()
+    const cleanEmail = email.trim()
+    if (!cleanName || !cleanEmail) return false
+
+    const emailKey = cleanEmail.toLowerCase()
 
     const now = Date.now()
     const newId = `appuser-${now}`
     const newUser = makeAppUserCore({
       id: newId,
-      name,
-      email,
+      name: cleanName,
+      email: cleanEmail,
       access,
       currentUserAccess,
       creatorName: creatorIdentity.name,
     })
 
-    setAppUsers((prev) => appendAppUserCore(prev, newUser))
+    let added = false
+    let createdFullProfile: { name: string; email: string } | null = null
+
+    setAppUsers((prev) => {
+      const exists = prev.some((u) => (u.email || "").trim().toLowerCase() === emailKey)
+      if (exists) return prev
+
+      added = true
+      if (currentUserAccess === "admin" && access === "full") {
+        createdFullProfile = { name: cleanName, email: cleanEmail }
+      }
+      return appendAppUserCore(prev, newUser)
+    })
+
+    if (createdFullProfile) {
+      onFullAccessCreatedByAdmin(createdFullProfile)
+    }
+
+    return added
   }
 
   const removeAppUser = (id: string) => {
-    if (!canOperate) return
-    if (isOpenClose) return
+    if (!canMutate) return
     setAppUsers((prev) => removeAppUserCore(prev, id))
   }
 
   const updateAppUserAccess = (id: string, access: AccessRole) => {
-    if (!canOperate) return
-    if (isOpenClose) return
+    if (!canMutate) return
     setAppUsers((prev) => updateAppUserAccessCore(prev, id, access))
   }
 
