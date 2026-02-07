@@ -1,74 +1,115 @@
 // lib/core/storage.ts
+/**
+ * SSR-safe localStorage wrapper.
+ * Rule: NO direct localStorage usage outside this file.
+ */
+
 export const storageKeys = {
   doors: "doors",
-  controllers: "smart42:controllers:v1",
   nameOverrides: "nameOverrides",
   quickControlsLocked: "quickControlsLocked",
   trial: "trial",
   premium: "premium",
-  controllerId: "controllerId",
-  authUser: "authUser",
+  sessionPassword: "sessionPassword",
+} as const;
 
-  // persisted UI/data state
-  iButtonUsers: "smart42:ibuttonUsers:v1",
-  appUsers: "smart42:appUsers:v1",
-  scenes: "smart42:scenes:v1",
-} as const
+type JsonValue = unknown;
 
-export type StorageKey = keyof typeof storageKeys
+function isBrowser(): boolean {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
 
-const canUseStorage = () =>
-  typeof window !== "undefined" && typeof window.localStorage !== "undefined"
+function safeGetItem(key: string): string | null {
+  if (!isBrowser()) return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
 
+function safeSetItem(key: string, value: string): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore quota / privacy mode errors
+  }
+}
+
+function safeRemoveItem(key: string): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
+export function get(key: string): string | null {
+  return safeGetItem(key);
+}
+
+export function set(key: string, value: string): void {
+  safeSetItem(key, value);
+}
+
+export function remove(key: string): void {
+  safeRemoveItem(key);
+}
+
+export function getJSON<T = JsonValue>(key: string, fallback: T): T {
+  const raw = safeGetItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export function setJSON(key: string, value: JsonValue): void {
+  safeSetItem(key, JSON.stringify(value));
+}
+
+export function getBool(key: string, fallback = false): boolean {
+  const raw = safeGetItem(key);
+  if (raw === null) return fallback;
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  // tolerate "1"/"0"
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return fallback;
+}
+
+export function setBool(key: string, value: boolean): void {
+  safeSetItem(key, value ? "true" : "false");
+}
+
+export function getNumber(key: string, fallback = 0): number {
+  const raw = safeGetItem(key);
+  if (raw === null) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+export function setNumber(key: string, value: number): void {
+  safeSetItem(key, String(value));
+}
+
+/**
+ * Compatibility object export (some files may import `storage.getBool(...)`)
+ */
 export const storage = {
-  get(key: StorageKey): string | null {
-    if (!canUseStorage()) return null
-    try {
-      return window.localStorage.getItem(storageKeys[key])
-    } catch {
-      return null
-    }
-  },
-
-  set(key: StorageKey, value: string): void {
-    if (!canUseStorage()) return
-    try {
-      window.localStorage.setItem(storageKeys[key], value)
-    } catch {}
-  },
-
-  remove(key: StorageKey): void {
-    if (!canUseStorage()) return
-    try {
-      window.localStorage.removeItem(storageKeys[key])
-    } catch {}
-  },
-
-  getJSON<T>(key: StorageKey, fallback: T): T {
-    const raw = storage.get(key)
-    if (!raw) return fallback
-    try {
-      return JSON.parse(raw) as T
-    } catch {
-      return fallback
-    }
-  },
-
-  setJSON<T>(key: StorageKey, value: T): void {
-    storage.set(key, JSON.stringify(value))
-  },
-
-  getBool(key: StorageKey, fallback = false): boolean {
-    const raw = storage.get(key)
-    if (raw == null) return fallback
-    if (raw === "true") return true
-    if (raw === "false") return false
-    if (raw === "1") return true
-    if (raw === "0") return false
-    return fallback
-  },
-
-  setBool(key: StorageKey, value: boolean): void {
-    storage.set(key, value ? "true" : "false")
-  },
-} as const
+  keys: storageKeys,
+  get,
+  set,
+  remove,
+  getJSON,
+  setJSON,
+  getBool,
+  setBool,
+  getNumber,
+  setNumber,
+} as const;

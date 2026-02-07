@@ -1,22 +1,23 @@
 "use client"
 
 import { createContext, useContext, type ReactNode } from "react"
-import { useDoorsState } from "@/lib/core/doors-state"
 
-import { useAccessState } from "@/lib/core/access-state"
 import { useSystemStatusState } from "@/lib/core/system-status-state"
-import { useIdentityState } from "@/lib/core/identity-state"
-
+import { useAccessState } from "@/lib/core/access-state"
 import { useSubscriptionState } from "@/lib/core/subscription-state"
-import { useQuickControlsState } from "@/lib/core/quick-controls-state"
+import { useUiPreferences } from "@/lib/core/ui-preferences"
 import { useSessionState } from "@/lib/core/session-state"
 
-import { useScenesState } from "@/lib/core/scenes-state"
-import { useLockState } from "@/lib/core/lock-state"
 import { useProfileState } from "@/lib/core/profile-state"
+import { useProfileSyncState } from "@/lib/core/profile-sync-state"
 
 import { useUsersState } from "@/lib/core/users-state"
-import { useProfileSyncState } from "@/lib/core/profile-sync-state"
+import { useScenesState } from "@/lib/core/scenes-state"
+import { useLockState } from "@/lib/core/lock-state"
+
+import { useIdentityState } from "@/lib/core/identity-state"
+import { useDoorsState } from "@/lib/core/doors-state"
+
 import { useFullAccessState } from "@/lib/core/full-access-state"
 import { useControllersWiring } from "@/lib/core/controllers-wiring"
 
@@ -124,29 +125,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Access
   const { currentUserAccess, setCurrentUserAccess } = useAccessState("admin")
 
-  // Subscription
-  const { trialDaysLeft: trialDaysLeftValue, adminHasActiveSubscription } = useSubscriptionState({
-    currentUserAccess,
-  })
+  // Subscription (compat: works whether hook expects args or not)
+  const subscription = (useSubscriptionState as unknown as (args?: {
+    currentUserAccess?: AccessRole
+  }) => {
+    trialDaysLeft: number
+    adminHasActiveSubscription: boolean
+  })({ currentUserAccess })
+
+  const trialDaysLeftValue = subscription.trialDaysLeft
+  const adminHasPaidSubscription = subscription.adminHasActiveSubscription
+
+  // ✅ Trial и Premium = едно и също: "active plan"
+  const adminHasPlan = Boolean(adminHasPaidSubscription || trialDaysLeftValue > 0)
 
   // Profile base state (no sync inside)
   const profile = useProfileState({ currentUserAccess })
 
-  // Users
-const users = useUsersState({
-  currentUserAccess,
-  adminHasActiveSubscription, // ✅ това вече трябва да означава Trial OR Premium (за админ)
-  canOperate: profile.canOperateFullRestrictedActions,
-  isOpenClose: profile.isOpenClose,
-  creatorIdentity: profile.creatorIdentity,
-  onFullAccessCreatedByAdmin: (p) => {
-    profile.setFullAccessCreatedByAdmin(true)
-    profile.setFullAccessProfileByAdmin(p)
-  },
-  onFullAccessProfileByAdminChange: (p) => {
-    profile.setFullAccessProfileByAdmin(p)
-  },
-})
+  // Users ✅ подавай adminHasPlan, НЕ само paid subscription
+  const users = useUsersState({
+    currentUserAccess,
+    adminHasActiveSubscription: adminHasPlan,
+    canOperate: profile.canOperateFullRestrictedActions,
+    isOpenClose: profile.isOpenClose,
+    creatorIdentity: profile.creatorIdentity,
+    onFullAccessCreatedByAdmin: (p) => {
+      profile.setFullAccessCreatedByAdmin(true)
+      profile.setFullAccessProfileByAdmin(p)
+    },
+    onFullAccessProfileByAdminChange: (p) => {
+      profile.setFullAccessProfileByAdmin(p)
+    },
+  })
 
   // Profile sync (extracted)
   const { setUserName: setUserNameHandler } = useProfileSyncState({
@@ -160,17 +170,17 @@ const users = useUsersState({
     setAppUsers: users.setAppUsers,
   })
 
-  // Scenes
+  // Scenes ✅ подавай adminHasPlan
   const { scenes, setScenes, canCreateScene } = useScenesState({
     currentUserAccess,
-    adminHasActiveSubscription,
+    adminHasActiveSubscription: adminHasPlan,
   })
 
   // Lock/timers
   const lock = useLockState()
 
-  // UI prefs
-  const { quickControlsLocked, setQuickControlsLocked } = useQuickControlsState()
+  // UI prefs (quick controls lock)
+  const { quickControlsLocked, setQuickControlsLocked } = useUiPreferences()
 
   // Session
   const { sessionPassword, setSessionPassword } = useSessionState()
@@ -184,11 +194,11 @@ const users = useUsersState({
   // Controllers
   const controllersApi = useControllersWiring({ canOperate: profile.canOperateFullRestrictedActions })
 
-  // Full access computed
+  // Full access computed ✅ подавай adminHasPlan
   const fullAccess = useFullAccessState({
     appUsers: users.appUsers,
     isFull: profile.isFull,
-    adminHasActiveSubscription,
+    adminHasActiveSubscription: adminHasPlan,
     fullIsActivated: profile.fullIsActivated,
     fullAccessProfileByAdmin: profile.fullAccessProfileByAdmin,
   })
@@ -268,7 +278,10 @@ const users = useUsersState({
         setEntityName: identity.setEntityName,
 
         trialDaysLeft: trialDaysLeftValue,
-        adminHasActiveSubscription,
+
+        // ✅ експортваме "plan" като adminHasActiveSubscription,
+        // за да не чупим други места в кода
+        adminHasActiveSubscription: adminHasPlan,
 
         fullAccessAccountCount: fullAccess.fullAccessAccountCount,
         canCreateFullAccessAccount: fullAccess.canCreateFullAccessAccount,
