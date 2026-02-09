@@ -1,0 +1,74 @@
+
+## 2026-02-09 — Session
+
+Current commit/branch:
+- commit: 16ca172
+- branch: stable-working (refactor work goes to refactor-v2)
+
+What works now:
+- Lock/Unlock works
+- build/lint ok
+
+Next task:
+- Start refactor-v2: make Lock/Unlock explicit actions + add manual POST check after refactors
+
+
+# PROGRESS_LOG — SMART42 (APPEND-ONLY)
+
+How to use:
+- Add a new entry at the TOP after each work session.
+- Keep it short.
+- Always include: date/time, commit/branch, what changed, what was tested, what is next.
+
+---
+
+## YYYY-MM-DD (local time) — Session title
+Baseline/branch:
+- commit:
+- branch:
+
+What we changed:
+- 
+
+Tests done:
+- lint:
+- build:
+- manual:
+
+Result:
+- 
+
+Next:
+- 
+
+## 2026-02-09 — Anti-regression: Lock/Unlock must send real action (not only UI state)
+
+Baseline/branch:
+- stable baseline commit: 16ca172 (known good)
+- work should continue in a separate refactor branch (e.g. refactor-v2)
+
+What broke during refactor (root cause):
+- Lock/Unlock UI button was still changing `doorState` (UI state),
+  but the real side effect (calling `doorActions.lock/unlock` -> API) was lost.
+- Result: button “looked clickable” but no real lock/unlock command was sent.
+
+How to prevent this in the next refactor:
+1) Keep Lock/Unlock as explicit ACTIONS in the context API:
+   - prefer `lockDoor()` / `unlockDoor()` (or `setDoorState` MUST also trigger doorActions),
+   so we cannot accidentally refactor away the side-effect.
+2) Add a mandatory manual smoke-test after ANY refactor touching:
+   - `lib/app-context.tsx`, `lib/core/lock-state.ts`, door actions/api, dashboard handlers.
+   Smoke-test = click Lock then Unlock and confirm in dev terminal logs:
+   - `POST /api/doors/lock`
+   - `POST /api/doors/unlock`
+3) After each change: `npm run lint` + `npm run build` + `npm run dev` and re-test Lock/Unlock.
+4) Use frequent git checkpoints (small commits) so regressions are easy to revert.
+
+Next:
+- When starting refactor-v2: implement (1) first, then refactor other modules.
+
+- Lesson: When a core feature breaks after refactor, do NOT guess.
+  Use git to locate the exact change:
+  - `git reflog -20` (find last known-good HEAD)
+  - or `git bisect` between good/bad commits
+  This is faster than patching blindly.

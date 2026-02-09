@@ -1,11 +1,19 @@
-# REFACTOR_NOTES
+# REFACTOR_NOTES — SMART42 (WORKING NOTES)
 
-## Goal
-Make `lib/app-context.tsx` a thin composition layer and move logic into `lib/core/*`.
+STATUS: **WORKING NOTES / TODO LIST**
+If conflict: PROJECT_LOGIC_SPEC.md wins.
+Stable baseline: **16ca172**
 
-## Completed extractions
+Goal:
+- Make `lib/app-context.tsx` a thin composition layer
+- Move business logic into `lib/core/*`
+- Keep UI unchanged
+
+---
+
+## Completed extractions (as of baseline)
 - Subscription state → `lib/core/subscription-state.ts`
-- Quick controls UI pref → `lib/core/quick-controls-state.ts`
+- Quick controls UI pref → `lib/core/ui-preferences.ts` (or `quick-controls-state.ts`)
 - Session state → `lib/core/session-state.ts`
 - Scenes state/guards wiring → `lib/core/scenes-state.ts`
 - Lock state/timers → `lib/core/lock-state.ts`
@@ -17,11 +25,23 @@ Make `lib/app-context.tsx` a thin composition layer and move logic into `lib/cor
 - System UI state → `lib/core/system-status-state.ts`
 - Identity + name overrides wiring → `lib/core/identity-state.ts`
 
-## Notes
-- Avoid manual `useMemo` wrappers that conflict with React Compiler lint rules.
-- Prefer returning plain objects/functions from hooks unless memoization is clearly needed.
-- App-context should stay readable and predictable: compose core hooks and expose context API.
+---
 
-## Next
-- Optional: extract the profile-sync wiring (createSetUserNameHandler + useProfileSyncToAppUsers) into a dedicated core hook.
-- Optional: add basic tests for guards (scenes/users limits).
+## Notes (rules while refactoring)
+- Avoid manual `useMemo` wrappers that conflict with React hook lint rules unless clearly needed.
+- App-context should remain readable and predictable: compose core hooks and expose context API.
+- Never break Lock/Unlock: always re-test after changes.
+
+---
+
+## Next (suggested)
+1) Optional: extract profile-sync wiring into a dedicated core hook.
+2) Optional: add basic tests for guards (scenes/users limits).
+3) Backend readiness: keep data structures compatible with future API replacement.
+
+## Common refactor failure modes (avoid)
+- Import/export drift: don't import a hook that doesn't exist (example: `useUiPreferences`).
+  Prefer keeping module public API stable during refactors.
+- Duplicate imports / duplicate hook names in app-context can create silent breakage.
+- After any extraction: run `npm run build` (catches missing exports early).
+

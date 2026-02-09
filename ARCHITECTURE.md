@@ -1,127 +1,134 @@
-# ARCHITECTURE
+# ARCHITECTURE — SMART42 (REFERENCE MAP)
 
-## 1) Overview
+STATUS: **REFERENCE / OWNERSHIP MAP**
+If conflict: PROJECT_LOGIC_SPEC.md wins.
+Stable baseline: **16ca172**
 
-This project is a smart door access control system UI (Next.js + React + Tailwind + shadcn/ui) with clear separation:
-
+Goal:
 - `lib/app-context.tsx` = **composition/wiring only**
 - `lib/core/*` = **business logic hooks + pure helpers**
-- Components/screens consume context state via `useAppContext()`
-
-Key principle:
-> Anything that can be a pure function or a hook goes to `lib/core/*`.
-> `lib/app-context.tsx` stays as a thin composition layer.
+- Components consume via `useAppContext()`
 
 ---
 
-## 2) Folder Map
+## 1) Folder Map (what lives where)
 
-### `lib/app-context.tsx`
-- Provides `AppContext` + `AppProvider`
-- Composes core hooks and exposes one unified context API to screens/components
+### `app/`
+- Next.js App Router pages + API routes
 
-### `lib/core/*` (main extracted blocks)
-- `subscription-state.ts`  
-  Trial/Premium state + computed values:
-  - `trialDaysLeft`
-  - `adminHasActiveSubscription`
+### `components/`
+- UI screens/cards
+- MUST NOT contain business logic (only calls into context)
 
-- `quick-controls-state.ts`  
-  UI preference persistence: `quickControlsLocked`
+### `lib/`
+- `app-context.tsx` (wiring layer)
+- `permissions.ts` (central permission checks)
+- `core/` (domain modules, state hooks, persistence, guards)
 
-- `session-state.ts`  
-  Session-only state: `sessionPassword`
+---
 
-- `access-state.ts`  
-  Role switching state: `currentUserAccess`
+## 2) Main modules (core ownership)
 
-- `system-status-state.ts`  
-  UI state: `isSystemStatusExpanded`
+### Wiring / composition
+- `lib/app-context.tsx`
+  - Provides `AppContext` + `AppProvider`
+  - Composes core hooks and exposes one unified API
 
-- `identity-state.ts`  
-  `currentUserId` + name overrides wiring:
+### Core: subscription/plan
+- `lib/core/subscription-state.ts`
+  - Derived:
+    - `trialDaysLeft`
+    - `adminHasActiveSubscription` (active plan = trial OR premium)
+
+### Core: UI prefs
+- `lib/core/ui-preferences.ts` (or `quick-controls-state.ts` if that is the actual file)
+  - `quickControlsLocked` persistence
+
+### Core: session
+- `lib/core/session-state.ts`
+  - `sessionPassword`
+
+### Core: role switching / access
+- `lib/core/access-state.ts`
+  - `currentUserAccess`
+
+### Core: system status UI
+- `lib/core/system-status-state.ts`
+  - `isSystemStatusExpanded`
+
+### Core: identity + name overrides wiring
+- `lib/core/identity-state.ts`
+  - `currentUserId`
   - `nameOverrides`
-  - `getEntityName`
-  - `setEntityName`
+  - `getEntityName / setEntityName`
 
-- `scenes-state.ts`  
-  Scenes state + rules wiring:
-  - `canCreateScene()`
-  - `setScenes()` normalizes by guards (subscription/role limits)
+### Core: doors
+- `lib/core/doors-state.ts`
+  - list + add/update/remove (guarded by role)
+- `lib/core/api.ts` + `lib/core/door-actions.ts`
+  - lock/unlock actions -> API routes
 
-- `lock-state.ts`  
-  Door lock state + timers:
-  - auto lock countdown
-  - auto night lock schedule
+### Core: scenes
+- `lib/core/scenes-state.ts`
+  - scenes state + wiring to guards
+- `lib/core/scenes-guard.ts`
+  - limit + normalize logic
 
-- `profile-state.ts`  
-  Profile data and Full Access activation gating (state only):
-  - `userNamesByRole`, `userName`, `userEmail`
-  - `fullAccessCreatedByAdmin`, `fullAccessProfileByAdmin`
-  - `creatorIdentity`
-  - `canOperateFullRestrictedActions`
+### Core: lock/timers
+- `lib/core/lock-state.ts`
+  - `doorState`, auto lock, night lock
+- `lib/core/lock-timers.ts`
+  - extracted timer hooks
 
-- `users-state.ts`  
-  iButtonUsers + appUsers state + mutations + guards (role/subscription):
-  - add/update/remove iButton users
-  - add/update/remove app users
-  - updates propagate full-access profile callbacks
+### Core: profile + full access gating
+- `lib/core/profile-state.ts`
+  - base profile state + derived gating flags
+- `lib/core/profile-sync-state.ts`
+  - sync logic (name -> appUsers), if present
+- `lib/core/full-access-state.ts`
+  - derived helpers (counts + canCreate + profile getters)
 
-- `full-access-state.ts`  
-  Derived helpers:
-  - `fullAccessAccountCount`
-  - `canCreateFullAccessAccount`
-  - `canFullAccessAddUsers`
-  - `getFullAccessUserProfile`
+### Core: users (iButton + app users)
+- `lib/core/users-state.ts`
+  - users state + mutations + guards
+- `lib/core/users.ts`
+  - pure helper functions / rules
+- `lib/core/users-persistence.ts`
+  - load/save of users lists
 
-- `controllers-wiring.ts`  
-  Thin wrapper around `useControllersState` for consistent wiring
-
-Other existing core modules used by the above:
-- `doors-state.ts`, `controllers-state.ts`, `scenes-guard.ts`, `lock-timers.ts`
-- `users.ts` (pure helpers)
-- `profile-sync.ts` (sync logic: name → appUsers)
-
----
-
-## 3) Rules / Guards (important)
-
-### Roles
-- `admin` has full access.
-- `full` may be blocked from restricted actions until activated by admin (`fullIsActivated`).
-- `open-close` has the most restrictions.
-
-### Subscription
-- `adminHasActiveSubscription` is derived from:
-  - active trial OR premium
-
-### Scenes limits
-Implemented via `lib/core/scenes-guard.ts` and used by `useScenesState`:
-- `open-close` cannot create scenes
-- without subscription: max 1 scene
-- with subscription: higher limits (as defined in guard)
-
-### Users (iButton/App users)
-Creation/editing is gated by:
-- role restrictions (`open-close`)
-- subscription checks (where applicable)
-- full-access activation gating (`canOperateFullRestrictedActions`)
+### Core: controllers
+- `lib/core/controllers-state.ts`
+  - controllers state + actions
+- `lib/core/controllers-wiring.ts`
+  - thin wrapper for consistent wiring
 
 ---
 
-## 4) State flow
+## 3) Data flow (critical paths)
 
-- Screens/components call `useAppContext()`.
-- `AppProvider` composes state from core hooks and exposes a stable API.
-- Persistence:
-  - trial/premium persisted via `load*/save*`
-  - UI prefs persisted via `loadQuickControlsLocked/saveQuickControlsLocked`
-  - other states are in-memory unless explicitly persisted
+### 3.1 Lock/Unlock (most fragile)
+UI -> `useAppContext().setDoorState("lock"|"unlock")`
+-> `useLockState` updates state
+-> real action is executed via:
+`door-actions.ts` -> `api.ts` -> `/api/doors/lock|unlock`
+
+Rule:
+- UI must NOT replace lock state with local demo state.
+
+### 3.2 Users
+UI -> AppContext -> users-state -> guards/helpers -> persistence
+
+### 3.3 Scenes
+UI -> AppContext -> scenes-state -> scenes-guard -> persistence
 
 ---
 
-## 5) Extension points (next steps)
+## 4) Persistence (current)
+Currently mocked via browser storage (until backend):
+- Local overrides and some lists persist across refresh.
 
-- Add backend API integration (controllers/doors/users/scenes persistence)
-- Introduce tests for guards and pure helpers (scenes/users limits)
-- Replace demo profile data with real auth/user identity when backend is ready
+---
+
+## 5) Extension points
+- Add backend API persistence (doors/users/scenes/controllers)
+- Add tests for guards (scenes/users limits)
