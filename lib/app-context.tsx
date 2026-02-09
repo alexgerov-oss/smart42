@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, type ReactNode } from "react"
+import { doorActions } from "@/lib/core/door-actions"
 
 import { useSystemStatusState } from "@/lib/core/system-status-state"
 import { useAccessState } from "@/lib/core/access-state"
@@ -9,11 +10,12 @@ import { useUiPreferences } from "@/lib/core/ui-preferences"
 import { useSessionState } from "@/lib/core/session-state"
 
 import { useProfileState } from "@/lib/core/profile-state"
-import { useProfileSyncState } from "@/lib/core/profile-sync-state"
+import { useProfileSyncWiring } from "@/lib/core/profile-sync-wiring"
 
 import { useUsersState } from "@/lib/core/users-state"
 import { useScenesState } from "@/lib/core/scenes-state"
 import { useLockState } from "@/lib/core/lock-state"
+import { useLockUnlockWiring } from "@/lib/core/lock-unlock-wiring"
 
 import { useIdentityState } from "@/lib/core/identity-state"
 import { useDoorsState } from "@/lib/core/doors-state"
@@ -43,6 +45,11 @@ interface AppContextType {
   countdown: number | null
   doorState: "lock" | "unlock"
   setDoorState: (state: "lock" | "unlock") => void
+
+  // ✅ Explicit actions (anti-regression)
+  lockDoor: (doorId: string) => ReturnType<typeof doorActions.lock>
+  unlockDoor: (doorId: string) => ReturnType<typeof doorActions.unlock>
+
   autoLockDelay: number
   setAutoLockDelay: (delay: number) => void
   autoLockEnabled: boolean
@@ -125,7 +132,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Access
   const { currentUserAccess, setCurrentUserAccess } = useAccessState("admin")
 
-  // Subscription (compat: works whether hook expects args or not)
+  // Subscription (compat)
   const subscription = (useSubscriptionState as unknown as (args?: {
     currentUserAccess?: AccessRole
   }) => {
@@ -136,13 +143,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const trialDaysLeftValue = subscription.trialDaysLeft
   const adminHasPaidSubscription = subscription.adminHasActiveSubscription
 
-  // ✅ Trial и Premium = едно и също: "active plan"
+  // Trial + Premium => active plan
   const adminHasPlan = Boolean(adminHasPaidSubscription || trialDaysLeftValue > 0)
 
-  // Profile base state (no sync inside)
+  // Profile base state
   const profile = useProfileState({ currentUserAccess })
 
-  // Users ✅ подавай adminHasPlan, НЕ само paid subscription
+  // Users
   const users = useUsersState({
     currentUserAccess,
     adminHasActiveSubscription: adminHasPlan,
@@ -158,28 +165,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
   })
 
-  // Profile sync (extracted)
-  const { setUserName: setUserNameHandler } = useProfileSyncState({
+  // Profile sync (extracted wiring)
+  const { setUserName: setUserNameHandler } = useProfileSyncWiring({
     currentUserAccess,
-    isAdmin: profile.isAdmin,
-    isFull: profile.isFull,
-    isOpenClose: profile.isOpenClose,
-    canOperate: profile.canOperateFullRestrictedActions,
-    userNamesByRole: profile.userNamesByRole,
-    setUserNamesByRole: profile.setUserNamesByRole,
-    setAppUsers: users.setAppUsers,
+    profile,
+    users,
   })
 
-  // Scenes ✅ подавай adminHasPlan
+  // Scenes
   const { scenes, setScenes, canCreateScene } = useScenesState({
     currentUserAccess,
     adminHasActiveSubscription: adminHasPlan,
   })
 
-  // Lock/timers
+  // Lock/timers (UI state)
   const lock = useLockState()
 
-  // UI prefs (quick controls lock)
+  // UI preferences (quick controls lock)
   const { quickControlsLocked, setQuickControlsLocked } = useUiPreferences()
 
   // Session
@@ -191,10 +193,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Doors
   const { doors, addDoor, updateDoor, removeDoor } = useDoorsState({ currentUserAccess })
 
+  // ✅ Lock/Unlock wiring extracted into core hook
+  const { lockDoor, unlockDoor } = useLockUnlockWiring({
+    doors,
+    doorState: lock.doorState,
+    setDoorState: lock.setDoorState,
+  })
+
   // Controllers
   const controllersApi = useControllersWiring({ canOperate: profile.canOperateFullRestrictedActions })
 
-  // Full access computed ✅ подавай adminHasPlan
+  // Full access computed
   const fullAccess = useFullAccessState({
     appUsers: users.appUsers,
     isFull: profile.isFull,
@@ -215,7 +224,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         countdown: lock.countdown,
         doorState: lock.doorState,
+
+        // NOTE: keep this for internal/timers; UI should use lockDoor/unlockDoor
         setDoorState: lock.setDoorState,
+
+        // ✅ explicit actions
+        lockDoor,
+        unlockDoor,
+
         autoLockDelay: lock.autoLockDelay,
         setAutoLockDelay: lock.setAutoLockDelay,
         autoLockEnabled: lock.autoLockEnabled,
@@ -278,9 +294,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setEntityName: identity.setEntityName,
 
         trialDaysLeft: trialDaysLeftValue,
-
-        // ✅ експортваме "plan" като adminHasActiveSubscription,
-        // за да не чупим други места в кода
         adminHasActiveSubscription: adminHasPlan,
 
         fullAccessAccountCount: fullAccess.fullAccessAccountCount,
