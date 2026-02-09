@@ -12,7 +12,13 @@ import { loadPremium, savePremium, adminHasPremium } from "@/lib/core/premium"
 // .env.local -> NEXT_PUBLIC_FORCE_SUBSCRIPTION=1
 const FORCE_SUBSCRIPTION = process.env.NEXT_PUBLIC_FORCE_SUBSCRIPTION === "1"
 
-export function useSubscriptionState({ currentUserAccess }: { currentUserAccess: AccessRole }) {
+// NOTE:
+// currentUserAccess НЕ е нужен за изчисленията (subscription/trial е “на системата”),
+// но го приемаме optional само за back-compat / debug.
+export function useSubscriptionState(_args?: { currentUserAccess?: AccessRole }) {
+  // optional, for debug only
+  const currentUserAccess: AccessRole = _args?.currentUserAccess ?? "admin"
+
   // Trial
   const [trial, setTrial] = useState<TrialState>(() => loadTrial())
   const didInitTrial = useRef(false)
@@ -39,7 +45,6 @@ export function useSubscriptionState({ currentUserAccess }: { currentUserAccess:
   const trialDaysLeftValue = useMemo(() => trialDaysLeft(trial), [trial])
 
   // ✅ ВАЖНО: subscription/trial е “на системата”, НЕ зависи от currentUserAccess
-  // Затова НЕ използваме currentUserAccess за изчислението.
   const computed = useMemo(() => {
     const hasTrial = trialDaysLeftValue > 0
     // adminHasPremium() вероятно проверява role -> подаваме "admin", за да е стабилно
@@ -49,9 +54,9 @@ export function useSubscriptionState({ currentUserAccess }: { currentUserAccess:
 
   const adminHasActiveSubscription = FORCE_SUBSCRIPTION || computed
 
-  // Debug log (можеш да го махнеш по-късно)
+  // Debug log (ако те дразни - може да го изтриеш)
   useEffect(() => {
-    console.log("[SUBSCRIPTION_STATE v3]", {
+    console.log("[SUBSCRIPTION_STATE]", {
       currentUserAccess,
       trialDaysLeft: trialDaysLeftValue,
       computed,
