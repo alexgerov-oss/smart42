@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { doorActions } from "@/lib/core/door-actions"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -82,7 +81,6 @@ export default function DashboardScreen({
     setIsSystemStatusExpanded,
     countdown,
     doorState,
-    setDoorState,
     autoLockEnabled,
     userName,
     getActiveController,
@@ -94,6 +92,10 @@ export default function DashboardScreen({
     addDoor,
     updateDoor,
     removeDoor,
+
+    // ✅ explicit actions from context (anti-regression)
+    lockDoor,
+    unlockDoor,
   } = useAppContext()
 
   const { toast } = useToast()
@@ -105,7 +107,9 @@ export default function DashboardScreen({
 
   const selectedDoor = doors.find((d) => d.id === activeDoorId)
   const doorSystemName = selectedDoor?.systemName || doorName
-  const displayDoorName = getEntityName("doors", activeDoorId, doorSystemName)
+
+  // ✅ Guard: if no door id, don't call getEntityName with empty id
+  const displayDoorName = activeDoorId ? getEntityName("doors", activeDoorId, doorSystemName) : doorSystemName
 
   const displayUserName = currentUserAccess === "full" ? getFullAccessUserProfile()?.name || userName : userName
 
@@ -125,7 +129,7 @@ export default function DashboardScreen({
   }, [])
 
   const callDoorAction = async (doorId: string, nextState: "lock" | "unlock") => {
-    const res = nextState === "lock" ? await doorActions.lock(doorId) : await doorActions.unlock(doorId)
+    const res = nextState === "lock" ? await lockDoor(doorId) : await unlockDoor(doorId)
 
     if (!res.ok) {
       toast({
@@ -144,10 +148,9 @@ export default function DashboardScreen({
     if (!activeDoorId) return
     if (doorState === targetState) return
 
+    // ✅ this sends POST + updates state inside context
     const ok = await callDoorAction(activeDoorId, targetState)
     if (!ok) return
-
-    setDoorState(targetState)
   }
 
   const handleSliderInteraction = async (clientX: number, rect: DOMRect) => {
@@ -161,10 +164,9 @@ export default function DashboardScreen({
 
     if (doorState === targetState) return
 
+    // ✅ this sends POST + updates state inside context
     const ok = await callDoorAction(activeDoorId, targetState)
     if (!ok) return
-
-    setDoorState(targetState)
   }
 
   const handleSliderMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
