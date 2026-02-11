@@ -7,6 +7,8 @@ import {
   canCreateFullAccessAccount as canCreateFullAccessAccountCore,
 } from "@/lib/core/users"
 
+const EMPTY_APP_USERS: AppUser[] = []
+
 // ✅ opts optional + safe defaults (prevents "destructure of undefined")
 export function useFullAccessState(opts?: {
   appUsers?: AppUser[]
@@ -15,7 +17,7 @@ export function useFullAccessState(opts?: {
   fullIsActivated?: boolean
   fullAccessProfileByAdmin?: { name: string; email: string } | null
 }) {
-  const appUsers = opts?.appUsers ?? []
+  const appUsers = opts?.appUsers ?? EMPTY_APP_USERS
   const isFull = opts?.isFull ?? false
   const adminHasActiveSubscription = opts?.adminHasActiveSubscription ?? false
   const fullIsActivated = opts?.fullIsActivated ?? false
