@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react"
 import type { AccessRole } from "@/lib/core/types"
 
-export function useProfileState(opts: { currentUserAccess: AccessRole }) {
-  const { currentUserAccess } = opts
+// ✅ opts is optional + safe default (prevents "destructure of undefined")
+export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
+  const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
 
   const isAdmin = currentUserAccess === "admin"
   const isFull = currentUserAccess === "full"
@@ -22,7 +23,8 @@ export function useProfileState(opts: { currentUserAccess: AccessRole }) {
     full: "Jane Smith",
     "open-close": "Guest User",
   })
-  const userName = userNamesByRole[currentUserAccess]
+
+  const userName = userNamesByRole[currentUserAccess] ?? userNamesByRole.admin ?? "User"
 
   const [userEmail, setUserEmail] = useState("john.doe@example.com")
 
