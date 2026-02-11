@@ -19,25 +19,25 @@ import {
 
 import { loadAppUsers, loadIButtonUsers, saveAppUsers, saveIButtonUsers } from "@/lib/core/users-persistence"
 
-export function useUsersState(opts: {
-  currentUserAccess: AccessRole
-  adminHasActiveSubscription: boolean
-  canOperate: boolean
-  isOpenClose: boolean
-  creatorIdentity: { name: string; email: string }
+// ✅ opts optional + safe defaults (prevents "destructure of undefined")
+export function useUsersState(opts?: {
+  currentUserAccess?: AccessRole
+  adminHasActiveSubscription?: boolean
+  canOperate?: boolean
+  isOpenClose?: boolean
+  creatorIdentity?: { name: string; email: string }
 
-  onFullAccessCreatedByAdmin: (profile: { name: string; email: string }) => void
-  onFullAccessProfileByAdminChange: (profile: { name: string; email: string } | null) => void
+  onFullAccessCreatedByAdmin?: (profile: { name: string; email: string }) => void
+  onFullAccessProfileByAdminChange?: (profile: { name: string; email: string } | null) => void
 }) {
-  const {
-    currentUserAccess,
-    adminHasActiveSubscription,
-    canOperate,
-    isOpenClose,
-    creatorIdentity,
-    onFullAccessCreatedByAdmin,
-    onFullAccessProfileByAdminChange,
-  } = opts
+  const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "open-close"
+  const adminHasActiveSubscription = opts?.adminHasActiveSubscription ?? false
+  const canOperate = opts?.canOperate ?? false
+  const isOpenClose = opts?.isOpenClose ?? (currentUserAccess === "open-close")
+  const creatorIdentity = opts?.creatorIdentity ?? { name: "", email: "" }
+
+  const onFullAccessCreatedByAdmin = opts?.onFullAccessCreatedByAdmin ?? (() => {})
+  const onFullAccessProfileByAdminChange = opts?.onFullAccessProfileByAdminChange ?? (() => {})
 
   const [iButtonUsers, _setIButtonUsers] = useState<IButtonUser[]>(() => loadIButtonUsers())
   const [appUsers, _setAppUsers] = useState<AppUser[]>(() => loadAppUsers())
