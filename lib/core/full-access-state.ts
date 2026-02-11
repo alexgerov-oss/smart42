@@ -7,14 +7,19 @@ import {
   canCreateFullAccessAccount as canCreateFullAccessAccountCore,
 } from "@/lib/core/users"
 
-export function useFullAccessState(opts: {
-  appUsers: AppUser[]
-  isFull: boolean
-  adminHasActiveSubscription: boolean
-  fullIsActivated: boolean
-  fullAccessProfileByAdmin: { name: string; email: string } | null
+// ✅ opts optional + safe defaults (prevents "destructure of undefined")
+export function useFullAccessState(opts?: {
+  appUsers?: AppUser[]
+  isFull?: boolean
+  adminHasActiveSubscription?: boolean
+  fullIsActivated?: boolean
+  fullAccessProfileByAdmin?: { name: string; email: string } | null
 }) {
-  const { appUsers, isFull, adminHasActiveSubscription, fullIsActivated, fullAccessProfileByAdmin } = opts
+  const appUsers = opts?.appUsers ?? []
+  const isFull = opts?.isFull ?? false
+  const adminHasActiveSubscription = opts?.adminHasActiveSubscription ?? false
+  const fullIsActivated = opts?.fullIsActivated ?? false
+  const fullAccessProfileByAdmin = opts?.fullAccessProfileByAdmin ?? null
 
   const fullAccessAccountCount = useMemo(() => fullAccessAccountCountCore(appUsers), [appUsers])
   const canCreateFullAccessAccount = () => canCreateFullAccessAccountCore(appUsers)
