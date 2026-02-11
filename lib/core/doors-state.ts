@@ -4,8 +4,9 @@ import { useState } from "react"
 import type { AccessRole, Door } from "@/lib/core/types"
 import { loadDoors, saveDoors } from "@/lib/core/doors-persistence"
 
-export function useDoorsState(opts: { currentUserAccess: AccessRole }) {
-  const { currentUserAccess } = opts
+// ✅ opts е optional + safe default (за да няма "destructure of undefined")
+export function useDoorsState(opts?: { currentUserAccess?: AccessRole }) {
+  const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
 
   const [doors, _setDoors] = useState<Door[]>(() => loadDoors())
 
