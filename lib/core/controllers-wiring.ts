@@ -2,7 +2,10 @@
 
 import { useControllersState } from "@/lib/core/controllers-state"
 
-export function useControllersWiring(opts: { canOperate: boolean }) {
+// ✅ opts optional + safe default
+export function useControllersWiring(opts?: { canOperate?: boolean }) {
+  const canOperate = opts?.canOperate ?? false
+
   const {
     controllers,
     addController,
@@ -11,7 +14,7 @@ export function useControllersWiring(opts: { canOperate: boolean }) {
     updateControllerStatus,
     getActiveController,
     restartController,
-  } = useControllersState({ canOperate: opts.canOperate })
+  } = useControllersState({ canOperate })
 
   return {
     controllers,
