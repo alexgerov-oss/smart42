@@ -38,10 +38,16 @@ export function saveQuickControlsLocked(locked: boolean): void {
  * Новият export, който app-context.tsx търси
  */
 export function useUiPreferences() {
-  const [quickControlsLocked, setQuickControlsLockedState] = React.useState<boolean>(() => loadQuickControlsLocked(false))
+  const [quickControlsLocked, setQuickControlsLockedState] = React.useState<boolean>(() =>
+    loadQuickControlsLocked(false),
+  )
+
+  const syncFromStorage = React.useCallback(() => {
+    setQuickControlsLockedState(loadQuickControlsLocked(false))
+  }, [])
 
   React.useEffect(() => {
-    const syncFromStorage = () => setQuickControlsLockedState(loadQuickControlsLocked(false))
+    if (typeof window === "undefined") return
 
     window.addEventListener(EVENT_NAME, syncFromStorage)
 
@@ -54,7 +60,7 @@ export function useUiPreferences() {
       window.removeEventListener(EVENT_NAME, syncFromStorage)
       window.removeEventListener("storage", onStorage)
     }
-  }, [])
+  }, [syncFromStorage])
 
   const setQuickControlsLocked = React.useCallback((locked: boolean) => {
     saveQuickControlsLocked(locked)
