@@ -3,10 +3,14 @@
 import { useCallback, useMemo, useState } from "react"
 import type { AccessRole, Scene } from "@/lib/core/types"
 import { canCreateScene as canCreateSceneCore, normalizeNextScenes } from "@/lib/core/scenes-guard"
+import { loadScenes, saveScenes } from "@/lib/core/scenes-persistence"
 
-export function useScenesState(opts: { currentUserAccess: AccessRole; adminHasActiveSubscription: boolean }) {
-  const { currentUserAccess, adminHasActiveSubscription } = opts
-  const [scenes, setScenesState] = useState<Scene[]>([])
+// ✅ opts is optional + safe defaults (prevents "destructure of undefined")
+export function useScenesState(opts?: { currentUserAccess?: AccessRole; adminHasActiveSubscription?: boolean }) {
+  const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
+  const adminHasActiveSubscription: boolean = opts?.adminHasActiveSubscription ?? false
+
+  const [scenes, setScenesState] = useState<Scene[]>(() => loadScenes())
 
   const canCreateScene = useCallback(() => {
     return canCreateSceneCore({
@@ -20,11 +24,11 @@ export function useScenesState(opts: { currentUserAccess: AccessRole; adminHasAc
     (next: Scene[]) => {
       const normalized = normalizeNextScenes({ currentUserAccess, adminHasActiveSubscription, next })
       setScenesState(normalized)
+      saveScenes(normalized)
     },
     [currentUserAccess, adminHasActiveSubscription],
   )
 
-  // (по избор) ако искаш да няма нови функции на всеки render:
   return useMemo(
     () => ({
       scenes,
