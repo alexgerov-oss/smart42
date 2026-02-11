@@ -4,8 +4,9 @@ import { getCurrentUserId } from "@/lib/core/identity"
 import { useNameOverrides } from "@/lib/core/name-overrides"
 import type { AccessRole, EntityType, NameOverrides } from "@/lib/core/types"
 
-export function useIdentityState(opts: { currentUserAccess: AccessRole }) {
-  const { currentUserAccess } = opts
+// ✅ opts is optional + safe default (prevents "destructure of undefined")
+export function useIdentityState(opts?: { currentUserAccess?: AccessRole }) {
+  const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
   const currentUserId = getCurrentUserId(currentUserAccess)
 
   const { nameOverrides, getEntityName, setEntityName } = useNameOverrides({
