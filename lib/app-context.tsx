@@ -132,13 +132,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Access
   const { currentUserAccess, setCurrentUserAccess } = useAccessState("admin")
 
-  // Subscription (compat)
-  const subscription = (useSubscriptionState as unknown as (args?: {
-    currentUserAccess?: AccessRole
-  }) => {
-    trialDaysLeft: number
-    adminHasActiveSubscription: boolean
-  })({ currentUserAccess })
+  // Subscription (NO type-cast glue)
+  const subscription = useSubscriptionState()
 
   const trialDaysLeftValue = subscription.trialDaysLeft
   const adminHasPaidSubscription = subscription.adminHasActiveSubscription
