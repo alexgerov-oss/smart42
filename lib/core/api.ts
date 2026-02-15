@@ -1,6 +1,14 @@
 // lib/core/api.ts
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function hasStringErrorField(value: unknown): value is { error: string } {
+  return isRecord(value) && typeof value.error === "string"
+}
+
 function safeErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message
   if (typeof err === "string") return err
@@ -44,8 +52,8 @@ export class ApiClient {
 
       if (!res.ok) {
         const message =
-          (payload && typeof payload === "object" && "error" in payload && typeof (payload as any).error === "string"
-            ? (payload as any).error
+          (hasStringErrorField(payload)
+            ? payload.error
             : typeof payload === "string" && payload
               ? payload
               : `Request failed (${res.status})`) || `Request failed (${res.status})`

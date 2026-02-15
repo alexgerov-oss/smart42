@@ -5,6 +5,10 @@ import type { Scene } from "@/lib/core/types"
 const PRIMARY_KEY = "scenes"
 const LEGACY_KEYS = ["smart42:scenes", "smartDoor:scenes"]
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
 function tryParseScenes(raw: string): Scene[] | null {
   try {
     const parsed = JSON.parse(raw)
@@ -13,7 +17,7 @@ function tryParseScenes(raw: string): Scene[] | null {
     if (Array.isArray(parsed)) return parsed as Scene[]
 
     // Back-compat: { scenes: [...] }
-    if (parsed && Array.isArray((parsed as any).scenes)) return (parsed as any).scenes as Scene[]
+    if (isRecord(parsed) && Array.isArray(parsed.scenes)) return parsed.scenes as Scene[]
 
     return null
   } catch {

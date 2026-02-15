@@ -4,6 +4,17 @@ import { useCallback, useEffect, useRef } from "react"
 import { doorActions } from "@/lib/core/door-actions"
 import type { Door } from "@/lib/core/types"
 
+type LockResult = Awaited<ReturnType<typeof doorActions.lock>>
+type UnlockResult = Awaited<ReturnType<typeof doorActions.unlock>>
+
+function lockError(message: string): LockResult {
+  return { ok: false, error: message }
+}
+
+function unlockError(message: string): UnlockResult {
+  return { ok: false, error: message }
+}
+
 export function useLockUnlockWiring(args: {
   doors: Door[]
   doorState: "lock" | "unlock"
@@ -25,7 +36,7 @@ export function useLockUnlockWiring(args: {
       return res
     } catch (e) {
       console.error("[LOCK] lock failed", e)
-      return { ok: false, error: "Lock failed" } as unknown as Awaited<ReturnType<typeof doorActions.lock>>
+      return lockError("Lock failed")
     }
   }, [setDoorState])
 
@@ -39,7 +50,7 @@ export function useLockUnlockWiring(args: {
       return res
     } catch (e) {
       console.error("[LOCK] unlock failed", e)
-      return { ok: false, error: "Unlock failed" } as unknown as Awaited<ReturnType<typeof doorActions.unlock>>
+      return unlockError("Unlock failed")
     }
   }, [setDoorState])
 

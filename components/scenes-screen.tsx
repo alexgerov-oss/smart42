@@ -25,6 +25,24 @@ import { useAppContext } from "@/lib/app-context"
 import { useToast } from "@/components/ui/use-toast"
 import { ModalSelector } from "@/components/ui/modal-selector"
 import { cn } from "@/lib/utils"
+import type { Scene as CoreScene, WhenCondition as CoreWhenCondition } from "@/lib/core/types"
+
+const CORE_WHEN_TYPES = [
+  "wifi",
+  "battery",
+  "cpu-temp",
+  "cpu-load",
+  "power-drops",
+  "latency",
+  "door-lock",
+  "door-open",
+] as const
+
+type CoreWhenType = (typeof CORE_WHEN_TYPES)[number]
+
+function isCoreWhenType(type: string): type is CoreWhenType {
+  return (CORE_WHEN_TYPES as readonly string[]).includes(type)
+}
 
 interface WhenCondition {
   type:
@@ -196,7 +214,7 @@ export default function ScenesScreen({
   const canAccessScenes = currentUserAccess === "admin" || currentUserAccess === "full"
   const canAccessSettings = currentUserAccess === "admin" || currentUserAccess === "full"
 
-  const visibleScenes = scenes.filter((scene: any) => {
+  const visibleScenes = scenes.filter((scene) => {
     if (currentUserAccess === "admin") return true
     if (currentUserAccess === "full") return scene.createdBy === "full"
     return false
@@ -247,30 +265,18 @@ export default function ScenesScreen({
     // eslint-disable-next-line react-hooks/purity
     const sceneId = editingSceneId || Date.now().toString()
 
-    const adaptedWhenConditions = whenConditions.map((cond) => {
-      let baseType:
-        | "wifi"
-        | "battery"
-        | "cpu-temp"
-        | "cpu-load"
-        | "power-drops"
-        | "latency"
-        | "door-lock"
-        | "door-open" = "wifi"
+    const adaptedWhenConditions: CoreWhenCondition[] = whenConditions.map((cond) => {
+      let baseType: CoreWhenCondition["type"] = "wifi"
 
-      if (
-        ["wifi", "battery", "cpu-temp", "cpu-load", "power-drops", "latency", "door-lock", "door-open"].includes(
-          cond.type,
-        )
-      ) {
-        baseType = cond.type as any
+      if (isCoreWhenType(cond.type)) {
+        baseType = cond.type
       } else if (cond.type === "door-unlock" || cond.type === "door-closed") {
         baseType = "door-open"
       } else {
         baseType = "door-open"
       }
 
-      const adapted: any = {
+      const adapted: CoreWhenCondition = {
         type: baseType,
         operator: cond.operator,
         value: cond.value,
@@ -305,21 +311,21 @@ export default function ScenesScreen({
       return adapted
     })
 
-    const scene: any = {
+    const scene: CoreScene = {
       id: sceneId,
       name: sceneName,
       active: true,
       whenConditions: adaptedWhenConditions,
       thenAction,
-      createdBy: currentUserAccess as "admin" | "full" | "open-close",
+      createdBy: currentUserAccess,
     }
 
     setEntityName("scenes", sceneId, sceneName)
 
     if (editingSceneId) {
-      setScenes(scenes.map((s: any) => (s.id === editingSceneId ? scene : s)) as any)
+      setScenes(scenes.map((s) => (s.id === editingSceneId ? scene : s)))
     } else {
-      setScenes([...scenes, scene] as any)
+      setScenes([...scenes, scene])
     }
 
     handleCancelEdit()
@@ -356,7 +362,7 @@ export default function ScenesScreen({
   const handleToggleScene = (id: string) => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
-    const scene = scenes.find((s: any) => s.id === id)
+    const scene = scenes.find((s) => s.id === id)
     if (scene && currentUserAccess === "full" && scene.createdBy !== "full") {
       toast({
         title: "Access Restricted",
@@ -365,13 +371,13 @@ export default function ScenesScreen({
       })
       return
     }
-    setScenes(scenes.map((s: any) => (s.id === id ? { ...s, active: !s.active } : s)) as any)
+    setScenes(scenes.map((s) => (s.id === id ? { ...s, active: !s.active } : s)))
   }
 
   const handleDeleteScene = (id: string) => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
-    const scene = scenes.find((s: any) => s.id === id)
+    const scene = scenes.find((s) => s.id === id)
     if (scene && currentUserAccess === "full" && scene.createdBy !== "full") {
       toast({
         title: "Access Restricted",
@@ -380,7 +386,7 @@ export default function ScenesScreen({
       })
       return
     }
-    setScenes(scenes.filter((s: any) => s.id !== id) as any)
+    setScenes(scenes.filter((s) => s.id !== id))
   }
 
   const isFreeAdmin = currentUserAccess === "admin" && !isPremium

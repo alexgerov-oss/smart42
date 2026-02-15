@@ -818,7 +818,7 @@ export default function SettingsScreen({
                             onClick={() => {
                               setEditingUserId(user.id)
                               setEditingName(getAppUserDisplayName(user))
-                              setEditingUserAccess(user.access === "admin" ? "full" : (user.access as any))
+                              setEditingUserAccess(user.access === "open-close" ? "open-close" : "full")
                               setShowEditAppUserDialog(true)
                             }}
                             variant="ghost"
@@ -973,7 +973,10 @@ export default function SettingsScreen({
               <Input value={appUsers.find((u) => u.id === editingUserId)?.email || ""} disabled className="opacity-50 cursor-not-allowed" />
             )}
 
-            <Select value={editingUserAccess} onValueChange={(val) => setEditingUserAccess(val as any)}>
+            <Select
+              value={editingUserAccess}
+              onValueChange={(val) => setEditingUserAccess(val === "open-close" ? "open-close" : "full")}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -988,7 +991,7 @@ export default function SettingsScreen({
             <AlertDialogAction
               onClick={() => {
                 handleSaveAppUserName()
-                if (editingUserId) updateAppUserAccess(editingUserId, editingUserAccess as any)
+                if (editingUserId) updateAppUserAccess(editingUserId, editingUserAccess)
                 setShowEditAppUserDialog(false)
               }}
             >
