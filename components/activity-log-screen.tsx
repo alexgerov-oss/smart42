@@ -46,9 +46,15 @@ type ActivityLogEntry = {
     | "quick-control-changed"
 }
 
+type TimeRange = "day" | "week" | "month" | "year"
+
+function isTimeRange(value: string): value is TimeRange {
+  return value === "day" || value === "week" || value === "month" || value === "year"
+}
+
 export default function ActivityLogScreen({ onNavigate, isPremium, doorName, currentScreen }: ActivityLogScreenProps) {
   // ✅ Hooks винаги най-отгоре (без return преди тях)
-  const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("day")
+  const [timeRange, setTimeRange] = useState<TimeRange>("day")
   const [eventType, setEventType] = useState<
     | "all"
     | "door-lock"
@@ -108,9 +114,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
               </div>
             </div>
             <h2 className="text-xl font-bold text-foreground">Access Restricted</h2>
-            <p className="text-sm text-muted-foreground">
-              Activity log is only available for Admin and Full Access users.
-            </p>
+            <p className="text-sm text-muted-foreground">Activity log is only available for Admin and Full Access users.</p>
             <Button onClick={() => onNavigate("dashboard")} variant="outline" className="w-full border-border">
               Back to Dashboard
             </Button>
@@ -132,8 +136,8 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
             </div>
             <h2 className="text-xl font-bold text-foreground">Premium Feature</h2>
             <p className="text-sm text-muted-foreground">
-              Full activity log history is only available for Premium users. Upgrade now to access complete door
-              activity records.
+              Full activity log history is only available for Premium users. Upgrade now to access complete door activity
+              records.
             </p>
             <Button
               onClick={() => onNavigate("subscription")}
@@ -204,23 +208,146 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
     { id: 7, doorName, time: "08:12 AM", date: "Yesterday", action: "unlock", method: "App", user: "John Doe", eventType: "door-unlock" },
     { id: 8, doorName, time: "08:15 AM", date: "Yesterday", action: "open", method: null, user: null, eventType: "door-open" },
 
-    { id: 9, time: "09:22 AM", date: "Yesterday", action: "Power restored after outage", user: "System", role: null, description: "Power was restored after an outage • 19/12/2025 09:22", eventType: "power-restored" },
+    {
+      id: 9,
+      time: "09:22 AM",
+      date: "Yesterday",
+      action: "Power restored after outage",
+      user: "System",
+      role: null,
+      description: "Power was restored after an outage • 19/12/2025 09:22",
+      eventType: "power-restored",
+    },
 
-    { id: 10, time: "11:30 AM", date: "Yesterday", action: "iButton created", user: "John Doe", role: "Admin", description: "iButton 'Front Door Key' (ID: IBT-483920, Open/Close Only) was created by Admin John Doe • 18/12/2025 11:30", eventType: "ibutton-created" },
-    { id: 11, time: "03:15 PM", date: "Yesterday", action: "iButton deleted", user: "Jane Smith", role: "Full Access", description: "iButton 'Garage Key' (ID: IBT-294103, Open/Close Only) was deleted by Jane Smith (Full Access) • 18/12/2025 15:15", eventType: "ibutton-deleted" },
+    {
+      id: 10,
+      time: "11:30 AM",
+      date: "Yesterday",
+      action: "iButton created",
+      user: "John Doe",
+      role: "Admin",
+      description:
+        "iButton 'Front Door Key' (ID: IBT-483920, Open/Close Only) was created by Admin John Doe • 18/12/2025 11:30",
+      eventType: "ibutton-created",
+    },
+    {
+      id: 11,
+      time: "03:15 PM",
+      date: "Yesterday",
+      action: "iButton deleted",
+      user: "Jane Smith",
+      role: "Full Access",
+      description:
+        "iButton 'Garage Key' (ID: IBT-294103, Open/Close Only) was deleted by Jane Smith (Full Access) • 18/12/2025 15:15",
+      eventType: "ibutton-deleted",
+    },
 
-    { id: 12, time: "10:05 AM", date: "18/12/2025", action: "App user created", user: "John Doe", role: "Admin", description: "User 'Alice Johnson' (Full Access) was created by Admin John Doe • 18/12/2025 10:05", eventType: "app-user-created" },
-    { id: 13, time: "02:40 PM", date: "18/12/2025", action: "App user edited", user: "John Doe", role: "Admin", description: "User 'Alice Johnson' (Full Access) was edited by Admin John Doe • 18/12/2025 14:40", eventType: "app-user-edited" },
-    { id: 14, time: "04:22 PM", date: "18/12/2025", action: "App user deleted", user: "John Doe", role: "Admin", description: "User 'Mike Brown' (Open/Close Only) was deleted by Admin John Doe • 18/12/2025 16:22", eventType: "app-user-deleted" },
+    {
+      id: 12,
+      time: "10:05 AM",
+      date: "18/12/2025",
+      action: "App user created",
+      user: "John Doe",
+      role: "Admin",
+      description: "User 'Alice Johnson' (Full Access) was created by Admin John Doe • 18/12/2025 10:05",
+      eventType: "app-user-created",
+    },
+    {
+      id: 13,
+      time: "02:40 PM",
+      date: "18/12/2025",
+      action: "App user edited",
+      user: "John Doe",
+      role: "Admin",
+      description: "User 'Alice Johnson' (Full Access) was edited by Admin John Doe • 18/12/2025 14:40",
+      eventType: "app-user-edited",
+    },
+    {
+      id: 14,
+      time: "04:22 PM",
+      date: "18/12/2025",
+      action: "App user deleted",
+      user: "John Doe",
+      role: "Admin",
+      description: "User 'Mike Brown' (Open/Close Only) was deleted by Admin John Doe • 18/12/2025 16:22",
+      eventType: "app-user-deleted",
+    },
 
-    { id: 15, time: "09:05 PM", date: "17/12/2025", action: "Scene created", user: "John Doe", role: "Admin", description: "Scene 'Night Lock' was created by Admin John Doe • 17/12/2025 21:05\nDescription: Locks the door automatically every night at 22:00.", eventType: "scene-created" },
-    { id: 16, time: "08:12 AM", date: "17/12/2025", action: "Scene edited", user: "Jane Smith", role: "Full Access", description: "Scene 'Night Lock' was edited by Jane Smith (Full Access) • 17/12/2025 08:12\nDescription: Locks the door automatically every night at 23:00.", eventType: "scene-edited" },
-    { id: 17, time: "10:44 AM", date: "17/12/2025", action: "Scene deleted", user: "John Doe", role: "Admin", description: "Scene 'Vacation Mode' was deleted by Admin John Doe • 17/12/2025 10:44\nDescription: Disables manual unlocking and sends notifications.", eventType: "scene-deleted" },
+    {
+      id: 15,
+      time: "09:05 PM",
+      date: "17/12/2025",
+      action: "Scene created",
+      user: "John Doe",
+      role: "Admin",
+      description:
+        "Scene 'Night Lock' was created by Admin John Doe • 17/12/2025 21:05\nDescription: Locks the door automatically every night at 22:00.",
+      eventType: "scene-created",
+    },
+    {
+      id: 16,
+      time: "08:12 AM",
+      date: "17/12/2025",
+      action: "Scene edited",
+      user: "Jane Smith",
+      role: "Full Access",
+      description:
+        "Scene 'Night Lock' was edited by Jane Smith (Full Access) • 17/12/2025 08:12\nDescription: Locks the door automatically every night at 23:00.",
+      eventType: "scene-edited",
+    },
+    {
+      id: 17,
+      time: "10:44 AM",
+      date: "17/12/2025",
+      action: "Scene deleted",
+      user: "John Doe",
+      role: "Admin",
+      description:
+        "Scene 'Vacation Mode' was deleted by Admin John Doe • 17/12/2025 10:44\nDescription: Disables manual unlocking and sends notifications.",
+      eventType: "scene-deleted",
+    },
 
-    { id: 18, time: "06:32 PM", date: "16/12/2025", action: "Quick control changed", user: "Jane Smith", role: "Full Access", description: "Automatic Lock was enabled (15 seconds) by Jane Smith (Full Access) • 16/12/2025 18:32", eventType: "quick-control-changed" },
-    { id: 19, time: "07:01 PM", date: "16/12/2025", action: "Quick control changed", user: "John Doe", role: "Admin", description: "Automatic Lock was disabled by Admin John Doe • 16/12/2025 19:01", eventType: "quick-control-changed" },
-    { id: 20, time: "09:10 PM", date: "16/12/2025", action: "Quick control changed", user: "John Doe", role: "Admin", description: "Automatic Night Lock was enabled (locks at 22:30) by Admin John Doe • 16/12/2025 21:10", eventType: "quick-control-changed" },
-    { id: 21, time: "07:45 AM", date: "15/12/2025", action: "Quick control changed", user: "Jane Smith", role: "Full Access", description: "Automatic Night Lock was disabled by Jane Smith (Full Access) • 15/12/2025 07:45", eventType: "quick-control-changed" },
+    {
+      id: 18,
+      time: "06:32 PM",
+      date: "16/12/2025",
+      action: "Quick control changed",
+      user: "Jane Smith",
+      role: "Full Access",
+      description:
+        "Automatic Lock was enabled (15 seconds) by Jane Smith (Full Access) • 16/12/2025 18:32",
+      eventType: "quick-control-changed",
+    },
+    {
+      id: 19,
+      time: "07:01 PM",
+      date: "16/12/2025",
+      action: "Quick control changed",
+      user: "John Doe",
+      role: "Admin",
+      description: "Automatic Lock was disabled by Admin John Doe • 16/12/2025 19:01",
+      eventType: "quick-control-changed",
+    },
+    {
+      id: 20,
+      time: "09:10 PM",
+      date: "16/12/2025",
+      action: "Quick control changed",
+      user: "John Doe",
+      role: "Admin",
+      description: "Automatic Night Lock was enabled (locks at 22:30) by Admin John Doe • 16/12/2025 21:10",
+      eventType: "quick-control-changed",
+    },
+    {
+      id: 21,
+      time: "07:45 AM",
+      date: "15/12/2025",
+      action: "Quick control changed",
+      user: "Jane Smith",
+      role: "Full Access",
+      description: "Automatic Night Lock was disabled by Jane Smith (Full Access) • 15/12/2025 07:45",
+      eventType: "quick-control-changed",
+    },
   ]
 
   const filteredLogs = activityLogs.filter((log) => {
@@ -275,11 +402,13 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-none p-4 pb-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex-none p-4 pb-3 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
           <div className="flex flex-col gap-2">
             <ModalSelector
               value={timeRange}
-              onValueChange={(value: any) => setTimeRange(value)}
+              onValueChange={(value: string) => {
+                if (isTimeRange(value)) setTimeRange(value)
+              }}
               label="Select Time Range"
               options={[
                 { value: "day", label: "Day" },
@@ -291,8 +420,8 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
 
             <ModalSelector
               value={eventType}
-              onValueChange={(value: any) => {
-                setEventType(value)
+              onValueChange={(value: string) => {
+                setEventType(value as typeof eventType)
                 // ако НЕ е lock/unlock -> reset user filter
                 if (!["door-lock", "door-unlock"].includes(value)) {
                   setUserFilter("all")

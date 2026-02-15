@@ -636,7 +636,7 @@ export default function SettingsScreen({
                     max={120}
                     step={5}
                     disabled={areQuickControlsDisabled}
-                    className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary"
+                    className="*:[[role=slider]]:bg-primary *:[[role=slider]]:border-primary"
                   />
                 </div>
               )}
