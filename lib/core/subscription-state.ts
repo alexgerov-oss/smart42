@@ -41,29 +41,28 @@ export function useSubscriptionState(_args?: { currentUserAccess?: AccessRole })
     savePremium(premium)
   }, [premium])
 
-  // Computed
+  // Derived
   const trialDaysLeftValue = useMemo(() => trialDaysLeft(trial), [trial])
 
-  // ✅ ВАЖНО: subscription/trial е “на системата”, НЕ зависи от currentUserAccess
-  const computed = useMemo(() => {
+  // ✅ Active plan = trial OR premium (owned by Admin/system)
+  const hasActivePlan = useMemo(() => {
     const hasTrial = trialDaysLeftValue > 0
-    // adminHasPremium() вероятно проверява role -> подаваме "admin", за да е стабилно
     const hasPremium = adminHasPremium("admin" as AccessRole, premium)
     return hasTrial || hasPremium
   }, [trialDaysLeftValue, premium])
 
-  const adminHasActiveSubscription = FORCE_SUBSCRIPTION || computed
+  const adminHasActiveSubscription = FORCE_SUBSCRIPTION || hasActivePlan
 
   // Debug log (ако те дразни - може да го изтриеш)
   useEffect(() => {
     console.log("[SUBSCRIPTION_STATE]", {
       currentUserAccess,
       trialDaysLeft: trialDaysLeftValue,
-      computed,
+      hasActivePlan,
       force: FORCE_SUBSCRIPTION,
       adminHasActiveSubscription,
     })
-  }, [currentUserAccess, trialDaysLeftValue, computed, adminHasActiveSubscription])
+  }, [currentUserAccess, trialDaysLeftValue, hasActivePlan, adminHasActiveSubscription])
 
   return {
     trial,

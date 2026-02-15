@@ -132,14 +132,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Access
   const { currentUserAccess, setCurrentUserAccess } = useAccessState("admin")
 
-  // Subscription (NO type-cast glue)
+  // Subscription (core = source of truth)
   const subscription = useSubscriptionState()
-
   const trialDaysLeftValue = subscription.trialDaysLeft
-  const adminHasPaidSubscription = subscription.adminHasActiveSubscription
-
-  // Trial + Premium => active plan
-  const adminHasPlan = Boolean(adminHasPaidSubscription || trialDaysLeftValue > 0)
+  const adminHasPlan = subscription.adminHasActiveSubscription
 
   // Profile base state
   const profile = useProfileState({ currentUserAccess })
