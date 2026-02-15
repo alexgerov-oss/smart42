@@ -34,6 +34,15 @@ import type {
   Scene,
 } from "@/lib/core/types"
 
+import type { ActivityLogEntry, NewActivityLogEntry } from "@/lib/core/activity-log"
+import { useActivityLogState } from "@/lib/core/activity-log-state"
+
+function accessRoleLabel(role: AccessRole): string {
+  if (role === "admin") return "Admin"
+  if (role === "full") return "Full Access"
+  return String(role)
+}
+
 interface AppContextType {
   isSystemStatusExpanded: boolean
   setIsSystemStatusExpanded: (expanded: boolean) => void
@@ -121,6 +130,12 @@ interface AppContextType {
   isFullAccessUserActivated: () => boolean
   canFullAccessAddUsers: () => boolean
   getFullAccessUserProfile: () => { name: string; email: string } | null
+
+  // ✅ Activity Log
+  activityLog: ActivityLogEntry[]
+  setActivityLog: (items: ActivityLogEntry[]) => void
+  addActivityLogEntry: (entry: NewActivityLogEntry) => void
+  clearActivityLog: () => void
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -184,12 +199,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Doors
   const { doors, addDoor, updateDoor, removeDoor } = useDoorsState({ currentUserAccess })
 
+  // ✅ Activity Log (local storage)
+  const activity = useActivityLogState({ maxEntries: 500 })
+
   // ✅ Lock/Unlock wiring extracted into core hook
-  const { lockDoor, unlockDoor } = useLockUnlockWiring({
+  const { lockDoor: baseLockDoor, unlockDoor: baseUnlockDoor } = useLockUnlockWiring({
     doors,
     doorState: lock.doorState,
     setDoorState: lock.setDoorState,
   })
+
+  // Wrap lock/unlock so they log automatically
+  const lockDoor: AppContextType["lockDoor"] = (doorId) => {
+    const door = doors.find((d) => d.id === doorId)
+    const doorName = door ? identity.getEntityName("doors", door.id, door.systemName) : "Door"
+
+    activity.addActivityLogEntry({
+      doorName,
+      action: "lock",
+      method: "App",
+      user: profile.userName || null,
+      role: accessRoleLabel(currentUserAccess),
+      eventType: "door-lock",
+    })
+
+    return baseLockDoor(doorId)
+  }
+
+  const unlockDoor: AppContextType["unlockDoor"] = (doorId) => {
+    const door = doors.find((d) => d.id === doorId)
+    const doorName = door ? identity.getEntityName("doors", door.id, door.systemName) : "Door"
+
+    activity.addActivityLogEntry({
+      doorName,
+      action: "unlock",
+      method: "App",
+      user: profile.userName || null,
+      role: accessRoleLabel(currentUserAccess),
+      eventType: "door-unlock",
+    })
+
+    return baseUnlockDoor(doorId)
+  }
 
   // Controllers
   const controllersApi = useControllersWiring({ canOperate: profile.canOperateFullRestrictedActions })
@@ -219,7 +270,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // NOTE: keep this for internal/timers; UI should use lockDoor/unlockDoor
         setDoorState: lock.setDoorState,
 
-        // ✅ explicit actions
+        // ✅ explicit actions (wrapped with activity log)
         lockDoor,
         unlockDoor,
 
@@ -292,6 +343,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isFullAccessUserActivated: fullAccess.isFullAccessUserActivated,
         canFullAccessAddUsers: fullAccess.canFullAccessAddUsers,
         getFullAccessUserProfile: fullAccess.getFullAccessUserProfile,
+
+        // ✅ Activity Log
+        activityLog: activity.activityLog,
+        setActivityLog: activity.setActivityLog,
+        addActivityLogEntry: activity.addActivityLogEntry,
+        clearActivityLog: activity.clearActivityLog,
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { newId } from "@/lib/id"
 import { Card } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,7 +40,6 @@ const CORE_WHEN_TYPES = [
 ] as const
 
 type CoreWhenType = (typeof CORE_WHEN_TYPES)[number]
-
 function isCoreWhenType(type: string): type is CoreWhenType {
   return (CORE_WHEN_TYPES as readonly string[]).includes(type)
 }
@@ -64,7 +64,6 @@ const UI_WHEN_TYPES = [
 ] as const
 
 type UiWhenType = (typeof UI_WHEN_TYPES)[number]
-
 function isUiWhenType(value: string): value is UiWhenType {
   return (UI_WHEN_TYPES as readonly string[]).includes(value)
 }
@@ -94,12 +93,19 @@ function isTimeWindow(value: string): value is TimeWindow {
   return (TIME_WINDOW_VALUES as readonly string[]).includes(value)
 }
 
-type ThenAction = CoreScene["thenAction"]
-
 const THEN_ACTION_VALUES = ["push", "email", "restart"] as const
 type ThenActionType = (typeof THEN_ACTION_VALUES)[number]
 function isThenActionType(value: string): value is ThenActionType {
   return (THEN_ACTION_VALUES as readonly string[]).includes(value)
+}
+
+/**
+ * UI state за THEN action (държим го строго типизиран за UI).
+ * При запис към CoreScene, го подаваме като CoreScene["thenAction"] (1 контролирано cast-ване).
+ */
+type ThenAction = {
+  type: ThenActionType
+  customText?: string
 }
 
 interface WhenCondition {
@@ -122,6 +128,18 @@ interface ScenesScreenProps {
   currentScreen: Screen
 }
 
+// ---- Core "разширение" (за полета, които реално ползваш, но явно не са в типовете) ----
+type DoorEvent = "unlock" | "closed" | "lock" | "open"
+type CoreWhenConditionExt = CoreWhenCondition & {
+  doorEvent?: DoorEvent
+  timeStart?: string
+  timeEnd?: string
+  timeWindow?: TimeWindow
+  operator?: Operator
+  value?: number
+}
+
+// ---- Helpers ----
 const getUnit = (type: string): string => {
   const unitMap: Record<string, string> = {
     wifi: "dBm",
@@ -165,42 +183,33 @@ function formatBetweenFromCore(timeStart?: string, timeEnd?: string): string {
 }
 
 function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
+  const c = cond as CoreWhenConditionExt
+
   // Default
   let uiType: UiWhenType = "wifi"
 
-  if (cond.type === "door-open") {
-    const doorEvent = (cond as unknown as { doorEvent?: string }).doorEvent
-    if (doorEvent === "unlock") uiType = "door-unlock"
-    else if (doorEvent === "closed") uiType = "door-closed"
+  if (c.type === "door-open") {
+    if (c.doorEvent === "unlock") uiType = "door-unlock"
+    else if (c.doorEvent === "closed") uiType = "door-closed"
     else uiType = "door-open"
-  } else if (cond.type === "door-lock") {
+  } else if (c.type === "door-lock") {
     uiType = "door-lock"
-  } else if (isCoreWhenType(cond.type)) {
-    uiType = cond.type
+  } else if (isCoreWhenType(c.type)) {
+    uiType = c.type
   }
 
-  const ui: WhenCondition = {
-    type: uiType,
-  }
+  const ui: WhenCondition = { type: uiType }
 
-  // Operator/value (only when present)
-  if (typeof (cond as unknown as { operator?: string }).operator === "string") {
-    const op = (cond as unknown as { operator?: string }).operator as string
-    if (isOperator(op)) ui.operator = op
-  }
-  if (typeof (cond as unknown as { value?: number }).value === "number") {
-    ui.value = (cond as unknown as { value?: number }).value
-  }
+  if (typeof c.operator === "string" && isOperator(c.operator)) ui.operator = c.operator
+  if (typeof c.value === "number") ui.value = c.value
 
-  // Time window
-  const tw = (cond as unknown as { timeWindow?: string }).timeWindow
-  if (typeof tw === "string" && isTimeWindow(tw)) {
-    ui.timeWindow = tw
+  if (typeof c.timeWindow === "string" && isTimeWindow(c.timeWindow)) {
+    ui.timeWindow = c.timeWindow
   }
 
   if (ui.timeWindow === "between") {
-    const start = parseHHMM((cond as unknown as { timeStart?: string }).timeStart)
-    const end = parseHHMM((cond as unknown as { timeEnd?: string }).timeEnd)
+    const start = parseHHMM(c.timeStart)
+    const end = parseHHMM(c.timeEnd)
 
     if (start) {
       const s = to12HourParts(start.h, start.m)
@@ -222,29 +231,20 @@ function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
 const formatSceneDescription = (scene: CoreScene): string => {
   const conditions = scene.whenConditions
     .map((cond) => {
-      const timeInfo =
-        (cond as unknown as { timeWindow?: string }).timeWindow === "between"
-          ? formatBetweenFromCore(
-              (cond as unknown as { timeStart?: string }).timeStart,
-              (cond as unknown as { timeEnd?: string }).timeEnd
-            )
-          : ""
+      const c = cond as CoreWhenConditionExt
 
-      // Door conditions (Core uses "door-open" + doorEvent for unlock/closed)
-      if (cond.type === "door-lock") {
-        return `Door locked${timeInfo}`
-      }
+      const timeInfo = c.timeWindow === "between" ? formatBetweenFromCore(c.timeStart, c.timeEnd) : ""
 
-      if (cond.type === "door-open") {
-        const doorEvent = (cond as unknown as { doorEvent?: string }).doorEvent
-        if (doorEvent === "unlock") return `Door unlocked${timeInfo}`
-        if (doorEvent === "closed") return `Door closed${timeInfo}`
+      if (c.type === "door-lock") return `Door locked${timeInfo}`
+
+      if (c.type === "door-open") {
+        if (c.doorEvent === "unlock") return `Door unlocked${timeInfo}`
+        if (c.doorEvent === "closed") return `Door closed${timeInfo}`
         return `Door opened${timeInfo}`
       }
 
-      if (cond.type === "power-drops") {
-        const v = (cond as unknown as { value?: number }).value
-        return `Power drops > ${v ?? 0}`
+      if (c.type === "power-drops") {
+        return `Power drops > ${c.value ?? 0}`
       }
 
       const typeMap: Record<string, string> = {
@@ -256,18 +256,14 @@ const formatSceneDescription = (scene: CoreScene): string => {
         latency: "Latency",
       }
 
-      const name = typeMap[cond.type] || cond.type
-      const op = (cond as unknown as { operator?: string }).operator ?? ""
-      const v = (cond as unknown as { value?: number }).value
-      const unit = getUnit(cond.type)
-      if (!op || typeof v !== "number") return `${name}`
-      return `${name} ${op} ${v}${unit}`
+      const name = typeMap[c.type] || c.type
+      if (!c.operator || typeof c.value !== "number") return `${name}`
+      return `${name} ${c.operator} ${c.value}${getUnit(c.type)}`
     })
     .join(" and ")
 
   const actionType = (scene.thenAction as unknown as { type?: string }).type
-  const action =
-    actionType === "push" ? "Send push notification" : actionType === "email" ? "Send email" : "Restart controller"
+  const action = actionType === "push" ? "Send push notification" : actionType === "email" ? "Send email" : "Restart controller"
 
   return `IF ${conditions} → ${action}`
 }
@@ -283,7 +279,7 @@ export default function ScenesScreen({
   const [sceneName, setSceneName] = useState("")
   const [sceneNameError, setSceneNameError] = useState("")
   const [whenConditions, setWhenConditions] = useState<WhenCondition[]>([{ type: "wifi", operator: "<" }])
-  const [thenAction, setThenAction] = useState<ThenAction>({ type: "push", customText: "" } as ThenAction)
+  const [thenAction, setThenAction] = useState<ThenAction>({ type: "push", customText: "" })
   const { toast } = useToast()
 
   const { currentUserAccess, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } =
@@ -340,10 +336,9 @@ export default function ScenesScreen({
       return
     }
 
-    // eslint-disable-next-line react-hooks/purity
-    const sceneId = editingSceneId || Date.now().toString()
+    const sceneId = editingSceneId ?? newId("scene")
 
-    const adaptedWhenConditions: CoreWhenCondition[] = whenConditions.map((cond) => {
+    const adaptedWhenConditions: CoreWhenConditionExt[] = whenConditions.map((cond) => {
       let baseType: CoreWhenCondition["type"] = "wifi"
 
       if (isCoreWhenType(cond.type)) {
@@ -354,24 +349,28 @@ export default function ScenesScreen({
         baseType = "door-open"
       }
 
-      const adapted: CoreWhenCondition = {
+      // power-drops: логиката ти е ">" (не оператор от UI)
+      const operator: Operator | undefined = cond.type === "power-drops" ? ">" : cond.operator
+
+      const adapted: CoreWhenConditionExt = {
         type: baseType,
-        operator: cond.operator,
+        operator,
         value: cond.value,
         timeWindow: cond.timeWindow,
       }
 
-      if (cond.type === "door-unlock") (adapted as unknown as { doorEvent?: string }).doorEvent = "unlock"
-      else if (cond.type === "door-closed") (adapted as unknown as { doorEvent?: string }).doorEvent = "closed"
-      else if (cond.type === "door-lock") (adapted as unknown as { doorEvent?: string }).doorEvent = "lock"
-      else if (cond.type === "door-open") (adapted as unknown as { doorEvent?: string }).doorEvent = "open"
+      if (cond.type === "door-unlock") adapted.doorEvent = "unlock"
+      else if (cond.type === "door-closed") adapted.doorEvent = "closed"
+      else if (cond.type === "door-lock") adapted.doorEvent = "lock"
+      else if (cond.type === "door-open") adapted.doorEvent = "open"
 
       if (cond.timeWindow === "between" && cond.timeStartHour) {
-        const startHour = Number.parseInt(cond.timeStartHour)
-        const startMinute = Number.parseInt(cond.timeStartMinute || "00")
+        const startHour = Number.parseInt(cond.timeStartHour, 10)
+        const startMinute = Number.parseInt(cond.timeStartMinute || "00", 10)
         const startPeriod = cond.timeStartPeriod || "AM"
-        const endHour = Number.parseInt(cond.timeEndHour || "11")
-        const endMinute = Number.parseInt(cond.timeEndMinute || "59")
+
+        const endHour = Number.parseInt(cond.timeEndHour || "11", 10)
+        const endMinute = Number.parseInt(cond.timeEndMinute || "59", 10)
         const endPeriod = cond.timeEndPeriod || "PM"
 
         let startHour24 = startHour
@@ -382,12 +381,8 @@ export default function ScenesScreen({
         if (endPeriod === "PM" && endHour !== 12) endHour24 += 12
         if (endPeriod === "AM" && endHour === 12) endHour24 = 0
 
-        ;(adapted as unknown as { timeStart?: string }).timeStart = `${String(startHour24).padStart(2, "0")}:${String(
-          startMinute
-        ).padStart(2, "0")}`
-        ;(adapted as unknown as { timeEnd?: string }).timeEnd = `${String(endHour24).padStart(2, "0")}:${String(
-          endMinute
-        ).padStart(2, "0")}`
+        adapted.timeStart = `${String(startHour24).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}`
+        adapted.timeEnd = `${String(endHour24).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`
       }
 
       return adapted
@@ -398,7 +393,7 @@ export default function ScenesScreen({
       name: sceneName,
       active: true,
       whenConditions: adaptedWhenConditions,
-      thenAction,
+      thenAction: thenAction as unknown as CoreScene["thenAction"],
       createdBy: currentUserAccess,
     }
 
@@ -419,7 +414,7 @@ export default function ScenesScreen({
     setSceneName("")
     setSceneNameError("")
     setWhenConditions([{ type: "wifi", operator: "<" }])
-    setThenAction({ type: "push", customText: "" } as ThenAction)
+    setThenAction({ type: "push", customText: "" })
   }
 
   const handleEditScene = (scene: CoreScene) => {
@@ -437,7 +432,7 @@ export default function ScenesScreen({
     setEditingSceneId(scene.id)
     setSceneName(scene.name)
     setWhenConditions(scene.whenConditions.map(coreWhenToUi))
-    setThenAction(scene.thenAction)
+    setThenAction(scene.thenAction as unknown as ThenAction)
     setIsCreatingScene(true)
   }
 
@@ -493,10 +488,7 @@ export default function ScenesScreen({
       <div className="flex min-h-screen flex-col pb-20">
         <div className="bg-card border-b border-border p-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => onNavigate("dashboard")}
-              className="text-foreground hover:text-primary transition-colors"
-            >
+            <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
               <ArrowLeft className="h-6 w-6" />
             </button>
             <h1 className="text-xl font-bold text-foreground">Scenes</h1>
@@ -525,9 +517,7 @@ export default function ScenesScreen({
                 onNavigate("dashboard")
                 window.scrollTo({ top: 0, behavior: "instant" })
               }}
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === "home" ? "text-primary" : "text-muted-foreground"
-              }`}
+              className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-primary" : "text-muted-foreground"}`}
             >
               <Home className="h-6 w-6" />
               <span className="text-xs">Home</span>
@@ -535,16 +525,11 @@ export default function ScenesScreen({
 
             <button
               onClick={() => {
-                if (isPremium) {
-                  onNavigate("activity-log")
-                } else {
-                  onNavigate("subscription")
-                }
+                if (isPremium) onNavigate("activity-log")
+                else onNavigate("subscription")
                 window.scrollTo({ top: 0, behavior: "instant" })
               }}
-              className={`flex flex-col items-center gap-1 transition-colors relative ${
-                activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
-              }`}
+              className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"}`}
             >
               <div className="relative">
                 <Activity className="h-6 w-6" />
@@ -553,11 +538,7 @@ export default function ScenesScreen({
               <span className="text-xs">Activity</span>
             </button>
 
-            <button
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
+            <button className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "scenes" ? "text-primary" : "text-muted-foreground"}`}>
               <Layers className="h-6 w-6" />
               <span className="text-xs">Scenes</span>
             </button>
@@ -569,9 +550,7 @@ export default function ScenesScreen({
                   window.scrollTo({ top: 0, behavior: "instant" })
                 }
               }}
-              className={`flex flex-col items-center gap-1 transition-colors relative ${
-                activeTab === "settings" ? "text-primary" : "text-muted-foreground"
-              }`}
+              className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "settings" ? "text-primary" : "text-muted-foreground"}`}
             >
               <div className="relative">
                 <SettingsIcon className="h-6 w-6" />
@@ -585,9 +564,7 @@ export default function ScenesScreen({
                 onNavigate("profile")
                 window.scrollTo({ top: 0, behavior: "instant" })
               }}
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === "profile" ? "text-primary" : "text-muted-foreground"
-              }`}
+              className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "profile" ? "text-primary" : "text-muted-foreground"}`}
             >
               <UserIcon className="h-6 w-6" />
               <span className="text-xs">Profile</span>
@@ -602,10 +579,7 @@ export default function ScenesScreen({
     <div className="flex min-h-screen flex-col pb-20">
       <div className="bg-card border-b border-border p-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => onNavigate("dashboard")}
-            className="text-foreground hover:text-primary transition-colors"
-          >
+          <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-6 w-6" />
           </button>
           <h1 className="text-xl font-bold text-foreground">Scenes</h1>
@@ -615,17 +589,15 @@ export default function ScenesScreen({
       <div className="flex-1 space-y-4 p-4">
         {!isCreatingScene && (
           <div className="space-y-2">
-            <Button
-              onClick={handleStartCreatingScene}
-              className="w-full flex items-center gap-2"
-              disabled={!canCreateScene}
-            >
+            <Button onClick={handleStartCreatingScene} className="w-full flex items-center gap-2" disabled={!canCreateScene}>
               {!canCreateScene && <LockIcon className="h-4 w-4" />}
               <Plus className="h-4 w-4" />
               Add Scene
             </Button>
 
-            {isFreeAdmin && scenes.length >= 1 && <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>}
+            {isFreeAdmin && scenes.length >= 1 && (
+              <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>
+            )}
 
             {visibleScenes.map((scene) => (
               <Card key={scene.id} className="border-border">
@@ -646,12 +618,7 @@ export default function ScenesScreen({
                       <Button onClick={() => handleEditScene(scene)} variant="ghost" size="sm">
                         <SquarePen className="h-4 w-4 text-primary" />
                       </Button>
-                      <Button
-                        onClick={() => handleDeleteScene(scene.id)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                      >
+                      <Button onClick={() => handleDeleteScene(scene.id)} variant="ghost" size="sm" className="text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -672,9 +639,7 @@ export default function ScenesScreen({
                 value={sceneName}
                 onChange={(e) => {
                   setSceneName(e.target.value)
-                  if (e.target.value.trim()) {
-                    setSceneNameError("")
-                  }
+                  if (e.target.value.trim()) setSceneNameError("")
                 }}
                 placeholder="Enter scene name"
                 className="bg-background border-border"
@@ -699,9 +664,25 @@ export default function ScenesScreen({
                         onValueChange={(value: string) => {
                           if (!isUiWhenType(value)) return
 
-                          const isDoorEvent = (TIME_WINDOW_SUPPORTED_TYPES as readonly UiWhenType[]).includes(value)
+                          const supportsTimeWindow = (TIME_WINDOW_SUPPORTED_TYPES as readonly UiWhenType[]).includes(value)
 
-                          if (isDoorEvent) {
+                          // power-drops: фиксираме operator да е ">" (по логиката ти)
+                          if (value === "power-drops") {
+                            handleUpdateCondition(index, {
+                              type: value,
+                              operator: ">",
+                              timeWindow: undefined,
+                              timeStartHour: undefined,
+                              timeStartMinute: undefined,
+                              timeStartPeriod: undefined,
+                              timeEndHour: undefined,
+                              timeEndMinute: undefined,
+                              timeEndPeriod: undefined,
+                            })
+                            return
+                          }
+
+                          if (supportsTimeWindow) {
                             handleUpdateCondition(index, {
                               type: value,
                               operator: undefined,
@@ -771,9 +752,7 @@ export default function ScenesScreen({
                               value={condition.value ?? ""}
                               onChange={(e) => {
                                 const val = e.target.value
-                                handleUpdateCondition(index, {
-                                  value: val === "" ? undefined : Number.parseFloat(val),
-                                })
+                                handleUpdateCondition(index, { value: val === "" ? undefined : Number.parseFloat(val) })
                               }}
                               placeholder="Enter value"
                               className="flex-1 bg-background border-border"
@@ -791,9 +770,7 @@ export default function ScenesScreen({
                             value={condition.value ?? ""}
                             onChange={(e) => {
                               const val = e.target.value
-                              handleUpdateCondition(index, {
-                                value: val === "" ? undefined : Number.parseInt(val),
-                              })
+                              handleUpdateCondition(index, { value: val === "" ? undefined : Number.parseInt(val, 10) })
                             }}
                             placeholder="Enter value"
                             className="bg-background border-border"
@@ -849,11 +826,7 @@ export default function ScenesScreen({
                                   minute={condition.timeStartMinute || "00"}
                                   period={condition.timeStartPeriod || "AM"}
                                   onTimeChange={(h, m, p) => {
-                                    handleUpdateCondition(index, {
-                                      timeStartHour: h,
-                                      timeStartMinute: m,
-                                      timeStartPeriod: p,
-                                    })
+                                    handleUpdateCondition(index, { timeStartHour: h, timeStartMinute: m, timeStartPeriod: p })
                                   }}
                                   label="Start time"
                                 />
@@ -863,11 +836,7 @@ export default function ScenesScreen({
                                   minute={condition.timeEndMinute || "59"}
                                   period={condition.timeEndPeriod || "PM"}
                                   onTimeChange={(h, m, p) => {
-                                    handleUpdateCondition(index, {
-                                      timeEndHour: h,
-                                      timeEndMinute: m,
-                                      timeEndPeriod: p,
-                                    })
+                                    handleUpdateCondition(index, { timeEndHour: h, timeEndMinute: m, timeEndPeriod: p })
                                   }}
                                   label="End time"
                                 />
@@ -897,9 +866,7 @@ export default function ScenesScreen({
                         </div>
                       )}
 
-                      {(condition.type === "scene-created" ||
-                        condition.type === "scene-edited" ||
-                        condition.type === "scene-deleted") && (
+                      {(condition.type === "scene-created" || condition.type === "scene-edited" || condition.type === "scene-deleted") && (
                         <div className="text-sm text-muted-foreground space-y-2 mt-2 p-3 bg-muted/50 rounded-md">
                           <p className="font-medium">Notification will automatically include:</p>
                           <ul className="list-disc list-inside space-y-1 ml-2">
@@ -908,26 +875,6 @@ export default function ScenesScreen({
                             <li>Date & time (DD/MM/YYYY HH:mm format)</li>
                             <li>Scene name and description</li>
                           </ul>
-                          <div className="mt-2 pt-2 border-t border-border/50">
-                            <p className="text-xs font-medium mb-1">Example notification:</p>
-                            <div className="space-y-1">
-                              <p className="text-xs italic">
-                                {"Scene 'Night Lock' was created by Admin John Doe • 19/12/2025 21:05"}
-                                <br />
-                                {"Description: Locks the door automatically every night at 22:00."}
-                              </p>
-                              <p className="text-xs italic">
-                                {"Scene 'Night Lock' was edited by Jane Smith (Full Access) • 20/12/2025 08:12"}
-                                <br />
-                                {"Description: Locks the door automatically every night at 23:00."}
-                              </p>
-                              <p className="text-xs italic">
-                                {"Scene 'Vacation Mode' was deleted by Admin John Doe • 20/12/2025 10:44"}
-                                <br />
-                                {"Description: Disables manual unlocking and sends notifications."}
-                              </p>
-                            </div>
-                          </div>
                         </div>
                       )}
 
@@ -939,35 +886,11 @@ export default function ScenesScreen({
                             <li>Date & time (DD/MM/YYYY HH:mm format)</li>
                             <li>What exactly was changed (human readable)</li>
                           </ul>
-                          <div className="mt-2 pt-2 border-t border-border/50">
-                            <p className="text-xs font-medium mb-1">Supported Quick Controls:</p>
-                            <p className="text-xs mb-2">• Automatic Lock • Automatic Night Lock</p>
-                            <p className="text-xs font-medium mb-1">Example notifications:</p>
-                            <div className="space-y-1">
-                              <p className="text-xs italic">
-                                Automatic Lock was enabled (15 seconds) by Jane Smith (Full Access) • 20/12/2025 18:32
-                              </p>
-                              <p className="text-xs italic">
-                                Automatic Lock was disabled by Admin John Doe • 20/12/2025 19:01
-                              </p>
-                              <p className="text-xs italic">
-                                Automatic Night Lock was enabled (locks at 22:30) by Admin John Doe • 20/12/2025 21:10
-                              </p>
-                              <p className="text-xs italic">
-                                Automatic Night Lock was disabled by Jane Smith (Full Access) • 21/12/2025 07:45
-                              </p>
-                            </div>
-                          </div>
                         </div>
                       )}
                     </div>
 
-                    <Button
-                      onClick={() => handleRemoveCondition(index)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                    >
+                    <Button onClick={() => handleRemoveCondition(index)} variant="ghost" size="sm" className="text-destructive">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -978,10 +901,10 @@ export default function ScenesScreen({
             <div className="space-y-3">
               <Label className="text-sm text-muted-foreground">THEN Action (select one)</Label>
               <Select
-                value={(thenAction as unknown as { type?: string }).type as string}
+                value={thenAction.type}
                 onValueChange={(value: string) => {
                   if (!isThenActionType(value)) return
-                  setThenAction({ ...(thenAction as object), type: value } as ThenAction)
+                  setThenAction((prev) => ({ ...prev, type: value }))
                 }}
               >
                 <SelectTrigger>
@@ -994,14 +917,11 @@ export default function ScenesScreen({
                 </SelectContent>
               </Select>
 
-              {(((thenAction as unknown as { type?: string }).type as string) === "push" ||
-                ((thenAction as unknown as { type?: string }).type as string) === "email") && (
+              {(thenAction.type === "push" || thenAction.type === "email") && (
                 <Input
                   placeholder="Custom message text"
-                  value={(thenAction as unknown as { customText?: string }).customText || ""}
-                  onChange={(e) =>
-                    setThenAction({ ...(thenAction as object), customText: e.target.value } as ThenAction)
-                  }
+                  value={thenAction.customText || ""}
+                  onChange={(e) => setThenAction((prev) => ({ ...prev, customText: e.target.value }))}
                   className="bg-background border-border"
                 />
               )}
@@ -1028,9 +948,7 @@ export default function ScenesScreen({
               onNavigate("dashboard")
               window.scrollTo({ top: 0, behavior: "instant" })
             }}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "home" ? "text-primary" : "text-muted-foreground"
-            }`}
+            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-primary" : "text-muted-foreground"}`}
           >
             <Home className="h-6 w-6" />
             <span className="text-xs">Home</span>
@@ -1038,16 +956,11 @@ export default function ScenesScreen({
 
           <button
             onClick={() => {
-              if (isPremium) {
-                onNavigate("activity-log")
-              } else {
-                onNavigate("subscription")
-              }
+              if (isPremium) onNavigate("activity-log")
+              else onNavigate("subscription")
               window.scrollTo({ top: 0, behavior: "instant" })
             }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
-            }`}
+            className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"}`}
           >
             <div className="relative">
               <Activity className="h-6 w-6" />
@@ -1056,11 +969,7 @@ export default function ScenesScreen({
             <span className="text-xs">Activity</span>
           </button>
 
-          <button
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
+          <button className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "scenes" ? "text-primary" : "text-muted-foreground"}`}>
             <Layers className="h-6 w-6" />
             <span className="text-xs">Scenes</span>
           </button>
@@ -1072,9 +981,7 @@ export default function ScenesScreen({
                 window.scrollTo({ top: 0, behavior: "instant" })
               }
             }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "settings" ? "text-primary" : "text-muted-foreground"
-            }`}
+            className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "settings" ? "text-primary" : "text-muted-foreground"}`}
           >
             <div className="relative">
               <SettingsIcon className="h-6 w-6" />
@@ -1088,9 +995,7 @@ export default function ScenesScreen({
               onNavigate("profile")
               window.scrollTo({ top: 0, behavior: "instant" })
             }}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "profile" ? "text-primary" : "text-muted-foreground"
-            }`}
+            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "profile" ? "text-primary" : "text-muted-foreground"}`}
           >
             <UserIcon className="h-6 w-6" />
             <span className="text-xs">Profile</span>
