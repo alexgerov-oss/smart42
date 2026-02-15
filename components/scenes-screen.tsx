@@ -8,23 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Home,
-  Activity,
-  SettingsIcon,
-  Layers,
-  UserIcon,
-  LockIcon,
-  SquarePen,
-} from "lucide-react"
+import { ArrowLeft, Plus, Trash2, LockIcon, SquarePen } from "lucide-react"
 import type { Screen } from "@/app/page"
 import { CircularTimePicker } from "@/components/ui/circular-time-picker"
 import { useAppContext } from "@/lib/app-context"
 import { useToast } from "@/components/ui/use-toast"
 import { ModalSelector } from "@/components/ui/modal-selector"
+import { AppBottomNav } from "@/components/app-bottom-nav"
 import { cn } from "@/lib/utils"
 import type { Scene as CoreScene, WhenCondition as CoreWhenCondition } from "@/lib/core/types"
 
@@ -100,8 +90,8 @@ function isThenActionType(value: string): value is ThenActionType {
 }
 
 /**
- * UI state за THEN action (държим го строго типизиран за UI).
- * При запис към CoreScene, го подаваме като CoreScene["thenAction"] (1 контролирано cast-ване).
+ * UI state за THEN action.
+ * При save -> cast към CoreScene["thenAction"].
  */
 type ThenAction = {
   type: ThenActionType
@@ -128,7 +118,7 @@ interface ScenesScreenProps {
   currentScreen: Screen
 }
 
-// ---- Core "разширение" (за полета, които реално ползваш, но явно не са в типовете) ----
+// ---- Core "разширение" (полетата, които ползваме реално) ----
 type DoorEvent = "unlock" | "closed" | "lock" | "open"
 type CoreWhenConditionExt = CoreWhenCondition & {
   doorEvent?: DoorEvent
@@ -140,35 +130,28 @@ type CoreWhenConditionExt = CoreWhenCondition & {
 }
 
 // ---- Helpers ----
-const getUnit = (type: string): string => {
-  const unitMap: Record<string, string> = {
-    wifi: "dBm",
-    battery: "%",
-    "cpu-temp": "°C",
-    "cpu-load": "%",
-    "power-drops": "count",
-    latency: "ms",
-  }
-  return unitMap[type] || ""
+const unitMap: Record<string, string> = {
+  wifi: "dBm",
+  battery: "%",
+  "cpu-temp": "°C",
+  "cpu-load": "%",
+  "power-drops": "count",
+  latency: "ms",
 }
+const getUnit = (type: string) => unitMap[type] || ""
 
 function to12HourParts(h24: number, minute: number): { hour: string; minute: string; period: "AM" | "PM" } {
   const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM"
   let hourNum = h24 % 12
   if (hourNum === 0) hourNum = 12
-  return {
-    hour: String(hourNum),
-    minute: String(minute).padStart(2, "0"),
-    period,
-  }
+  return { hour: String(hourNum), minute: String(minute).padStart(2, "0"), period }
 }
 
 function parseHHMM(time?: string): { h: number; m: number } | null {
   if (!time) return null
-  const parts = time.split(":")
-  if (parts.length !== 2) return null
-  const h = Number.parseInt(parts[0] ?? "", 10)
-  const m = Number.parseInt(parts[1] ?? "", 10)
+  const [hh, mm] = time.split(":")
+  const h = Number.parseInt(hh ?? "", 10)
+  const m = Number.parseInt(mm ?? "", 10)
   if (Number.isNaN(h) || Number.isNaN(m)) return null
   return { h, m }
 }
@@ -185,9 +168,7 @@ function formatBetweenFromCore(timeStart?: string, timeEnd?: string): string {
 function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
   const c = cond as CoreWhenConditionExt
 
-  // Default
   let uiType: UiWhenType = "wifi"
-
   if (c.type === "door-open") {
     if (c.doorEvent === "unlock") uiType = "door-unlock"
     else if (c.doorEvent === "closed") uiType = "door-closed"
@@ -202,15 +183,11 @@ function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
 
   if (typeof c.operator === "string" && isOperator(c.operator)) ui.operator = c.operator
   if (typeof c.value === "number") ui.value = c.value
-
-  if (typeof c.timeWindow === "string" && isTimeWindow(c.timeWindow)) {
-    ui.timeWindow = c.timeWindow
-  }
+  if (typeof c.timeWindow === "string" && isTimeWindow(c.timeWindow)) ui.timeWindow = c.timeWindow
 
   if (ui.timeWindow === "between") {
     const start = parseHHMM(c.timeStart)
     const end = parseHHMM(c.timeEnd)
-
     if (start) {
       const s = to12HourParts(start.h, start.m)
       ui.timeStartHour = s.hour
@@ -232,7 +209,6 @@ const formatSceneDescription = (scene: CoreScene): string => {
   const conditions = scene.whenConditions
     .map((cond) => {
       const c = cond as CoreWhenConditionExt
-
       const timeInfo = c.timeWindow === "between" ? formatBetweenFromCore(c.timeStart, c.timeEnd) : ""
 
       if (c.type === "door-lock") return `Door locked${timeInfo}`
@@ -243,9 +219,7 @@ const formatSceneDescription = (scene: CoreScene): string => {
         return `Door opened${timeInfo}`
       }
 
-      if (c.type === "power-drops") {
-        return `Power drops > ${c.value ?? 0}`
-      }
+      if (c.type === "power-drops") return `Power drops > ${c.value ?? 0}`
 
       const typeMap: Record<string, string> = {
         wifi: "WiFi",
@@ -257,7 +231,7 @@ const formatSceneDescription = (scene: CoreScene): string => {
       }
 
       const name = typeMap[c.type] || c.type
-      if (!c.operator || typeof c.value !== "number") return `${name}`
+      if (!c.operator || typeof c.value !== "number") return name
       return `${name} ${c.operator} ${c.value}${getUnit(c.type)}`
     })
     .join(" and ")
@@ -268,12 +242,7 @@ const formatSceneDescription = (scene: CoreScene): string => {
   return `IF ${conditions} → ${action}`
 }
 
-export default function ScenesScreen({
-  onNavigate,
-  doorName: _doorName,
-  isPremium,
-  currentScreen,
-}: ScenesScreenProps) {
+export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremium, currentScreen }: ScenesScreenProps) {
   const [isCreatingScene, setIsCreatingScene] = useState(false)
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null)
   const [sceneName, setSceneName] = useState("")
@@ -287,6 +256,7 @@ export default function ScenesScreen({
 
   const canAccessScenes = currentUserAccess === "admin" || currentUserAccess === "full"
   const canAccessSettings = currentUserAccess === "admin" || currentUserAccess === "full"
+  const canAccessActivity = currentUserAccess === "admin" || currentUserAccess === "full"
 
   const visibleScenes = scenes.filter((scene) => {
     if (currentUserAccess === "admin") return true
@@ -294,29 +264,24 @@ export default function ScenesScreen({
     return false
   })
 
-  const getActiveTab = () => {
-    if (currentScreen === "dashboard") return "home"
-    if (currentScreen === "activity-log") return "activity-log"
-    if (currentScreen === "scenes") return "scenes"
-    if (currentScreen === "settings") return "settings"
-    if (currentScreen === "profile") return "profile"
-    return "scenes"
-  }
+  const isFreeAdmin = currentUserAccess === "admin" && !isPremium
+  const canCreateScene = !isFreeAdmin || scenes.length === 0
 
-  const activeTab = getActiveTab()
-
-  const handleAddCondition = () => {
-    setWhenConditions([...whenConditions, { type: "wifi", operator: "<" }])
-  }
+  const handleAddCondition = () => setWhenConditions((prev) => [...prev, { type: "wifi", operator: "<" }])
 
   const handleUpdateCondition = (index: number, updates: Partial<WhenCondition>) => {
-    const newConditions = [...whenConditions]
-    newConditions[index] = { ...newConditions[index], ...updates }
-    setWhenConditions(newConditions)
+    setWhenConditions((prev) => prev.map((c, i) => (i === index ? { ...c, ...updates } : c)))
   }
 
-  const handleRemoveCondition = (index: number) => {
-    setWhenConditions(whenConditions.filter((_, i) => i !== index))
+  const handleRemoveCondition = (index: number) => setWhenConditions((prev) => prev.filter((_, i) => i !== index))
+
+  const handleCancelEdit = () => {
+    setIsCreatingScene(false)
+    setEditingSceneId(null)
+    setSceneName("")
+    setSceneNameError("")
+    setWhenConditions([{ type: "wifi", operator: "<" }])
+    setThenAction({ type: "push", customText: "" })
   }
 
   const handleSaveScene = () => {
@@ -341,20 +306,13 @@ export default function ScenesScreen({
     const adaptedWhenConditions: CoreWhenConditionExt[] = whenConditions.map((cond) => {
       let baseType: CoreWhenCondition["type"] = "wifi"
 
-      if (isCoreWhenType(cond.type)) {
-        baseType = cond.type
-      } else if (cond.type === "door-unlock" || cond.type === "door-closed") {
-        baseType = "door-open"
-      } else {
-        baseType = "door-open"
-      }
-
-      // power-drops: логиката ти е ">" (не оператор от UI)
-      const operator: Operator | undefined = cond.type === "power-drops" ? ">" : cond.operator
+      if (isCoreWhenType(cond.type)) baseType = cond.type
+      else if (cond.type === "door-unlock" || cond.type === "door-closed") baseType = "door-open"
+      else baseType = "door-open"
 
       const adapted: CoreWhenConditionExt = {
         type: baseType,
-        operator,
+        operator: cond.type === "power-drops" ? ">" : cond.operator,
         value: cond.value,
         timeWindow: cond.timeWindow,
       }
@@ -399,22 +357,10 @@ export default function ScenesScreen({
 
     setEntityName("scenes", sceneId, sceneName)
 
-    if (editingSceneId) {
-      setScenes(scenes.map((s) => (s.id === editingSceneId ? scene : s)))
-    } else {
-      setScenes([...scenes, scene])
-    }
+    if (editingSceneId) setScenes(scenes.map((s) => (s.id === editingSceneId ? scene : s)))
+    else setScenes([...scenes, scene])
 
     handleCancelEdit()
-  }
-
-  const handleCancelEdit = () => {
-    setIsCreatingScene(false)
-    setEditingSceneId(null)
-    setSceneName("")
-    setSceneNameError("")
-    setWhenConditions([{ type: "wifi", operator: "<" }])
-    setThenAction({ type: "push", customText: "" })
   }
 
   const handleEditScene = (scene: CoreScene) => {
@@ -466,13 +412,10 @@ export default function ScenesScreen({
     setScenes(scenes.filter((s) => s.id !== id))
   }
 
-  const isFreeAdmin = currentUserAccess === "admin" && !isPremium
-  const canCreateScene = isFreeAdmin ? scenes.length === 0 : true
-
   const handleStartCreatingScene = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
-    if (isFreeAdmin && scenes.length >= 1) {
+    if (!canCreateScene) {
       toast({
         title: "Upgrade Required",
         description: "Upgrade to create more scenes.",
@@ -510,67 +453,14 @@ export default function ScenesScreen({
           </Card>
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-          <div className="flex items-center justify-around p-4">
-            <button
-              onClick={() => {
-                onNavigate("dashboard")
-                window.scrollTo({ top: 0, behavior: "instant" })
-              }}
-              className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-primary" : "text-muted-foreground"}`}
-            >
-              <Home className="h-6 w-6" />
-              <span className="text-xs">Home</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (isPremium) onNavigate("activity-log")
-                else onNavigate("subscription")
-                window.scrollTo({ top: 0, behavior: "instant" })
-              }}
-              className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"}`}
-            >
-              <div className="relative">
-                <Activity className="h-6 w-6" />
-                {!isPremium && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-              </div>
-              <span className="text-xs">Activity</span>
-            </button>
-
-            <button className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "scenes" ? "text-primary" : "text-muted-foreground"}`}>
-              <Layers className="h-6 w-6" />
-              <span className="text-xs">Scenes</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (canAccessSettings) {
-                  onNavigate("settings")
-                  window.scrollTo({ top: 0, behavior: "instant" })
-                }
-              }}
-              className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "settings" ? "text-primary" : "text-muted-foreground"}`}
-            >
-              <div className="relative">
-                <SettingsIcon className="h-6 w-6" />
-                {!canAccessSettings && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-              </div>
-              <span className="text-xs">Settings</span>
-            </button>
-
-            <button
-              onClick={() => {
-                onNavigate("profile")
-                window.scrollTo({ top: 0, behavior: "instant" })
-              }}
-              className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "profile" ? "text-primary" : "text-muted-foreground"}`}
-            >
-              <UserIcon className="h-6 w-6" />
-              <span className="text-xs">Profile</span>
-            </button>
-          </div>
-        </div>
+        <AppBottomNav
+          currentScreen={currentScreen}
+          onNavigate={onNavigate}
+          isPremium={isPremium}
+          canAccessActivity={canAccessActivity}
+          canAccessScenes={canAccessScenes}
+          canAccessSettings={canAccessSettings}
+        />
       </div>
     )
   }
@@ -595,9 +485,7 @@ export default function ScenesScreen({
               Add Scene
             </Button>
 
-            {isFreeAdmin && scenes.length >= 1 && (
-              <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>
-            )}
+            {!canCreateScene && <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>}
 
             {visibleScenes.map((scene) => (
               <Card key={scene.id} className="border-border">
@@ -607,6 +495,7 @@ export default function ScenesScreen({
                       <h3 className="font-semibold text-foreground">{getEntityName("scenes", scene.id, scene.name)}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{formatSceneDescription(scene)}</p>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <div className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
                         <Switch
@@ -615,9 +504,11 @@ export default function ScenesScreen({
                           className="data-[state=unchecked]:bg-gray-500"
                         />
                       </div>
+
                       <Button onClick={() => handleEditScene(scene)} variant="ghost" size="sm">
                         <SquarePen className="h-4 w-4 text-primary" />
                       </Button>
+
                       <Button onClick={() => handleDeleteScene(scene.id)} variant="ghost" size="sm" className="text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -666,7 +557,6 @@ export default function ScenesScreen({
 
                           const supportsTimeWindow = (TIME_WINDOW_SUPPORTED_TYPES as readonly UiWhenType[]).includes(value)
 
-                          // power-drops: фиксираме operator да е ">" (по логиката ти)
                           if (value === "power-drops") {
                             handleUpdateCondition(index, {
                               type: value,
@@ -819,73 +709,28 @@ export default function ScenesScreen({
                           />
 
                           {condition.timeWindow === "between" && (
-                            <div className="space-y-3">
-                              <div className="grid grid-cols-2 gap-3">
-                                <CircularTimePicker
-                                  hour={condition.timeStartHour || "12"}
-                                  minute={condition.timeStartMinute || "00"}
-                                  period={condition.timeStartPeriod || "AM"}
-                                  onTimeChange={(h, m, p) => {
-                                    handleUpdateCondition(index, { timeStartHour: h, timeStartMinute: m, timeStartPeriod: p })
-                                  }}
-                                  label="Start time"
-                                />
+                            <div className="grid grid-cols-2 gap-3">
+                              <CircularTimePicker
+                                hour={condition.timeStartHour || "12"}
+                                minute={condition.timeStartMinute || "00"}
+                                period={condition.timeStartPeriod || "AM"}
+                                onTimeChange={(h, m, p) =>
+                                  handleUpdateCondition(index, { timeStartHour: h, timeStartMinute: m, timeStartPeriod: p })
+                                }
+                                label="Start time"
+                              />
 
-                                <CircularTimePicker
-                                  hour={condition.timeEndHour || "11"}
-                                  minute={condition.timeEndMinute || "59"}
-                                  period={condition.timeEndPeriod || "PM"}
-                                  onTimeChange={(h, m, p) => {
-                                    handleUpdateCondition(index, { timeEndHour: h, timeEndMinute: m, timeEndPeriod: p })
-                                  }}
-                                  label="End time"
-                                />
-                              </div>
+                              <CircularTimePicker
+                                hour={condition.timeEndHour || "11"}
+                                minute={condition.timeEndMinute || "59"}
+                                period={condition.timeEndPeriod || "PM"}
+                                onTimeChange={(h, m, p) =>
+                                  handleUpdateCondition(index, { timeEndHour: h, timeEndMinute: m, timeEndPeriod: p })
+                                }
+                                label="End time"
+                              />
                             </div>
                           )}
-                        </div>
-                      )}
-
-                      {(condition.type === "user-ibutton-created" || condition.type === "user-ibutton-deleted") && (
-                        <div className="text-sm text-muted-foreground space-y-2 mt-2 p-3 bg-muted/50 rounded-md">
-                          <p className="font-medium">Notification will automatically include:</p>
-                          <ul className="list-disc list-inside space-y-1 ml-2">
-                            <li>Who performed the action (name and role)</li>
-                            <li>What was affected (iButton or App User details)</li>
-                            <li>Action type (created or deleted)</li>
-                            <li>Date & time (DD/MM/YYYY HH:mm format)</li>
-                          </ul>
-                          <div className="mt-2 pt-2 border-t border-border/50">
-                            <p className="text-xs font-medium mb-1">Example notifications:</p>
-                            <p className="text-xs italic">
-                              {condition.type === "user-ibutton-created"
-                                ? "iButton 'Front Door Key' (ID: IBT-483920, Open/Close Only) was created by Admin John Doe • 19/12/2025 18:47"
-                                : "User 'Jane Smith' (Full Access) was deleted by Admin John Doe • 19/12/2025 18:47"}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {(condition.type === "scene-created" || condition.type === "scene-edited" || condition.type === "scene-deleted") && (
-                        <div className="text-sm text-muted-foreground space-y-2 mt-2 p-3 bg-muted/50 rounded-md">
-                          <p className="font-medium">Notification will automatically include:</p>
-                          <ul className="list-disc list-inside space-y-1 ml-2">
-                            <li>Action type (created, edited, or deleted)</li>
-                            <li>Who performed the action (name and role)</li>
-                            <li>Date & time (DD/MM/YYYY HH:mm format)</li>
-                            <li>Scene name and description</li>
-                          </ul>
-                        </div>
-                      )}
-
-                      {condition.type === "quick-controls-changed" && (
-                        <div className="text-sm text-muted-foreground space-y-2 mt-2 p-3 bg-muted/50 rounded-md">
-                          <p className="font-medium">Notification will automatically include:</p>
-                          <ul className="list-disc list-inside space-y-1 ml-2">
-                            <li>Who made the change (name and role)</li>
-                            <li>Date & time (DD/MM/YYYY HH:mm format)</li>
-                            <li>What exactly was changed (human readable)</li>
-                          </ul>
                         </div>
                       )}
                     </div>
@@ -941,67 +786,14 @@ export default function ScenesScreen({
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-        <div className="flex items-center justify-around p-4">
-          <button
-            onClick={() => {
-              onNavigate("dashboard")
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-primary" : "text-muted-foreground"}`}
-          >
-            <Home className="h-6 w-6" />
-            <span className="text-xs">Home</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (isPremium) onNavigate("activity-log")
-              else onNavigate("subscription")
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"}`}
-          >
-            <div className="relative">
-              <Activity className="h-6 w-6" />
-              {!isPremium && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Activity</span>
-          </button>
-
-          <button className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "scenes" ? "text-primary" : "text-muted-foreground"}`}>
-            <Layers className="h-6 w-6" />
-            <span className="text-xs">Scenes</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (canAccessSettings) {
-                onNavigate("settings")
-                window.scrollTo({ top: 0, behavior: "instant" })
-              }
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${activeTab === "settings" ? "text-primary" : "text-muted-foreground"}`}
-          >
-            <div className="relative">
-              <SettingsIcon className="h-6 w-6" />
-              {!canAccessSettings && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Settings</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onNavigate("profile")
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "profile" ? "text-primary" : "text-muted-foreground"}`}
-          >
-            <UserIcon className="h-6 w-6" />
-            <span className="text-xs">Profile</span>
-          </button>
-        </div>
-      </div>
+      <AppBottomNav
+        currentScreen={currentScreen}
+        onNavigate={onNavigate}
+        isPremium={isPremium}
+        canAccessActivity={canAccessActivity}
+        canAccessScenes={canAccessScenes}
+        canAccessSettings={canAccessSettings}
+      />
     </div>
   )
 }

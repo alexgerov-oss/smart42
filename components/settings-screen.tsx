@@ -8,18 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import {
-  ArrowLeft,
-  Info,
-  LockIcon,
-  Home,
-  Activity,
-  SettingsIcon,
-  Layers,
-  UserIcon,
-  Trash2,
-  SquarePen,
-} from "lucide-react"
+import { ArrowLeft, Info, LockIcon, Trash2, SquarePen } from "lucide-react"
 import type { Screen } from "@/app/page"
 import { useAppContext } from "@/lib/app-context"
 import { CircularTimePicker } from "@/components/ui/circular-time-picker"
@@ -38,6 +27,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { useToast } from "@/hooks/use-toast"
 import { DialogCancel } from "@/components/ui/dialog-cancel"
 import { DialogAction } from "@/components/ui/dialog-action"
+import { AppBottomNav } from "@/components/app-bottom-nav"
 
 interface SettingsScreenProps {
   onNavigate: (screen: Screen) => void
@@ -81,7 +71,7 @@ export default function SettingsScreen({
   const [newIButtonName, setNewIButtonName] = useState("")
   const [registeringIButtonId, setRegisteringIButtonId] = useState<string | null>(null)
 
-  const [restartTimeoutId, setRestartTimeoutId] = useState<NodeJS.Timeout | null>(null)
+  const [restartTimeoutId, setRestartTimeoutId] = useState<ReturnType<typeof setTimeout> | null>(null)
   const [showRestartConfirmDialog, setShowRestartConfirmDialog] = useState(false)
 
   const [deleteIButtonId, setDeleteIButtonId] = useState<string | null>(null)
@@ -132,10 +122,9 @@ export default function SettingsScreen({
   const controller = getActiveController()
   const isAdmin = currentUserAccess === "admin"
 
-  // ✅ Trial + Premium = едно и също ("active plan")
+  // ✅ Trial + Premium + active admin subscription = "plan"
   const hasPlan = Boolean(isPremium || isOnTrial || adminHasActiveSubscription)
 
-  // Permission context
   const permissionContext: PermissionContext = {
     currentUserAccess,
     adminHasActiveSubscription: hasPlan,
@@ -143,7 +132,10 @@ export default function SettingsScreen({
     isTrialExpired: isTrialExpired,
   }
 
+  const canAccessActivity = Permissions.canAccessActivity(permissionContext)
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)
+  const canAccessSettings = Permissions.canAccessSettings(permissionContext)
+
   const canManageControllers = Permissions.canManageControllers(permissionContext)
   const canAddAppUsers = Permissions.canAddAppUsers(permissionContext)
   const canAddIButtons = Permissions.canAddIButtons(permissionContext)
@@ -161,21 +153,9 @@ export default function SettingsScreen({
 
   const canEditItem = (itemCreatedBy: "admin" | "full" | "open-close", itemId?: string) => {
     if (currentUserAccess === "admin") return true
-    // Full Access cannot edit/delete their own default user (id: "2")
     if (currentUserAccess === "full" && itemId === "2") return false
     return itemCreatedBy === currentUserAccess
   }
-
-  const getActiveTab = () => {
-    if (currentScreen === "dashboard") return "home"
-    if (currentScreen === "activity-log") return "activity-log"
-    if (currentScreen === "scenes") return "scenes"
-    if (currentScreen === "settings") return "settings"
-    if (currentScreen === "profile") return "profile"
-    return "settings"
-  }
-
-  const activeTab = getActiveTab()
 
   const handleOpenControllerDialog = () => {
     if (controller) {
@@ -231,19 +211,16 @@ export default function SettingsScreen({
 
     if (newIButtonName.trim() || registeringIButtonId) {
       const finalName = newIButtonName.trim() || "Unnamed iButton"
-      if (registeringIButtonId) {
-        updateIButtonUser(registeringIButtonId, finalName)
-      }
+      if (registeringIButtonId) updateIButtonUser(registeringIButtonId, finalName)
     }
+
     setIsListeningMode(false)
     setNewIButtonName("")
     setRegisteringIButtonId(null)
   }
 
   const cancelIButtonRegistration = () => {
-    if (registeringIButtonId) {
-      removeIButtonUser(registeringIButtonId)
-    }
+    if (registeringIButtonId) removeIButtonUser(registeringIButtonId)
     setIsListeningMode(false)
     setNewIButtonName("")
     setRegisteringIButtonId(null)
@@ -268,16 +245,11 @@ export default function SettingsScreen({
     if (!canAddAppUsers) return
     if (!canSendInvitation) return
 
-    const finalAccess = inviteUserAccess // ✅ НЕ го сменяме автоматично
+    const finalAccess = inviteUserAccess
 
-    // Full Access: само admin + само ако няма вече друг full
     if (finalAccess === "full") {
       if (!isAdmin) {
-        toast({
-          title: "Access Denied",
-          description: "Only Admin can create Full Access users.",
-          variant: "destructive",
-        })
+        toast({ title: "Access Denied", description: "Only Admin can create Full Access users.", variant: "destructive" })
         return
       }
       if (!canCreateFullAccessAccount()) {
@@ -297,18 +269,15 @@ export default function SettingsScreen({
     setInviteUserAccess("open-close")
     setShowInviteAppUserDialog(false)
 
-    if (ok) {
-      toast({
-        title: "Invitation sent",
-        description: "The user will receive an email to join.",
-      })
-    } else {
-      toast({
-        title: "Invitation not sent",
-        description: "User was not added. Check subscription/trial and duplicate email.",
-        variant: "destructive",
-      })
-    }
+    toast(
+      ok
+        ? { title: "Invitation sent", description: "The user will receive an email to join." }
+        : {
+            title: "Invitation not sent",
+            description: "User was not added. Check subscription/trial and duplicate email.",
+            variant: "destructive",
+          }
+    )
   }
 
   const handleDeleteIButton = (id: string) => {
@@ -335,10 +304,7 @@ export default function SettingsScreen({
 
   const handleSaveIButtonName = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-
-    if (editingUserId && editingName) {
-      setEntityName("ibuttons", editingUserId, editingName)
-    }
+    if (editingUserId && editingName) setEntityName("ibuttons", editingUserId, editingName)
     setShowEditIButtonDialog(false)
     setEditingUserId(null)
     setEditingName(null)
@@ -346,10 +312,7 @@ export default function SettingsScreen({
 
   const handleSaveAppUserName = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-
-    if (editingUserId && editingName) {
-      setEntityName("appusers", editingUserId, editingName)
-    }
+    if (editingUserId && editingName) setEntityName("appusers", editingUserId, editingName)
     setShowEditAppUserDialog(false)
     setEditingUserId(null)
     setEditingName(null)
@@ -358,7 +321,6 @@ export default function SettingsScreen({
   const handleAddIButtonUser = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
-    // ✅ Ако admin няма plan -> максимум 1 iButton
     if (isFreeAdmin && iButtonUsers.length >= 1) {
       toast({
         title: "iButton not added",
@@ -370,9 +332,7 @@ export default function SettingsScreen({
 
     const newId = addIButtonUser()
 
-    // ✅ Ако core върне blocked id -> не влизаме в listening mode
     if (typeof newId === "string" && newId.startsWith("ibutton-blocked-")) {
-      // Ако реално има plan, това означава че app-context не подава правилно trial/premium надолу.
       toast({
         title: "iButton not added",
         description: hasPlan
@@ -430,7 +390,7 @@ export default function SettingsScreen({
     setValidationError("")
   }
 
-  const handleRestartController = (id: string) => {
+  const handleRestartController = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setShowRestartConfirmDialog(true)
   }
@@ -440,9 +400,10 @@ export default function SettingsScreen({
     removeController(id)
   }
 
-  // ✅ За EDIT: показваме Full само ако е свободен слот ИЛИ ако редактираме текущия Full user
   const editingUserCurrentAccess =
-    editingUserId ? (appUsers.find((u) => u.id === editingUserId)?.access as "admin" | "full" | "open-close" | undefined) : undefined
+    editingUserId
+      ? (appUsers.find((u) => u.id === editingUserId)?.access as "admin" | "full" | "open-close" | undefined)
+      : undefined
   const canShowFullInEdit = canCreateFullAccessAccount() || editingUserCurrentAccess === "full"
 
   return (
@@ -465,7 +426,7 @@ export default function SettingsScreen({
                 <h2 className="text-lg font-semibold text-foreground">Controller</h2>
                 {controller && (
                   <Button
-                    onClick={() => handleRestartController(controller.id)}
+                    onClick={handleRestartController}
                     variant="ghost"
                     size="sm"
                     disabled={!isAdmin || controller.isRestarting}
@@ -601,7 +562,9 @@ export default function SettingsScreen({
               )}
             </div>
 
-            {areQuickControlsDisabled && <p className="text-xs text-muted-foreground">Quick controls are locked by the administrator.</p>}
+            {areQuickControlsDisabled && (
+              <p className="text-xs text-muted-foreground">Quick controls are locked by the administrator.</p>
+            )}
 
             {/* Automatic Lock */}
             <div className="space-y-3">
@@ -853,83 +816,15 @@ export default function SettingsScreen({
         )}
       </div>
 
-      {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-        <div className="flex items-center justify-around p-4">
-          <button
-            onClick={() => {
-              onNavigate("dashboard")
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "home" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <Home className="h-6 w-6" />
-            <span className="text-xs">Home</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (hasPlan) {
-                onNavigate("activity-log")
-              } else {
-                onNavigate("subscription")
-              }
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Activity className="h-6 w-6" />
-              {!hasPlan && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Activity</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (canAccessScenes) {
-                onNavigate("scenes")
-                window.scrollTo({ top: 0, behavior: "instant" })
-              }
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Layers className="h-6 w-6" />
-              {!canAccessScenes && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Scenes</span>
-          </button>
-
-          <button
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "settings" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <SettingsIcon className="h-6 w-6" />
-            <span className="text-xs">Settings</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onNavigate("profile")
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "profile" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <UserIcon className="h-6 w-6" />
-            <span className="text-xs">Profile</span>
-          </button>
-        </div>
-      </div>
+      {/* ✅ Единствената bottom nav вече е общата */}
+      <AppBottomNav
+        currentScreen={currentScreen}
+        onNavigate={onNavigate}
+        hasPlan={hasPlan}
+        canAccessActivity={canAccessActivity}
+        canAccessScenes={canAccessScenes}
+        canAccessSettings={canAccessSettings}
+      />
 
       {/* Trial/Premium dialog (kept) */}
       <AlertDialog open={showPremiumDialog} onOpenChange={setShowPremiumDialog}>
@@ -952,7 +847,12 @@ export default function SettingsScreen({
             <AlertDialogTitle>Edit iButton Name</AlertDialogTitle>
             <AlertDialogDescription>Enter a new name for this iButton.</AlertDialogDescription>
           </AlertDialogHeader>
-          <Input value={editingName || ""} onChange={(e) => setEditingName(e.target.value)} placeholder="iButton name" className="my-4" />
+          <Input
+            value={editingName || ""}
+            onChange={(e) => setEditingName(e.target.value)}
+            placeholder="iButton name"
+            className="my-4"
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleSaveIButtonName}>Save</AlertDialogAction>
@@ -970,13 +870,14 @@ export default function SettingsScreen({
           <div className="space-y-4 my-4">
             <Input value={editingName || ""} onChange={(e) => setEditingName(e.target.value)} placeholder="User name" />
             {editingUserId && appUsers.find((u) => u.id === editingUserId)?.email && (
-              <Input value={appUsers.find((u) => u.id === editingUserId)?.email || ""} disabled className="opacity-50 cursor-not-allowed" />
+              <Input
+                value={appUsers.find((u) => u.id === editingUserId)?.email || ""}
+                disabled
+                className="opacity-50 cursor-not-allowed"
+              />
             )}
 
-            <Select
-              value={editingUserAccess}
-              onValueChange={(val) => setEditingUserAccess(val === "open-close" ? "open-close" : "full")}
-            >
+            <Select value={editingUserAccess} onValueChange={(val) => setEditingUserAccess(val === "open-close" ? "open-close" : "full")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -1016,7 +917,12 @@ export default function SettingsScreen({
 
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">Email</label>
-              <Input type="email" value={inviteUserEmail} onChange={(e) => setInviteUserEmail(e.target.value)} placeholder="user@example.com" />
+              <Input
+                type="email"
+                value={inviteUserEmail}
+                onChange={(e) => setInviteUserEmail(e.target.value)}
+                placeholder="user@example.com"
+              />
             </div>
 
             {currentUserAccess !== "full" && (
@@ -1029,13 +935,11 @@ export default function SettingsScreen({
                   </SelectTrigger>
 
                   <SelectContent className="bg-card border-border">
-                    {/* ✅ Full Access изчезва, ако вече има 1 full */}
                     {isAdmin && canCreateFullAccessAccount() && (
                       <SelectItem value="full" className="text-foreground">
                         Full Access
                       </SelectItem>
                     )}
-
                     <SelectItem value="open-close" className="text-foreground">
                       Open/Close Only
                     </SelectItem>
