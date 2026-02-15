@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Clock, LockIcon } from "lucide-react"
@@ -24,7 +24,7 @@ type UserFilter = "all" | KnownUser
 
 type ActivityLogEntry = {
   id: number
-  createdAt: string
+  createdAt: string // ISO date string
   doorName?: string
   time: string
   date: string
@@ -105,6 +105,20 @@ function isDoorLockUnlock(action: string): action is "lock" | "unlock" {
   return action === "lock" || action === "unlock"
 }
 
+function withinRange(createdAtIso: string, range: TimeRange): boolean {
+  const ts = Date.parse(createdAtIso)
+  if (Number.isNaN(ts)) return true
+
+  const now = Date.now()
+  const diffMs = now - ts
+  const day = 24 * 60 * 60 * 1000
+
+  if (range === "day") return diffMs <= day
+  if (range === "week") return diffMs <= 7 * day
+  if (range === "month") return diffMs <= 30 * day
+  return diffMs <= 365 * day
+}
+
 export default function ActivityLogScreen({ onNavigate, isPremium, doorName, currentScreen }: ActivityLogScreenProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("day")
   const [eventType, setEventType] = useState<EventTypeFilter>("all")
@@ -115,7 +129,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: isPremium,
+    adminHasActiveSubscription: Boolean(isPremium),
     isTrialActive: false,
     isTrialExpired: false,
   }
@@ -124,10 +138,86 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
+  const hasPlan = Boolean(isPremium)
+  const canSeeActivityContent = canAccessActivity && hasPlan
+
   useEffect(() => {
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0
   }, [])
 
+  // ✅ FIX (warning): activityLogs вече НЕ се създава наново при всеки render
+  const activityLogs: ActivityLogEntry[] = useMemo(() => {
+    const now = new Date()
+    const isoToday = (h: number, m: number) => new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0).toISOString()
+    const isoYesterday = (h: number, m: number) =>
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, h, m, 0, 0).toISOString()
+
+    return [
+      { id: 1, createdAt: isoToday(10, 45), doorName, time: "10:45 AM", date: "Today", action: "open", method: null, user: null, eventType: "door-open" },
+      { id: 2, createdAt: isoToday(10, 47), doorName, time: "10:47 AM", date: "Today", action: "closed", method: null, user: null, eventType: "door-closed" },
+      { id: 3, createdAt: isoToday(14, 30), doorName, time: "02:30 PM", date: "Today", action: "unlock", method: "iButton", user: "Jane Smith", eventType: "door-unlock" },
+      { id: 4, createdAt: isoToday(14, 35), doorName, time: "02:35 PM", date: "Today", action: "open", method: null, user: null, eventType: "door-open" },
+      { id: 5, createdAt: isoToday(17, 15), doorName, time: "05:15 PM", date: "Today", action: "lock", method: "App", user: "John Doe", eventType: "door-lock" },
+      { id: 6, createdAt: isoToday(17, 20), doorName, time: "05:20 PM", date: "Today", action: "closed", method: null, user: null, eventType: "door-closed" },
+
+      { id: 7, createdAt: isoYesterday(8, 12), doorName, time: "08:12 AM", date: "Yesterday", action: "unlock", method: "App", user: "John Doe", eventType: "door-unlock" },
+      { id: 8, createdAt: isoYesterday(8, 15), doorName, time: "08:15 AM", date: "Yesterday", action: "open", method: null, user: null, eventType: "door-open" },
+
+      {
+        id: 9,
+        createdAt: isoYesterday(9, 22),
+        time: "09:22 AM",
+        date: "Yesterday",
+        action: "Power restored after outage",
+        user: "System",
+        role: null,
+        description: `Power was restored after an outage • ${new Date(isoYesterday(9, 22)).toLocaleDateString()} 09:22`,
+        eventType: "power-restored",
+      },
+      {
+        id: 10,
+        createdAt: isoYesterday(11, 30),
+        time: "11:30 AM",
+        date: "Yesterday",
+        action: "iButton created",
+        user: "John Doe",
+        role: "Admin",
+        description: "iButton 'Front Door Key' (ID: IBT-483920, Open/Close Only) was created by Admin John Doe • 11:30",
+        eventType: "ibutton-created",
+      },
+      {
+        id: 11,
+        createdAt: isoYesterday(15, 15),
+        time: "03:15 PM",
+        date: "Yesterday",
+        action: "iButton deleted",
+        user: "Jane Smith",
+        role: "Full Access",
+        description: "iButton 'Garage Key' (ID: IBT-294103, Open/Close Only) was deleted by Jane Smith (Full Access) • 15:15",
+        eventType: "ibutton-deleted",
+      },
+    ]
+  }, [doorName])
+
+  const showUserFilter = useMemo(() => {
+    return (USER_FILTER_EVENT_TYPES as readonly string[]).includes(eventType)
+  }, [eventType])
+
+  // ✅ FIX (error): useMemo вече НЕ е след early return и НЕ е conditional
+  const filteredLogs = useMemo(() => {
+    if (!canSeeActivityContent) return []
+
+    return activityLogs.filter((log) => {
+      if (!withinRange(log.createdAt, timeRange)) return false
+      if (eventType !== "all") {
+        if (log.eventType !== eventType) return false
+      }
+      if (userFilter !== "all" && log.user !== userFilter) return false
+      return true
+    })
+  }, [activityLogs, canSeeActivityContent, eventType, userFilter, timeRange])
+
+  // -------- Early returns (след hooks) --------
   if (!canAccessActivity) {
     return (
       <div className="flex min-h-screen flex-col pb-20">
@@ -149,6 +239,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
+          hasPlan={hasPlan}
           isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
@@ -158,7 +249,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
     )
   }
 
-  if (!isPremium) {
+  if (!hasPlan) {
     return (
       <div className="flex min-h-screen flex-col pb-20">
         <div className="flex-1 flex items-center justify-center p-4">
@@ -173,10 +264,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
               Full activity log history is only available for Premium users. Upgrade now to access complete door activity
               records.
             </p>
-            <Button
-              onClick={() => onNavigate("subscription")}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            >
+            <Button onClick={() => onNavigate("subscription")} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
               Upgrade to Premium
             </Button>
             <Button onClick={() => onNavigate("dashboard")} variant="outline" className="w-full border-border">
@@ -188,6 +276,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
+          hasPlan={hasPlan}
           isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
@@ -197,183 +286,9 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
     )
   }
 
-  const activityLogs: ActivityLogEntry[] = [
-    { id: 1, createdAt: "2025-12-19T10:45:00", doorName, time: "10:45 AM", date: "Today", action: "open", method: null, user: null, eventType: "door-open" },
-    { id: 2, createdAt: "2025-12-19T10:47:00", doorName, time: "10:47 AM", date: "Today", action: "closed", method: null, user: null, eventType: "door-closed" },
-    { id: 3, createdAt: "2025-12-19T14:30:00", doorName, time: "02:30 PM", date: "Today", action: "unlock", method: "iButton", user: "Jane Smith", eventType: "door-unlock" },
-    { id: 4, createdAt: "2025-12-19T14:35:00", doorName, time: "02:35 PM", date: "Today", action: "open", method: null, user: null, eventType: "door-open" },
-    { id: 5, createdAt: "2025-12-19T17:15:00", doorName, time: "05:15 PM", date: "Today", action: "lock", method: "App", user: "John Doe", eventType: "door-lock" },
-    { id: 6, createdAt: "2025-12-19T17:20:00", doorName, time: "05:20 PM", date: "Today", action: "closed", method: null, user: null, eventType: "door-closed" },
-
-    { id: 7, createdAt: "2025-12-18T08:12:00", doorName, time: "08:12 AM", date: "Yesterday", action: "unlock", method: "App", user: "John Doe", eventType: "door-unlock" },
-    { id: 8, createdAt: "2025-12-18T08:15:00", doorName, time: "08:15 AM", date: "Yesterday", action: "open", method: null, user: null, eventType: "door-open" },
-
-    {
-      id: 9,
-      createdAt: "2025-12-19T09:22:00",
-      time: "09:22 AM",
-      date: "Yesterday",
-      action: "Power restored after outage",
-      user: "System",
-      role: null,
-      description: "Power was restored after an outage • 19/12/2025 09:22",
-      eventType: "power-restored",
-    },
-
-    {
-      id: 10,
-      createdAt: "2025-12-18T11:30:00",
-      time: "11:30 AM",
-      date: "Yesterday",
-      action: "iButton created",
-      user: "John Doe",
-      role: "Admin",
-      description:
-        "iButton 'Front Door Key' (ID: IBT-483920, Open/Close Only) was created by Admin John Doe • 18/12/2025 11:30",
-      eventType: "ibutton-created",
-    },
-    {
-      id: 11,
-      createdAt: "2025-12-18T15:15:00",
-      time: "03:15 PM",
-      date: "Yesterday",
-      action: "iButton deleted",
-      user: "Jane Smith",
-      role: "Full Access",
-      description:
-        "iButton 'Garage Key' (ID: IBT-294103, Open/Close Only) was deleted by Jane Smith (Full Access) • 18/12/2025 15:15",
-      eventType: "ibutton-deleted",
-    },
-
-    {
-      id: 12,
-      createdAt: "2025-12-18T10:05:00",
-      time: "10:05 AM",
-      date: "18/12/2025",
-      action: "App user created",
-      user: "John Doe",
-      role: "Admin",
-      description: "User 'Alice Johnson' (Full Access) was created by Admin John Doe • 18/12/2025 10:05",
-      eventType: "app-user-created",
-    },
-    {
-      id: 13,
-      createdAt: "2025-12-18T14:40:00",
-      time: "02:40 PM",
-      date: "18/12/2025",
-      action: "App user edited",
-      user: "John Doe",
-      role: "Admin",
-      description: "User 'Alice Johnson' (Full Access) was edited by Admin John Doe • 18/12/2025 14:40",
-      eventType: "app-user-edited",
-    },
-    {
-      id: 14,
-      createdAt: "2025-12-18T16:22:00",
-      time: "04:22 PM",
-      date: "18/12/2025",
-      action: "App user deleted",
-      user: "John Doe",
-      role: "Admin",
-      description: "User 'Mike Brown' (Open/Close Only) was deleted by Admin John Doe • 18/12/2025 16:22",
-      eventType: "app-user-deleted",
-    },
-
-    {
-      id: 15,
-      createdAt: "2025-12-17T21:05:00",
-      time: "09:05 PM",
-      date: "17/12/2025",
-      action: "Scene created",
-      user: "John Doe",
-      role: "Admin",
-      description:
-        "Scene 'Night Lock' was created by Admin John Doe • 17/12/2025 21:05\nDescription: Locks the door automatically every night at 22:00.",
-      eventType: "scene-created",
-    },
-    {
-      id: 16,
-      createdAt: "2025-12-17T08:12:00",
-      time: "08:12 AM",
-      date: "17/12/2025",
-      action: "Scene edited",
-      user: "Jane Smith",
-      role: "Full Access",
-      description:
-        "Scene 'Night Lock' was edited by Jane Smith (Full Access) • 17/12/2025 08:12\nDescription: Locks the door automatically every night at 23:00.",
-      eventType: "scene-edited",
-    },
-    {
-      id: 17,
-      createdAt: "2025-12-17T10:44:00",
-      time: "10:44 AM",
-      date: "17/12/2025",
-      action: "Scene deleted",
-      user: "John Doe",
-      role: "Admin",
-      description:
-        "Scene 'Vacation Mode' was deleted by Admin John Doe • 17/12/2025 10:44\nDescription: Disables manual unlocking and sends notifications.",
-      eventType: "scene-deleted",
-    },
-
-    {
-      id: 18,
-      createdAt: "2025-12-16T18:32:00",
-      time: "06:32 PM",
-      date: "16/12/2025",
-      action: "Quick control changed",
-      user: "Jane Smith",
-      role: "Full Access",
-      description: "Automatic Lock was enabled (15 seconds) by Jane Smith (Full Access) • 16/12/2025 18:32",
-      eventType: "quick-control-changed",
-    },
-    {
-      id: 19,
-      createdAt: "2025-12-16T19:01:00",
-      time: "07:01 PM",
-      date: "16/12/2025",
-      action: "Quick control changed",
-      user: "John Doe",
-      role: "Admin",
-      description: "Automatic Lock was disabled by Admin John Doe • 16/12/2025 19:01",
-      eventType: "quick-control-changed",
-    },
-    {
-      id: 20,
-      createdAt: "2025-12-16T21:10:00",
-      time: "09:10 PM",
-      date: "16/12/2025",
-      action: "Quick control changed",
-      user: "John Doe",
-      role: "Admin",
-      description: "Automatic Night Lock was enabled (locks at 22:30) by Admin John Doe • 16/12/2025 21:10",
-      eventType: "quick-control-changed",
-    },
-    {
-      id: 21,
-      createdAt: "2025-12-15T07:45:00",
-      time: "07:45 AM",
-      date: "15/12/2025",
-      action: "Quick control changed",
-      user: "Jane Smith",
-      role: "Full Access",
-      description: "Automatic Night Lock was disabled by Jane Smith (Full Access) • 15/12/2025 07:45",
-      eventType: "quick-control-changed",
-    },
-  ]
-
-  const filteredLogs = activityLogs.filter((log) => {
-    if (eventType !== "all") {
-      if (log.eventType !== eventType) return false
-    }
-    if (userFilter !== "all" && log.user !== userFilter) return false
-    return true
-  })
-
-  const showUserFilter = (USER_FILTER_EVENT_TYPES as readonly string[]).includes(eventType)
-
+  // -------- Main UI --------
   return (
-    <div className="flex min-h-screen flex-col pb-20">
+    <div className="flex flex-col min-h-screen pb-20">
       <div className="bg-card border-b border-border p-4">
         <div className="flex items-center gap-3">
           <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
@@ -405,7 +320,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
               onValueChange={(value: string) => {
                 if (!isEventTypeFilter(value)) return
                 setEventType(value)
-                if (!["door-lock", "door-unlock"].includes(value)) setUserFilter("all")
+                if (!(USER_FILTER_EVENT_TYPES as readonly string[]).includes(value)) setUserFilter("all")
               }}
               label="Select Event Type"
               options={[
@@ -493,6 +408,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
+        hasPlan={hasPlan}
         isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}

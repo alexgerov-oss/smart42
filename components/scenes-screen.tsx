@@ -14,25 +14,10 @@ import { CircularTimePicker } from "@/components/ui/circular-time-picker"
 import { useAppContext } from "@/lib/app-context"
 import { useToast } from "@/components/ui/use-toast"
 import { ModalSelector } from "@/components/ui/modal-selector"
-import { AppBottomNav } from "@/components/app-bottom-nav"
 import { cn } from "@/lib/utils"
 import type { Scene as CoreScene, WhenCondition as CoreWhenCondition } from "@/lib/core/types"
-
-const CORE_WHEN_TYPES = [
-  "wifi",
-  "battery",
-  "cpu-temp",
-  "cpu-load",
-  "power-drops",
-  "latency",
-  "door-lock",
-  "door-open",
-] as const
-
-type CoreWhenType = (typeof CORE_WHEN_TYPES)[number]
-function isCoreWhenType(type: string): type is CoreWhenType {
-  return (CORE_WHEN_TYPES as readonly string[]).includes(type)
-}
+import { Permissions, type PermissionContext } from "@/lib/permissions"
+import { AppBottomNav } from "@/components/app-bottom-nav"
 
 const UI_WHEN_TYPES = [
   "wifi",
@@ -89,10 +74,6 @@ function isThenActionType(value: string): value is ThenActionType {
   return (THEN_ACTION_VALUES as readonly string[]).includes(value)
 }
 
-/**
- * UI state за THEN action.
- * При save -> cast към CoreScene["thenAction"].
- */
 type ThenAction = {
   type: ThenActionType
   customText?: string
@@ -111,16 +92,13 @@ interface WhenCondition {
   timeEndPeriod?: "AM" | "PM"
 }
 
-interface ScenesScreenProps {
-  onNavigate: (screen: Screen) => void
-  doorName: string
-  isPremium: boolean
-  currentScreen: Screen
-}
-
-// ---- Core "разширение" (полетата, които ползваме реално) ----
+/**
+ * Разширение над CoreWhenCondition за полета които в UI реално използваме.
+ * (Core типовете ти са по-тесни, затова държим Ext отделно.)
+ */
 type DoorEvent = "unlock" | "closed" | "lock" | "open"
-type CoreWhenConditionExt = CoreWhenCondition & {
+type CoreWhenConditionExt = Omit<CoreWhenCondition, "type"> & {
+  type: string
   doorEvent?: DoorEvent
   timeStart?: string
   timeEnd?: string
@@ -129,16 +107,25 @@ type CoreWhenConditionExt = CoreWhenCondition & {
   value?: number
 }
 
-// ---- Helpers ----
-const unitMap: Record<string, string> = {
-  wifi: "dBm",
-  battery: "%",
-  "cpu-temp": "°C",
-  "cpu-load": "%",
-  "power-drops": "count",
-  latency: "ms",
+interface ScenesScreenProps {
+  onNavigate: (screen: Screen) => void
+  doorName: string
+  isPremium: boolean
+  currentScreen: Screen
 }
-const getUnit = (type: string) => unitMap[type] || ""
+
+// ---- Helpers ----
+const getUnit = (type: string): string => {
+  const unitMap: Record<string, string> = {
+    wifi: "dBm",
+    battery: "%",
+    "cpu-temp": "°C",
+    "cpu-load": "%",
+    "power-drops": "count",
+    latency: "ms",
+  }
+  return unitMap[type] || ""
+}
 
 function to12HourParts(h24: number, minute: number): { hour: string; minute: string; period: "AM" | "PM" } {
   const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM"
@@ -149,9 +136,10 @@ function to12HourParts(h24: number, minute: number): { hour: string; minute: str
 
 function parseHHMM(time?: string): { h: number; m: number } | null {
   if (!time) return null
-  const [hh, mm] = time.split(":")
-  const h = Number.parseInt(hh ?? "", 10)
-  const m = Number.parseInt(mm ?? "", 10)
+  const parts = time.split(":")
+  if (parts.length !== 2) return null
+  const h = Number.parseInt(parts[0] ?? "", 10)
+  const m = Number.parseInt(parts[1] ?? "", 10)
   if (Number.isNaN(h) || Number.isNaN(m)) return null
   return { h, m }
 }
@@ -165,19 +153,59 @@ function formatBetweenFromCore(timeStart?: string, timeEnd?: string): string {
   return ` (between ${s.hour}:${s.minute} ${s.period}–${e.hour}:${e.minute} ${e.period})`
 }
 
-function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
-  const c = cond as CoreWhenConditionExt
+/**
+ * UI -> Core map
+ */
+function uiTypeToCoreType(uiType: UiWhenType): { coreType: string; doorEvent?: DoorEvent } {
+  switch (uiType) {
+    case "door-lock":
+      return { coreType: "door-lock", doorEvent: "lock" }
+    case "door-open":
+      return { coreType: "door-open", doorEvent: "open" }
+    case "door-unlock":
+      return { coreType: "door-open", doorEvent: "unlock" }
+    case "door-closed":
+      return { coreType: "door-open", doorEvent: "closed" }
 
-  let uiType: UiWhenType = "wifi"
-  if (c.type === "door-open") {
-    if (c.doorEvent === "unlock") uiType = "door-unlock"
-    else if (c.doorEvent === "closed") uiType = "door-closed"
-    else uiType = "door-open"
-  } else if (c.type === "door-lock") {
-    uiType = "door-lock"
-  } else if (isCoreWhenType(c.type)) {
-    uiType = c.type
+    case "user-ibutton-created":
+      return { coreType: "ibutton-created" }
+    case "user-ibutton-deleted":
+      return { coreType: "ibutton-deleted" }
+    case "quick-controls-changed":
+      return { coreType: "quick-control-changed" }
+
+    default:
+      return { coreType: uiType }
   }
+}
+
+/**
+ * Core -> UI map
+ */
+function coreTypeToUiType(cond: CoreWhenCondition): UiWhenType {
+  const c = cond as unknown as CoreWhenConditionExt
+
+  if (c.type === "door-open") {
+    if (c.doorEvent === "unlock") return "door-unlock"
+    if (c.doorEvent === "closed") return "door-closed"
+    return "door-open"
+  }
+
+  if (c.type === "door-lock") return "door-lock"
+  if (c.type === "ibutton-created") return "user-ibutton-created"
+  if (c.type === "ibutton-deleted") return "user-ibutton-deleted"
+  if (c.type === "quick-control-changed") return "quick-controls-changed"
+
+  // ако core вече носи UI-ish тип (примерно wifi/battery/etc)
+  if (isUiWhenType(c.type)) return c.type
+
+  // fallback (безопасно)
+  return "wifi"
+}
+
+function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
+  const c = cond as unknown as CoreWhenConditionExt
+  const uiType = coreTypeToUiType(cond)
 
   const ui: WhenCondition = { type: uiType }
 
@@ -188,6 +216,7 @@ function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
   if (ui.timeWindow === "between") {
     const start = parseHHMM(c.timeStart)
     const end = parseHHMM(c.timeEnd)
+
     if (start) {
       const s = to12HourParts(start.h, start.m)
       ui.timeStartHour = s.hour
@@ -208,7 +237,7 @@ function coreWhenToUi(cond: CoreWhenCondition): WhenCondition {
 const formatSceneDescription = (scene: CoreScene): string => {
   const conditions = scene.whenConditions
     .map((cond) => {
-      const c = cond as CoreWhenConditionExt
+      const c = cond as unknown as CoreWhenConditionExt
       const timeInfo = c.timeWindow === "between" ? formatBetweenFromCore(c.timeStart, c.timeEnd) : ""
 
       if (c.type === "door-lock") return `Door locked${timeInfo}`
@@ -219,6 +248,13 @@ const formatSceneDescription = (scene: CoreScene): string => {
         return `Door opened${timeInfo}`
       }
 
+      if (c.type === "ibutton-created") return `User/iButton created${timeInfo}`
+      if (c.type === "ibutton-deleted") return `User/iButton deleted${timeInfo}`
+      if (c.type === "scene-created") return `Scene created${timeInfo}`
+      if (c.type === "scene-edited") return `Scene edited${timeInfo}`
+      if (c.type === "scene-deleted") return `Scene deleted${timeInfo}`
+      if (c.type === "quick-control-changed") return `Quick controls changed${timeInfo}`
+
       if (c.type === "power-drops") return `Power drops > ${c.value ?? 0}`
 
       const typeMap: Record<string, string> = {
@@ -226,18 +262,18 @@ const formatSceneDescription = (scene: CoreScene): string => {
         battery: "Battery",
         "cpu-temp": "CPU temperature",
         "cpu-load": "CPU load",
-        "power-drops": "Power drops",
         latency: "Latency",
       }
 
       const name = typeMap[c.type] || c.type
-      if (!c.operator || typeof c.value !== "number") return name
+      if (!c.operator || typeof c.value !== "number") return `${name}`
       return `${name} ${c.operator} ${c.value}${getUnit(c.type)}`
     })
     .join(" and ")
 
   const actionType = (scene.thenAction as unknown as { type?: string }).type
-  const action = actionType === "push" ? "Send push notification" : actionType === "email" ? "Send email" : "Restart controller"
+  const action =
+    actionType === "push" ? "Send push notification" : actionType === "email" ? "Send email" : "Restart controller"
 
   return `IF ${conditions} → ${action}`
 }
@@ -251,12 +287,18 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
   const [thenAction, setThenAction] = useState<ThenAction>({ type: "push", customText: "" })
   const { toast } = useToast()
 
-  const { currentUserAccess, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } =
-    useAppContext()
+  const { currentUserAccess, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } = useAppContext()
 
-  const canAccessScenes = currentUserAccess === "admin" || currentUserAccess === "full"
-  const canAccessSettings = currentUserAccess === "admin" || currentUserAccess === "full"
-  const canAccessActivity = currentUserAccess === "admin" || currentUserAccess === "full"
+  const permissionContext: PermissionContext = {
+    currentUserAccess,
+    adminHasActiveSubscription: Boolean(isPremium),
+    isTrialActive: false,
+    isTrialExpired: false,
+  }
+
+  const canAccessActivity = Permissions.canAccessActivity(permissionContext)
+  const canAccessScenes = Permissions.canAccessScenes(permissionContext)
+  const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
   const visibleScenes = scenes.filter((scene) => {
     if (currentUserAccess === "admin") return true
@@ -264,13 +306,14 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
     return false
   })
 
-  const isFreeAdmin = currentUserAccess === "admin" && !isPremium
-  const canCreateScene = !isFreeAdmin || scenes.length === 0
-
   const handleAddCondition = () => setWhenConditions((prev) => [...prev, { type: "wifi", operator: "<" }])
 
   const handleUpdateCondition = (index: number, updates: Partial<WhenCondition>) => {
-    setWhenConditions((prev) => prev.map((c, i) => (i === index ? { ...c, ...updates } : c)))
+    setWhenConditions((prev) => {
+      const next = [...prev]
+      next[index] = { ...next[index], ...updates }
+      return next
+    })
   }
 
   const handleRemoveCondition = (index: number) => setWhenConditions((prev) => prev.filter((_, i) => i !== index))
@@ -293,34 +336,23 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
     }
 
     if (whenConditions.length === 0) {
-      toast({
-        title: "No conditions set",
-        description: "Please add at least one condition.",
-        variant: "destructive",
-      })
+      toast({ title: "No conditions set", description: "Please add at least one condition.", variant: "destructive" })
       return
     }
 
     const sceneId = editingSceneId ?? newId("scene")
 
     const adaptedWhenConditions: CoreWhenConditionExt[] = whenConditions.map((cond) => {
-      let baseType: CoreWhenCondition["type"] = "wifi"
-
-      if (isCoreWhenType(cond.type)) baseType = cond.type
-      else if (cond.type === "door-unlock" || cond.type === "door-closed") baseType = "door-open"
-      else baseType = "door-open"
+      const { coreType, doorEvent } = uiTypeToCoreType(cond.type)
 
       const adapted: CoreWhenConditionExt = {
-        type: baseType,
+        type: coreType,
         operator: cond.type === "power-drops" ? ">" : cond.operator,
         value: cond.value,
         timeWindow: cond.timeWindow,
       }
 
-      if (cond.type === "door-unlock") adapted.doorEvent = "unlock"
-      else if (cond.type === "door-closed") adapted.doorEvent = "closed"
-      else if (cond.type === "door-lock") adapted.doorEvent = "lock"
-      else if (cond.type === "door-open") adapted.doorEvent = "open"
+      if (doorEvent) adapted.doorEvent = doorEvent
 
       if (cond.timeWindow === "between" && cond.timeStartHour) {
         const startHour = Number.parseInt(cond.timeStartHour, 10)
@@ -350,7 +382,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
       id: sceneId,
       name: sceneName,
       active: true,
-      whenConditions: adaptedWhenConditions,
+      whenConditions: adaptedWhenConditions as unknown as CoreScene["whenConditions"],
       thenAction: thenAction as unknown as CoreScene["thenAction"],
       createdBy: currentUserAccess,
     }
@@ -365,16 +397,10 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
 
   const handleEditScene = (scene: CoreScene) => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-
     if (currentUserAccess === "full" && scene.createdBy !== "full") {
-      toast({
-        title: "Access Restricted",
-        description: "You can only edit scenes created by you.",
-        variant: "default",
-      })
+      toast({ title: "Access Restricted", description: "You can only edit scenes created by you.", variant: "default" })
       return
     }
-
     setEditingSceneId(scene.id)
     setSceneName(scene.name)
     setWhenConditions(scene.whenConditions.map(coreWhenToUi))
@@ -384,14 +410,9 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
 
   const handleToggleScene = (id: string) => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-
     const scene = scenes.find((s) => s.id === id)
     if (scene && currentUserAccess === "full" && scene.createdBy !== "full") {
-      toast({
-        title: "Access Restricted",
-        description: "You can only toggle scenes created by you.",
-        variant: "default",
-      })
+      toast({ title: "Access Restricted", description: "You can only toggle scenes created by you.", variant: "default" })
       return
     }
     setScenes(scenes.map((s) => (s.id === id ? { ...s, active: !s.active } : s)))
@@ -399,28 +420,21 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
 
   const handleDeleteScene = (id: string) => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-
     const scene = scenes.find((s) => s.id === id)
     if (scene && currentUserAccess === "full" && scene.createdBy !== "full") {
-      toast({
-        title: "Access Restricted",
-        description: "You can only delete scenes created by you.",
-        variant: "default",
-      })
+      toast({ title: "Access Restricted", description: "You can only delete scenes created by you.", variant: "default" })
       return
     }
     setScenes(scenes.filter((s) => s.id !== id))
   }
 
+  const isFreeAdmin = currentUserAccess === "admin" && !isPremium
+  const canCreateScene = isFreeAdmin ? scenes.length === 0 : true
+
   const handleStartCreatingScene = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-
-    if (!canCreateScene) {
-      toast({
-        title: "Upgrade Required",
-        description: "Upgrade to create more scenes.",
-        variant: "destructive",
-      })
+    if (isFreeAdmin && scenes.length >= 1) {
+      toast({ title: "Upgrade Required", description: "Upgrade to create more scenes.", variant: "destructive" })
       return
     }
     setIsCreatingScene(true)
@@ -485,7 +499,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
               Add Scene
             </Button>
 
-            {!canCreateScene && <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>}
+            {isFreeAdmin && scenes.length >= 1 && <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>}
 
             {visibleScenes.map((scene) => (
               <Card key={scene.id} className="border-border">
@@ -495,7 +509,6 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                       <h3 className="font-semibold text-foreground">{getEntityName("scenes", scene.id, scene.name)}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{formatSceneDescription(scene)}</p>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <div className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
                         <Switch
@@ -504,11 +517,9 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                           className="data-[state=unchecked]:bg-gray-500"
                         />
                       </div>
-
                       <Button onClick={() => handleEditScene(scene)} variant="ghost" size="sm">
                         <SquarePen className="h-4 w-4 text-primary" />
                       </Button>
-
                       <Button onClick={() => handleDeleteScene(scene.id)} variant="ghost" size="sm" className="text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -620,37 +631,40 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                         ]}
                       />
 
-                      {condition.operator && condition.type !== "power-drops" && (
-                        <div className="space-y-2">
-                          <ModalSelector
-                            value={condition.operator}
-                            onValueChange={(value: string) => {
-                              if (!isOperator(value)) return
-                              handleUpdateCondition(index, { operator: value })
-                            }}
-                            label="Select Operator"
-                            options={[
-                              { value: "<", label: "<" },
-                              { value: ">", label: ">" },
-                              { value: "=", label: "=" },
-                            ]}
-                          />
-
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={condition.value ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                handleUpdateCondition(index, { value: val === "" ? undefined : Number.parseFloat(val) })
+                      {/* Numeric operators: само за metric типовете (НЕ за time-window типовете) */}
+                      {condition.operator &&
+                        condition.type !== "power-drops" &&
+                        !(TIME_WINDOW_SUPPORTED_TYPES as readonly UiWhenType[]).includes(condition.type) && (
+                          <div className="space-y-2">
+                            <ModalSelector
+                              value={condition.operator}
+                              onValueChange={(value: string) => {
+                                if (!isOperator(value)) return
+                                handleUpdateCondition(index, { operator: value })
                               }}
-                              placeholder="Enter value"
-                              className="flex-1 bg-background border-border"
+                              label="Select Operator"
+                              options={[
+                                { value: "<", label: "<" },
+                                { value: ">", label: ">" },
+                                { value: "=", label: "=" },
+                              ]}
                             />
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">{getUnit(condition.type)}</span>
+
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                value={condition.value ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  handleUpdateCondition(index, { value: val === "" ? undefined : Number.parseFloat(val) })
+                                }}
+                                placeholder="Enter value"
+                                className="flex-1 bg-background border-border"
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{getUnit(condition.type)}</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {condition.type === "power-drops" && (
                         <div className="space-y-2">
@@ -665,10 +679,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                             placeholder="Enter value"
                             className="bg-background border-border"
                           />
-                          <p className="text-xs text-muted-foreground">
-                            Notifications will be sent only after power is restored. The value defines after how many power
-                            interruptions notifications will start and continue on every next restore. 0 or 1 = every restore.
-                          </p>
+                          <p className="text-xs text-muted-foreground">Notifications will be sent only after power is restored. 0 or 1 = every restore.</p>
                         </div>
                       )}
 
@@ -714,19 +725,14 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                                 hour={condition.timeStartHour || "12"}
                                 minute={condition.timeStartMinute || "00"}
                                 period={condition.timeStartPeriod || "AM"}
-                                onTimeChange={(h, m, p) =>
-                                  handleUpdateCondition(index, { timeStartHour: h, timeStartMinute: m, timeStartPeriod: p })
-                                }
+                                onTimeChange={(h, m, p) => handleUpdateCondition(index, { timeStartHour: h, timeStartMinute: m, timeStartPeriod: p })}
                                 label="Start time"
                               />
-
                               <CircularTimePicker
                                 hour={condition.timeEndHour || "11"}
                                 minute={condition.timeEndMinute || "59"}
                                 period={condition.timeEndPeriod || "PM"}
-                                onTimeChange={(h, m, p) =>
-                                  handleUpdateCondition(index, { timeEndHour: h, timeEndMinute: m, timeEndPeriod: p })
-                                }
+                                onTimeChange={(h, m, p) => handleUpdateCondition(index, { timeEndHour: h, timeEndMinute: m, timeEndPeriod: p })}
                                 label="End time"
                               />
                             </div>
