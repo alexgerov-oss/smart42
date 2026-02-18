@@ -160,6 +160,9 @@ function PremiumProvider({
   const isOnTrial = Boolean(trialStartDate) && !isTrialExpired && !adminPurchasedPremium
   const adminHasActiveSubscription = adminPurchasedPremium || isOnTrial
 
+  // ✅ REAL plan flag (used by Permissions + AppBottomNav)
+  const hasPlan = adminHasActiveSubscription
+
   // Note: in this app "isPremium" is used as "premium-like access" (open-close/full are treated as allowed).
   const isPremium =
     currentUserAccess === "open-close" ||
@@ -186,7 +189,12 @@ function PremiumProvider({
       )}
 
       {currentScreen === "activity-log" && (
-        <ActivityLogScreen onNavigate={handleNavigate} isPremium={isPremium} doorName={doorName} currentScreen={currentScreen} />
+        <ActivityLogScreen
+          onNavigate={handleNavigate}
+          isPremium={isPremium}
+          doorName={doorName}
+          currentScreen={currentScreen}
+        />
       )}
 
       {currentScreen === "settings" && (
@@ -208,6 +216,7 @@ function PremiumProvider({
           isOnTrial={isOnTrial}
           remainingTrialDays={remainingTrialDays}
           currentScreen={currentScreen}
+          hasPlan={hasPlan}
         />
       )}
 
@@ -229,25 +238,33 @@ function PremiumProvider({
         />
       )}
 
-      {currentScreen === "payment" && <PaymentProcessingScreen onNavigate={handleNavigate} onConfirmPayment={handleUpgradeToPremium} />}
+      {currentScreen === "payment" && (
+        <PaymentProcessingScreen onNavigate={handleNavigate} onConfirmPayment={handleUpgradeToPremium} />
+      )}
 
       {currentScreen === "chart" && (
-  <ChartScreen
-    metric={chartMetric}
-    onBack={() => {
-      handleNavigate("dashboard")
-      window.scrollTo({ top: 0, behavior: "instant" })
-    }}
-    onNavigate={handleNavigate}
-    isPremium={isPremium}
-    isOnTrial={isOnTrial}
-    remainingTrialDays={remainingTrialDays}
-    currentScreen={currentScreen}
-  />
-)}
+        <ChartScreen
+          metric={chartMetric}
+          onBack={() => {
+            handleNavigate("dashboard")
+            window.scrollTo({ top: 0, behavior: "instant" })
+          }}
+          onNavigate={handleNavigate}
+          isPremium={isPremium}
+          hasPlan={hasPlan}
+          isOnTrial={isOnTrial}
+          remainingTrialDays={remainingTrialDays}
+          currentScreen={currentScreen}
+        />
+      )}
 
       {currentUserAccess !== "open-close" && currentScreen === "scenes" && (
-        <ScenesScreen doorName={doorName} onNavigate={handleNavigate} isPremium={isPremium} currentScreen={currentScreen} />
+        <ScenesScreen
+          doorName={doorName}
+          onNavigate={handleNavigate}
+          isPremium={isPremium}
+          currentScreen={currentScreen}
+        />
       )}
     </>
   )
