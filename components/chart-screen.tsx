@@ -15,6 +15,14 @@ interface ChartScreenProps {
   onBack: () => void
   onNavigate: (screen: Screen) => void
   isPremium: boolean
+
+  // ✅ plan/trial flag from page.tsx
+  hasPlan: boolean
+
+  // kept for permissions context
+  isOnTrial: boolean
+  remainingTrialDays: number | null
+
   currentScreen: Screen
 }
 
@@ -25,16 +33,26 @@ function getSeedFromString(input: string) {
   return seed
 }
 
-export default function ChartScreen({ metric, onBack, onNavigate, isPremium, currentScreen }: ChartScreenProps) {
+export default function ChartScreen({
+  metric,
+  onBack,
+  onNavigate,
+  isPremium,
+  hasPlan,
+  isOnTrial,
+  remainingTrialDays,
+  currentScreen,
+}: ChartScreenProps) {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("day")
-
   const { currentUserAccess } = useAppContext()
+
+  const isTrialExpired = remainingTrialDays !== null && remainingTrialDays === 0
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: Boolean(isPremium),
-    isTrialActive: false,
-    isTrialExpired: false,
+    adminHasActiveSubscription: hasPlan,
+    isTrialActive: isOnTrial,
+    isTrialExpired,
   }
 
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)
@@ -82,9 +100,7 @@ export default function ChartScreen({ metric, onBack, onNavigate, isPremium, cur
               ? `${i + 1}`
               : `Month ${i + 1}`
 
-      // ✅ stable pseudo-variation (no randomness)
       const value = base + ((seed + i * 17 + (i % 3) * 11) % spread)
-
       return { name, value }
     })
   }, [metric, timeRange])
@@ -172,7 +188,8 @@ export default function ChartScreen({ metric, onBack, onNavigate, isPremium, cur
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
-        hasPlan={isPremium}
+        hasPlan={hasPlan}
+        isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}

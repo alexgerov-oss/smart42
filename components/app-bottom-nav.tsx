@@ -1,45 +1,103 @@
 "use client"
 
-import { Activity, Home, Layers, LockIcon, SettingsIcon, User } from "lucide-react"
+import { Home, Activity, SettingsIcon, User, Layers, LockIcon } from "lucide-react"
 import type { Screen } from "@/app/page"
-import { cn } from "@/lib/utils"
+import { useAppContext } from "@/lib/app-context"
+import { Permissions, type PermissionContext } from "@/lib/permissions"
 
-type Props = {
+type Tab = "home" | "activity-log" | "scenes" | "settings" | "profile"
+
+interface AppBottomNavProps {
   currentScreen: Screen
   onNavigate: (screen: Screen) => void
-  isPremium: boolean
-  canAccessActivity: boolean
-  canAccessScenes: boolean
-  canAccessSettings: boolean
+
+  // ✅ ново: използвай това когато имаш trial/premium/active subscription
+  hasPlan?: boolean
+
+  // ✅ старо (оставено за backward compatibility)
+  isPremium?: boolean
+
+  // ✅ вече НЕ са задължителни (ако липсват, ги смятаме вътре)
+  canAccessActivity?: boolean
+  canAccessScenes?: boolean
+  canAccessSettings?: boolean
 }
 
-function scrollToTop() {
+function getActiveTabFromScreen(currentScreen: Screen): Tab {
+  const s = String(currentScreen).toLowerCase()
+
+  if (s === "dashboard" || s.includes("dash")) return "home"
+
+  if (
+    s === "activity-log" ||
+    s.includes("activity") ||
+    s.includes("subscription") ||
+    s.includes("trial") ||
+    s.includes("payment")
+  ) {
+    return "activity-log"
+  }
+
+  if (s === "scenes" || s.includes("scene")) return "scenes"
+
+  if (
+    s === "settings" ||
+    s.includes("setting") ||
+    s.includes("controller") ||
+    s.includes("door") ||
+    s.includes("ibutton")
+  ) {
+    return "settings"
+  }
+
+  if (s === "profile" || s.includes("profile") || s.includes("login") || s.includes("register") || s.includes("account")) {
+    return "profile"
+  }
+
+  return "home"
+}
+
+function scrollTop() {
   window.scrollTo({ top: 0, behavior: "auto" })
 }
 
 export function AppBottomNav({
   currentScreen,
   onNavigate,
+  hasPlan,
   isPremium,
-  canAccessActivity,
-  canAccessScenes,
-  canAccessSettings,
-}: Props) {
-  const activeTab =
-    currentScreen === "dashboard"
-      ? "home"
-      : currentScreen === "activity-log"
-        ? "activity"
-        : currentScreen === "scenes"
-          ? "scenes"
-          : currentScreen === "settings"
-            ? "settings"
-            : currentScreen === "profile"
-              ? "profile"
-              : "home"
+  canAccessActivity: canAccessActivityProp,
+  canAccessScenes: canAccessScenesProp,
+  canAccessSettings: canAccessSettingsProp,
+}: AppBottomNavProps) {
+  const activeTab = getActiveTabFromScreen(currentScreen)
 
-  const tabClass = (active: boolean) =>
-    cn("flex flex-col items-center gap-1 transition-colors", active ? "text-primary" : "text-muted-foreground")
+  // ✅ plan = hasPlan (ако е подаден), иначе fallback към isPremium
+  const plan = typeof hasPlan === "boolean" ? hasPlan : Boolean(isPremium)
+
+  // ✅ fallback permissions ако някой екран НЕ подаде canAccess*
+  const { currentUserAccess } = useAppContext()
+
+  const permissionContext: PermissionContext = {
+    currentUserAccess,
+    adminHasActiveSubscription: plan,
+    isTrialActive: false,
+    isTrialExpired: false,
+  }
+
+  const canAccessActivity = typeof canAccessActivityProp === "boolean"
+    ? canAccessActivityProp
+    : Permissions.canAccessActivity(permissionContext)
+
+  const canAccessScenes = typeof canAccessScenesProp === "boolean"
+    ? canAccessScenesProp
+    : Permissions.canAccessScenes(permissionContext)
+
+  const canAccessSettings = typeof canAccessSettingsProp === "boolean"
+    ? canAccessSettingsProp
+    : Permissions.canAccessSettings(permissionContext)
+
+  const activityLocked = !plan || !canAccessActivity
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
@@ -48,9 +106,11 @@ export function AppBottomNav({
         <button
           onClick={() => {
             onNavigate("dashboard")
-            scrollToTop()
+            scrollTop()
           }}
-          className={tabClass(activeTab === "home")}
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            activeTab === "home" ? "text-primary" : "text-muted-foreground"
+          }`}
         >
           <Home className="h-6 w-6" />
           <span className="text-xs">Home</span>
@@ -60,14 +120,16 @@ export function AppBottomNav({
         <button
           onClick={() => {
             if (!canAccessActivity) return
-            onNavigate(isPremium ? "activity-log" : "subscription")
-            scrollToTop()
+            onNavigate(plan ? "activity-log" : "subscription")
+            scrollTop()
           }}
-          className={cn(tabClass(activeTab === "activity"), "relative")}
+          className={`flex flex-col items-center gap-1 transition-colors relative ${
+            activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
+          }`}
         >
           <div className="relative">
             <Activity className="h-6 w-6" />
-            {(!isPremium || !canAccessActivity) && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
+            {activityLocked && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
           </div>
           <span className="text-xs">Activity</span>
         </button>
@@ -77,9 +139,11 @@ export function AppBottomNav({
           onClick={() => {
             if (!canAccessScenes) return
             onNavigate("scenes")
-            scrollToTop()
+            scrollTop()
           }}
-          className={cn(tabClass(activeTab === "scenes"), "relative")}
+          className={`flex flex-col items-center gap-1 transition-colors relative ${
+            activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
+          }`}
         >
           <div className="relative">
             <Layers className="h-6 w-6" />
@@ -93,9 +157,11 @@ export function AppBottomNav({
           onClick={() => {
             if (!canAccessSettings) return
             onNavigate("settings")
-            scrollToTop()
+            scrollTop()
           }}
-          className={cn(tabClass(activeTab === "settings"), "relative")}
+          className={`flex flex-col items-center gap-1 transition-colors relative ${
+            activeTab === "settings" ? "text-primary" : "text-muted-foreground"
+          }`}
         >
           <div className="relative">
             <SettingsIcon className="h-6 w-6" />
@@ -108,9 +174,11 @@ export function AppBottomNav({
         <button
           onClick={() => {
             onNavigate("profile")
-            scrollToTop()
+            scrollTop()
           }}
-          className={tabClass(activeTab === "profile")}
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            activeTab === "profile" ? "text-primary" : "text-muted-foreground"
+          }`}
         >
           <User className="h-6 w-6" />
           <span className="text-xs">Profile</span>

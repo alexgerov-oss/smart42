@@ -14,6 +14,7 @@ import { AppBottomNav } from "@/components/app-bottom-nav"
 interface ActivityLogScreenProps {
   onNavigate: (screen: Screen) => void
   isPremium: boolean
+  hasPlan: boolean
   doorName: string
   currentScreen: Screen
 }
@@ -119,7 +120,13 @@ function withinRange(createdAtIso: string, range: TimeRange): boolean {
   return diffMs <= 365 * day
 }
 
-export default function ActivityLogScreen({ onNavigate, isPremium, doorName, currentScreen }: ActivityLogScreenProps) {
+export default function ActivityLogScreen({
+  onNavigate,
+  isPremium,
+  hasPlan,
+  doorName,
+  currentScreen,
+}: ActivityLogScreenProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("day")
   const [eventType, setEventType] = useState<EventTypeFilter>("all")
   const [userFilter, setUserFilter] = useState<UserFilter>("all")
@@ -127,9 +134,12 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
 
   const { currentUserAccess } = useAppContext()
 
+  // ✅ safety: if someone passes "admin-plan-only" hasPlan, we still treat Premium-like roles as having plan access
+  const effectiveHasPlan = Boolean(hasPlan || isPremium)
+
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: Boolean(isPremium),
+    adminHasActiveSubscription: effectiveHasPlan,
     isTrialActive: false,
     isTrialExpired: false,
   }
@@ -138,17 +148,16 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
-  const hasPlan = Boolean(isPremium)
-  const canSeeActivityContent = canAccessActivity && hasPlan
+  const canSeeActivityContent = canAccessActivity && effectiveHasPlan
 
   useEffect(() => {
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0
   }, [])
 
-  // ✅ FIX (warning): activityLogs вече НЕ се създава наново при всеки render
   const activityLogs: ActivityLogEntry[] = useMemo(() => {
     const now = new Date()
-    const isoToday = (h: number, m: number) => new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0).toISOString()
+    const isoToday = (h: number, m: number) =>
+      new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0).toISOString()
     const isoYesterday = (h: number, m: number) =>
       new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, h, m, 0, 0).toISOString()
 
@@ -203,21 +212,17 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
     return (USER_FILTER_EVENT_TYPES as readonly string[]).includes(eventType)
   }, [eventType])
 
-  // ✅ FIX (error): useMemo вече НЕ е след early return и НЕ е conditional
   const filteredLogs = useMemo(() => {
     if (!canSeeActivityContent) return []
 
     return activityLogs.filter((log) => {
       if (!withinRange(log.createdAt, timeRange)) return false
-      if (eventType !== "all") {
-        if (log.eventType !== eventType) return false
-      }
+      if (eventType !== "all" && log.eventType !== eventType) return false
       if (userFilter !== "all" && log.user !== userFilter) return false
       return true
     })
   }, [activityLogs, canSeeActivityContent, eventType, userFilter, timeRange])
 
-  // -------- Early returns (след hooks) --------
   if (!canAccessActivity) {
     return (
       <div className="flex min-h-screen flex-col pb-20">
@@ -239,7 +244,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
-          hasPlan={hasPlan}
+          hasPlan={effectiveHasPlan}
           isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
@@ -249,7 +254,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
     )
   }
 
-  if (!hasPlan) {
+  if (!effectiveHasPlan) {
     return (
       <div className="flex min-h-screen flex-col pb-20">
         <div className="flex-1 flex items-center justify-center p-4">
@@ -261,8 +266,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
             </div>
             <h2 className="text-xl font-bold text-foreground">Premium Feature</h2>
             <p className="text-sm text-muted-foreground">
-              Full activity log history is only available for Premium users. Upgrade now to access complete door activity
-              records.
+              Full activity log history is only available for Premium users. Upgrade now to access complete door activity records.
             </p>
             <Button onClick={() => onNavigate("subscription")} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
               Upgrade to Premium
@@ -276,7 +280,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
-          hasPlan={hasPlan}
+          hasPlan={effectiveHasPlan}
           isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
@@ -286,7 +290,6 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
     )
   }
 
-  // -------- Main UI --------
   return (
     <div className="flex flex-col min-h-screen pb-20">
       <div className="bg-card border-b border-border p-4">
@@ -408,7 +411,7 @@ export default function ActivityLogScreen({ onNavigate, isPremium, doorName, cur
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
-        hasPlan={hasPlan}
+        hasPlan={effectiveHasPlan}
         isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}

@@ -111,6 +111,7 @@ interface ScenesScreenProps {
   onNavigate: (screen: Screen) => void
   doorName: string
   isPremium: boolean
+  hasPlan?: boolean
   currentScreen: Screen
 }
 
@@ -196,10 +197,7 @@ function coreTypeToUiType(cond: CoreWhenCondition): UiWhenType {
   if (c.type === "ibutton-deleted") return "user-ibutton-deleted"
   if (c.type === "quick-control-changed") return "quick-controls-changed"
 
-  // ако core вече носи UI-ish тип (примерно wifi/battery/etc)
   if (isUiWhenType(c.type)) return c.type
-
-  // fallback (безопасно)
   return "wifi"
 }
 
@@ -278,7 +276,13 @@ const formatSceneDescription = (scene: CoreScene): string => {
   return `IF ${conditions} → ${action}`
 }
 
-export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremium, currentScreen }: ScenesScreenProps) {
+export default function ScenesScreen({
+  onNavigate,
+  doorName: _doorName,
+  isPremium,
+  hasPlan,
+  currentScreen,
+}: ScenesScreenProps) {
   const [isCreatingScene, setIsCreatingScene] = useState(false)
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null)
   const [sceneName, setSceneName] = useState("")
@@ -289,9 +293,12 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
 
   const { currentUserAccess, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } = useAppContext()
 
+  // ✅ prefer plan flag from page/provider; fallback keeps legacy behavior if called elsewhere
+  const effectiveHasPlan = typeof hasPlan === "boolean" ? hasPlan : Boolean(isPremium)
+
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: Boolean(isPremium),
+    adminHasActiveSubscription: effectiveHasPlan,
     isTrialActive: false,
     isTrialExpired: false,
   }
@@ -428,7 +435,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
     setScenes(scenes.filter((s) => s.id !== id))
   }
 
-  const isFreeAdmin = currentUserAccess === "admin" && !isPremium
+  const isFreeAdmin = currentUserAccess === "admin" && !effectiveHasPlan
   const canCreateScene = isFreeAdmin ? scenes.length === 0 : true
 
   const handleStartCreatingScene = () => {
@@ -470,6 +477,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
+          hasPlan={effectiveHasPlan}
           isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
@@ -631,7 +639,6 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                         ]}
                       />
 
-                      {/* Numeric operators: само за metric типовете (НЕ за time-window типовете) */}
                       {condition.operator &&
                         condition.type !== "power-drops" &&
                         !(TIME_WINDOW_SUPPORTED_TYPES as readonly UiWhenType[]).includes(condition.type) && (
@@ -679,7 +686,9 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                             placeholder="Enter value"
                             className="bg-background border-border"
                           />
-                          <p className="text-xs text-muted-foreground">Notifications will be sent only after power is restored. 0 or 1 = every restore.</p>
+                          <p className="text-xs text-muted-foreground">
+                            Notifications will be sent only after power is restored. 0 or 1 = every restore.
+                          </p>
                         </div>
                       )}
 
@@ -725,14 +734,18 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
                                 hour={condition.timeStartHour || "12"}
                                 minute={condition.timeStartMinute || "00"}
                                 period={condition.timeStartPeriod || "AM"}
-                                onTimeChange={(h, m, p) => handleUpdateCondition(index, { timeStartHour: h, timeStartMinute: m, timeStartPeriod: p })}
+                                onTimeChange={(h, m, p) =>
+                                  handleUpdateCondition(index, { timeStartHour: h, timeStartMinute: m, timeStartPeriod: p })
+                                }
                                 label="Start time"
                               />
                               <CircularTimePicker
                                 hour={condition.timeEndHour || "11"}
                                 minute={condition.timeEndMinute || "59"}
                                 period={condition.timeEndPeriod || "PM"}
-                                onTimeChange={(h, m, p) => handleUpdateCondition(index, { timeEndHour: h, timeEndMinute: m, timeEndPeriod: p })}
+                                onTimeChange={(h, m, p) =>
+                                  handleUpdateCondition(index, { timeEndHour: h, timeEndMinute: m, timeEndPeriod: p })
+                                }
                                 label="End time"
                               />
                             </div>
@@ -795,6 +808,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, isPremiu
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
+        hasPlan={effectiveHasPlan}
         isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
