@@ -28,7 +28,7 @@ export type Screen =
   | "scenes"
 
 export default function Home() {
-  const { currentUserAccess } = useAppContext() // Moved to top-level
+  const { currentUserAccess } = useAppContext()
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
   const [adminPurchasedPremium, setAdminPurchasedPremium] = useState(false)
   const [premiumExpiry, setPremiumExpiry] = useState<string>("")
@@ -58,20 +58,25 @@ export default function Home() {
   const handleActivateFreeTrial = () => {
     const now = new Date()
     setTrialStartDate(now.toISOString())
+
     const expiryDate = new Date(now)
     expiryDate.setDate(expiryDate.getDate() + 30)
     setPremiumExpiry(expiryDate.toLocaleDateString())
+
     setCurrentScreen("dashboard")
-    window.scrollTo({ top: 0, behavior: "instant" }) // Force scroll to top after trial activation
+    window.scrollTo({ top: 0, behavior: "instant" })
   }
 
   const handleUpgradeToPremium = () => {
     setAdminPurchasedPremium(true)
     setTrialStartDate("") // Clear trial when upgrading to full premium
+
     const expiryDate = new Date()
     expiryDate.setFullYear(expiryDate.getFullYear() + 1)
     setPremiumExpiry(expiryDate.toLocaleDateString())
-    setCurrentScreen("dashboard") // Navigate to dashboard after payment confirmation
+
+    setCurrentScreen("dashboard")
+    window.scrollTo({ top: 0, behavior: "instant" })
   }
 
   const getRemainingTrialDays = (): number | null => {
@@ -112,7 +117,7 @@ export default function Home() {
         doorName={doorName}
         setDoorName={setDoorName}
         handleLogin={handleLogin}
-        currentUserAccess={currentUserAccess} // Passed as prop
+        currentUserAccess={currentUserAccess}
       />
     </div>
   )
@@ -151,8 +156,11 @@ function PremiumProvider({
   handleLogin: () => void
   currentUserAccess: string
 }) {
-  const isOnTrial = trialStartDate && !isTrialExpired && !adminPurchasedPremium
-  const adminHasActiveSubscription = adminPurchasedPremium || !!isOnTrial
+  // ✅ always boolean
+  const isOnTrial = Boolean(trialStartDate) && !isTrialExpired && !adminPurchasedPremium
+  const adminHasActiveSubscription = adminPurchasedPremium || isOnTrial
+
+  // Note: in this app "isPremium" is used as "premium-like access" (open-close/full are treated as allowed).
   const isPremium =
     currentUserAccess === "open-close" ||
     currentUserAccess === "full" ||
@@ -162,12 +170,13 @@ function PremiumProvider({
     <>
       {currentScreen === "login" && <LoginScreen onLogin={handleLogin} onNavigate={handleNavigate} />}
       {currentScreen === "register" && <RegisterScreen onNavigate={handleNavigate} />}
+
       {currentScreen === "dashboard" && (
         <DashboardScreen
           onNavigate={handleNavigate}
           isPremium={isPremium}
           premiumExpiry={premiumExpiry}
-          isOnTrial={!!isOnTrial}
+          isOnTrial={isOnTrial}
           remainingTrialDays={remainingTrialDays}
           onShowChart={handleShowChart}
           doorName={doorName}
@@ -175,67 +184,70 @@ function PremiumProvider({
           currentScreen={currentScreen}
         />
       )}
+
       {currentScreen === "activity-log" && (
-        <ActivityLogScreen
-          onNavigate={handleNavigate}
-          isPremium={isPremium}
-          doorName={doorName}
-          currentScreen={currentScreen}
-        />
+        <ActivityLogScreen onNavigate={handleNavigate} isPremium={isPremium} doorName={doorName} currentScreen={currentScreen} />
       )}
+
       {currentScreen === "settings" && (
         <SettingsScreen
           onNavigate={handleNavigate}
           isPremium={isPremium}
           currentScreen={currentScreen}
-          isOnTrial={!!isOnTrial}
+          isOnTrial={isOnTrial}
           isTrialExpired={isTrialExpired}
           adminHasActiveSubscription={adminHasActiveSubscription}
         />
       )}
+
       {currentScreen === "profile" && (
         <ProfileScreen
           onNavigate={handleNavigate}
           isPremium={isPremium}
           premiumExpiry={premiumExpiry}
-          isOnTrial={!!isOnTrial}
+          isOnTrial={isOnTrial}
           remainingTrialDays={remainingTrialDays}
           currentScreen={currentScreen}
         />
       )}
+
       {currentScreen === "subscription" && (
         <SubscriptionScreen
           onNavigate={handleNavigate}
           onUpgrade={() => handleNavigate("premium-payment")}
           onActivateFreeTrial={handleActivateFreeTrial}
-          isOnTrial={!!isOnTrial}
+          isOnTrial={isOnTrial}
         />
       )}
+
       {currentScreen === "premium-payment" && (
         <PremiumPaymentScreen
           onNavigate={handleNavigate}
           onActivateFreeTrial={handleActivateFreeTrial}
           onProceedToPayment={() => handleNavigate("payment")}
-          isOnTrial={!!isOnTrial}
+          isOnTrial={isOnTrial}
         />
       )}
-      {currentScreen === "payment" && (
-        <PaymentProcessingScreen onNavigate={handleNavigate} onConfirmPayment={handleUpgradeToPremium} />
-      )}
+
+      {currentScreen === "payment" && <PaymentProcessingScreen onNavigate={handleNavigate} onConfirmPayment={handleUpgradeToPremium} />}
+
       {currentScreen === "chart" && (
-        <ChartScreen
-          metric={chartMetric}
-          onBack={() => {
-            handleNavigate("dashboard")
-            window.scrollTo({ top: 0, behavior: "instant" })
-          }}
-          onNavigate={handleNavigate}
-          isPremium={isPremium}
-          currentScreen={currentScreen}
-        />
-      )}
+  <ChartScreen
+    metric={chartMetric}
+    onBack={() => {
+      handleNavigate("dashboard")
+      window.scrollTo({ top: 0, behavior: "instant" })
+    }}
+    onNavigate={handleNavigate}
+    isPremium={isPremium}
+    isOnTrial={isOnTrial}
+    remainingTrialDays={remainingTrialDays}
+    currentScreen={currentScreen}
+  />
+)}
+
       {currentUserAccess !== "open-close" && currentScreen === "scenes" && (
-        <ScenesScreen onNavigate={handleNavigate} isPremium={isPremium} currentScreen={currentScreen} />
+        <ScenesScreen doorName={doorName} onNavigate={handleNavigate} isPremium={isPremium} currentScreen={currentScreen} />
       )}
     </>
   )
