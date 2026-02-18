@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -44,7 +43,7 @@ import { AppBottomNav } from "@/components/app-bottom-nav"
 
 interface DashboardScreenProps {
   onNavigate: (screen: Screen) => void
-  isPremium: boolean
+  hasPlan: boolean
   premiumExpiry: string
   isOnTrial: boolean
   remainingTrialDays: number | null
@@ -54,9 +53,11 @@ interface DashboardScreenProps {
   currentScreen: Screen
 }
 
+const DEFAULT_DOOR_ID = "main-door"
+
 export default function DashboardScreen({
   onNavigate,
-  isPremium,
+  hasPlan,
   premiumExpiry,
   isOnTrial,
   remainingTrialDays,
@@ -67,10 +68,12 @@ export default function DashboardScreen({
 }: DashboardScreenProps) {
   const [doorSensorOpen, setDoorSensorOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
-  const [selectedDoorId, setSelectedDoorId] = useState("main-door")
+  const [selectedDoorId, setSelectedDoorId] = useState(DEFAULT_DOOR_ID)
+
   const [isAddDoorModalOpen, setIsAddDoorModalOpen] = useState(false)
   const [isEditDoorModalOpen, setIsEditDoorModalOpen] = useState(false)
   const [isDeleteDoorDialogOpen, setIsDeleteDoorDialogOpen] = useState(false)
+
   const [newDoorName, setNewDoorName] = useState("")
   const [editDoorName, setEditDoorName] = useState("")
 
@@ -90,8 +93,6 @@ export default function DashboardScreen({
     addDoor,
     updateDoor,
     removeDoor,
-
-    // ✅ explicit actions from context (anti-regression)
     lockDoor,
     unlockDoor,
   } = useAppContext()
@@ -99,28 +100,30 @@ export default function DashboardScreen({
   const { toast } = useToast()
   const controller = getActiveController()
 
-  // ✅ Always use a valid door id (no setState in useEffect)
-  const activeDoorId =
-    doors.length === 0 ? "" : doors.some((d) => d.id === selectedDoorId) ? selectedDoorId : doors[0].id
+  const plan = Boolean(hasPlan)
+  const trialExpired = remainingTrialDays !== null && remainingTrialDays === 0
 
+  const activeDoorId = doors.length === 0 ? "" : doors.some((d) => d.id === selectedDoorId) ? selectedDoorId : doors[0].id
   const selectedDoor = doors.find((d) => d.id === activeDoorId)
+
   const doorSystemName = selectedDoor?.systemName || doorName
-
-  // ✅ Guard: if no door id, don't call getEntityName with empty id
   const displayDoorName = activeDoorId ? getEntityName("doors", activeDoorId, doorSystemName) : doorSystemName
-
   const displayUserName = currentUserAccess === "full" ? getFullAccessUserProfile()?.name || userName : userName
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: isPremium || isOnTrial,
+    adminHasActiveSubscription: plan,
     isTrialActive: isOnTrial,
-    isTrialExpired: remainingTrialDays !== null && remainingTrialDays === 0,
+    isTrialExpired: trialExpired,
   }
 
   const canAddDoors = Permissions.canAddDoors(permissionContext)
   const canEditDoors = Permissions.canEditDoors(permissionContext)
   const canDeleteDoors = Permissions.canDeleteDoors(permissionContext)
+
+  const canAccessScenes = Permissions.canAccessScenes(permissionContext)
+  const canAccessSettings = Permissions.canAccessSettings(permissionContext)
+  const canAccessActivity = Permissions.canAccessActivity(permissionContext)
 
   useEffect(() => {
     validateColorTokens()
@@ -130,13 +133,12 @@ export default function DashboardScreen({
     const res = nextState === "lock" ? await lockDoor(doorId) : await unlockDoor(doorId)
 
     if (!res.ok) {
-      toast({
-        title: "Action failed",
-        description: res.error,
-        variant: "destructive",
-      })
+      toast({ title: "Action failed", description: res.error, variant: "destructive" })
       return false
     }
+
+    // demo sensor state
+    setDoorSensorOpen(nextState === "unlock")
 
     return true
   }
@@ -145,10 +147,7 @@ export default function DashboardScreen({
     if (!Permissions.canLockUnlockDoors(permissionContext)) return
     if (!activeDoorId) return
     if (doorState === targetState) return
-
-    // ✅ this sends POST + updates state inside context
-    const ok = await callDoorAction(activeDoorId, targetState)
-    if (!ok) return
+    await callDoorAction(activeDoorId, targetState)
   }
 
   const handleSliderInteraction = async (clientX: number, rect: DOMRect) => {
@@ -157,14 +156,10 @@ export default function DashboardScreen({
 
     const relativeX = clientX - rect.left
     const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100))
-
     const targetState: "lock" | "unlock" = percentage < 50 ? "lock" : "unlock"
 
     if (doorState === targetState) return
-
-    // ✅ this sends POST + updates state inside context
-    const ok = await callDoorAction(activeDoorId, targetState)
-    if (!ok) return
+    await callDoorAction(activeDoorId, targetState)
   }
 
   const handleSliderMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -174,10 +169,9 @@ export default function DashboardScreen({
   }
 
   const handleSliderMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDragging) {
-      const rect = e.currentTarget.getBoundingClientRect()
-      void handleSliderInteraction(e.clientX, rect)
-    }
+    if (!isDragging) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    void handleSliderInteraction(e.clientX, rect)
   }
 
   const handleSliderMouseUp = () => setIsDragging(false)
@@ -190,26 +184,21 @@ export default function DashboardScreen({
   }
 
   const handleSliderTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isDragging && e.touches.length > 0) {
-      const rect = e.currentTarget.getBoundingClientRect()
-      const touch = e.touches[0]
-      void handleSliderInteraction(touch.clientX, rect)
-    }
+    if (!isDragging || e.touches.length === 0) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const touch = e.touches[0]
+    void handleSliderInteraction(touch.clientX, rect)
   }
 
   const handleSliderTouchEnd = () => setIsDragging(false)
 
   const activityLogs = [
-    { id: 1, doorName: displayDoorName, time: "10:45 AM", action: "open", method: null, user: null },
-    { id: 2, doorName: displayDoorName, time: "10:47 AM", action: "closed", method: null, user: null },
+    { id: 1, doorName: displayDoorName, time: "10:45 AM", action: "open", method: null as string | null, user: null as string | null },
+    { id: 2, doorName: displayDoorName, time: "10:47 AM", action: "closed", method: null as string | null, user: null as string | null },
     { id: 3, doorName: displayDoorName, time: "02:30 PM", action: "unlock", method: "iButton", user: "Jane Smith" },
-    { id: 4, doorName: displayDoorName, time: "02:35 PM", action: "open", method: null, user: null },
+    { id: 4, doorName: displayDoorName, time: "02:35 PM", action: "open", method: null as string | null, user: null as string | null },
     { id: 5, doorName: displayDoorName, time: "05:15 PM", action: "lock", method: "App", user: "John Doe" },
   ]
-
-  const canAccessScenes = Permissions.canAccessScenes(permissionContext)
-  const canAccessSettings = Permissions.canAccessSettings(permissionContext)
-  const canAccessActivity = Permissions.canAccessActivity(permissionContext)
 
   const handleAddDoor = () => {
     if (!canAddDoors) return
@@ -231,17 +220,23 @@ export default function DashboardScreen({
     if (!canEditDoors) return
     if (!activeDoorId) return
     const currentDoor = doors.find((d) => d.id === activeDoorId)
-    if (currentDoor) {
-      setEditDoorName(currentDoor.systemName)
-      setIsEditDoorModalOpen(true)
-    }
+    if (!currentDoor) return
+    setEditDoorName(currentDoor.systemName)
+    setIsEditDoorModalOpen(true)
   }
 
   const handleSaveEditDoor = () => {
     if (!canEditDoors || !editDoorName.trim()) return
     if (!activeDoorId) return
-    const success = updateDoor(activeDoorId, editDoorName.trim())
-    if (success) setIsEditDoorModalOpen(false)
+
+    const nextName = editDoorName.trim()
+    const success = updateDoor(activeDoorId, nextName)
+
+    if (success) {
+      if (activeDoorId === DEFAULT_DOOR_ID) setDoorName(nextName)
+      setEntityName("doors", activeDoorId, nextName)
+      setIsEditDoorModalOpen(false)
+    }
   }
 
   const handleConfirmDelete = () => {
@@ -269,13 +264,15 @@ export default function DashboardScreen({
           </div>
           <span className="text-base font-bold text-foreground">SmartDoor Inc.</span>
         </div>
+
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Welcome back</p>
             <p className="text-lg font-semibold text-foreground">{displayUserName}</p>
           </div>
+
           <div className="text-right">
-            {isPremium ? (
+            {plan ? (
               <div>
                 {isOnTrial && remainingTrialDays !== null ? (
                   <>
@@ -328,6 +325,7 @@ export default function DashboardScreen({
               <Button onClick={handleAddDoor} variant="outline" size="sm">
                 <Plus className="h-4 w-4" />
               </Button>
+
               {canEditDoors && (
                 <Button onClick={handleEditDoor} variant="ghost" size="sm" className="text-blue-500 hover:text-blue-600">
                   <Pencil className="h-4 w-4" />
@@ -366,11 +364,7 @@ export default function DashboardScreen({
                     backgroundColor: doorState === "lock" ? "var(--color-status-lock)" : "var(--color-status-unlock)",
                   }}
                 >
-                  {doorState === "lock" ? (
-                    <LockIcon className="h-6 w-6 text-white" />
-                  ) : (
-                    <LockOpen className="h-6 w-6 text-white" />
-                  )}
+                  {doorState === "lock" ? <LockIcon className="h-6 w-6 text-white" /> : <LockOpen className="h-6 w-6 text-white" />}
                 </div>
               </div>
 
@@ -391,16 +385,10 @@ export default function DashboardScreen({
                   <span className={`font-bold tabular-nums text-lg ${getDoorStatusClass("lock")}`}>{countdown}s</span>
                 </div>
               ) : (
-                <div></div>
+                <div />
               )}
 
-              <div>
-                {doorSensorOpen ? (
-                  <p className="text-sm font-medium text-green-500">Open</p>
-                ) : (
-                  <p className="text-sm font-medium">Closed</p>
-                )}
-              </div>
+              <div>{doorSensorOpen ? <p className="text-sm font-medium text-green-500">Open</p> : <p className="text-sm font-medium">Closed</p>}</div>
             </div>
           </div>
         </Card>
@@ -552,17 +540,15 @@ export default function DashboardScreen({
         </Card>
       </div>
 
-      {/* ✅ Единствената bottom nav вече е общата */}
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
-        hasPlan={isPremium || isOnTrial}
+        hasPlan={plan}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
       />
 
-      {/* Add Door Modal */}
       <Dialog open={isAddDoorModalOpen} onOpenChange={setIsAddDoorModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -592,7 +578,6 @@ export default function DashboardScreen({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Door Modal */}
       <Dialog open={isEditDoorModalOpen} onOpenChange={setIsEditDoorModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -628,14 +613,11 @@ export default function DashboardScreen({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDoorDialogOpen} onOpenChange={setIsDeleteDoorDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Door</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this door? This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Are you sure you want to delete this door? This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

@@ -27,8 +27,14 @@ export type Screen =
   | "chart"
   | "scenes"
 
+function scrollTop() {
+  // ✅ "auto" е валиден за TS (за разлика от "instant")
+  window.scrollTo({ top: 0, behavior: "auto" })
+}
+
 export default function Home() {
   const { currentUserAccess } = useAppContext()
+
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
   const [adminPurchasedPremium, setAdminPurchasedPremium] = useState(false)
   const [premiumExpiry, setPremiumExpiry] = useState<string>("")
@@ -36,23 +42,41 @@ export default function Home() {
   const [chartMetric, setChartMetric] = useState<string>("")
   const [doorName, setDoorName] = useState("Main Door")
 
+  const getRemainingTrialDays = (): number | null => {
+    if (!trialStartDate) return null
+    const now = new Date()
+    const startDate = new Date(trialStartDate)
+    const expiryDate = new Date(startDate)
+    expiryDate.setDate(expiryDate.getDate() + 30)
+    const remainingMs = expiryDate.getTime() - now.getTime()
+    return Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)))
+  }
+
+  // ✅ смятаме веднъж на render (една истина)
+  const remainingTrialDays = getRemainingTrialDays()
+  const isTrialExpired = remainingTrialDays !== null && remainingTrialDays === 0
+  const isOnTrial = Boolean(trialStartDate) && !isTrialExpired && !adminPurchasedPremium
+
+  // ✅ единствената истина за plan
+  const hasPlan = adminPurchasedPremium || isOnTrial
+
+  // ✅ backward compatibility (старите компоненти които гледат isPremium)
+  const isPremium = hasPlan
+
   const handleLogin = () => {
     setCurrentScreen("dashboard")
-    window.scrollTo({ top: 0, behavior: "instant" })
+    scrollTop()
   }
 
   const handleNavigate = (screen: Screen) => {
-    if (currentUserAccess === "full" && !canCreateFullAccessAccount()) {
-      return
-    }
     setCurrentScreen(screen)
-    window.scrollTo({ top: 0, behavior: "instant" })
+    scrollTop()
   }
 
   const handleShowChart = (metric: string) => {
     setChartMetric(metric)
     setCurrentScreen("chart")
-    window.scrollTo({ top: 0, behavior: "instant" })
+    scrollTop()
   }
 
   const handleActivateFreeTrial = () => {
@@ -64,7 +88,7 @@ export default function Home() {
     setPremiumExpiry(expiryDate.toLocaleDateString())
 
     setCurrentScreen("dashboard")
-    window.scrollTo({ top: 0, behavior: "instant" })
+    scrollTop()
   }
 
   const handleUpgradeToPremium = () => {
@@ -76,108 +100,18 @@ export default function Home() {
     setPremiumExpiry(expiryDate.toLocaleDateString())
 
     setCurrentScreen("dashboard")
-    window.scrollTo({ top: 0, behavior: "instant" })
-  }
-
-  const getRemainingTrialDays = (): number | null => {
-    if (!trialStartDate) return null
-    const now = new Date()
-    const startDate = new Date(trialStartDate)
-    const expiryDate = new Date(startDate)
-    expiryDate.setDate(expiryDate.getDate() + 30)
-    const remainingMs = expiryDate.getTime() - now.getTime()
-    const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)))
-    return remainingDays
-  }
-
-  const isTrialExpired = (): boolean => {
-    const remainingDays = getRemainingTrialDays()
-    return remainingDays !== null && remainingDays === 0
-  }
-
-  const canCreateFullAccessAccount = () => {
-    // Implement logic to check if the account can be created by Admin
-    return true
+    scrollTop()
   }
 
   return (
     <div className="dark min-h-screen bg-background">
-      <PremiumProvider
-        adminPurchasedPremium={adminPurchasedPremium}
-        premiumExpiry={premiumExpiry}
-        trialStartDate={trialStartDate}
-        isTrialExpired={isTrialExpired()}
-        remainingTrialDays={getRemainingTrialDays()}
-        currentScreen={currentScreen}
-        chartMetric={chartMetric}
-        handleNavigate={handleNavigate}
-        handleShowChart={handleShowChart}
-        handleUpgradeToPremium={handleUpgradeToPremium}
-        handleActivateFreeTrial={handleActivateFreeTrial}
-        doorName={doorName}
-        setDoorName={setDoorName}
-        handleLogin={handleLogin}
-        currentUserAccess={currentUserAccess}
-      />
-    </div>
-  )
-}
-
-function PremiumProvider({
-  adminPurchasedPremium,
-  premiumExpiry,
-  trialStartDate,
-  isTrialExpired,
-  remainingTrialDays,
-  currentScreen,
-  chartMetric,
-  handleNavigate,
-  handleShowChart,
-  handleUpgradeToPremium,
-  handleActivateFreeTrial,
-  doorName,
-  setDoorName,
-  handleLogin,
-  currentUserAccess,
-}: {
-  adminPurchasedPremium: boolean
-  premiumExpiry: string
-  trialStartDate: string
-  isTrialExpired: boolean
-  remainingTrialDays: number | null
-  currentScreen: Screen
-  chartMetric: string
-  handleNavigate: (screen: Screen) => void
-  handleShowChart: (metric: string) => void
-  handleUpgradeToPremium: () => void
-  handleActivateFreeTrial: () => void
-  doorName: string
-  setDoorName: (name: string) => void
-  handleLogin: () => void
-  currentUserAccess: string
-}) {
-  // ✅ always boolean
-  const isOnTrial = Boolean(trialStartDate) && !isTrialExpired && !adminPurchasedPremium
-  const adminHasActiveSubscription = adminPurchasedPremium || isOnTrial
-
-  // ✅ REAL plan flag (used by Permissions + AppBottomNav)
-  const hasPlan = adminHasActiveSubscription
-
-  // Note: in this app "isPremium" is used as "premium-like access" (open-close/full are treated as allowed).
-  const isPremium =
-    currentUserAccess === "open-close" ||
-    currentUserAccess === "full" ||
-    (currentUserAccess === "admin" && adminHasActiveSubscription)
-
-  return (
-    <>
       {currentScreen === "login" && <LoginScreen onLogin={handleLogin} onNavigate={handleNavigate} />}
       {currentScreen === "register" && <RegisterScreen onNavigate={handleNavigate} />}
 
       {currentScreen === "dashboard" && (
         <DashboardScreen
           onNavigate={handleNavigate}
-          isPremium={isPremium}
+          hasPlan={hasPlan}
           premiumExpiry={premiumExpiry}
           isOnTrial={isOnTrial}
           remainingTrialDays={remainingTrialDays}
@@ -191,7 +125,7 @@ function PremiumProvider({
       {currentScreen === "activity-log" && (
         <ActivityLogScreen
           onNavigate={handleNavigate}
-          isPremium={isPremium}
+          hasPlan={hasPlan}
           doorName={doorName}
           currentScreen={currentScreen}
         />
@@ -200,18 +134,17 @@ function PremiumProvider({
       {currentScreen === "settings" && (
         <SettingsScreen
           onNavigate={handleNavigate}
-          isPremium={isPremium}
+          hasPlan={hasPlan}
           currentScreen={currentScreen}
           isOnTrial={isOnTrial}
           isTrialExpired={isTrialExpired}
-          adminHasActiveSubscription={adminHasActiveSubscription}
+          // е optional в SettingsScreen, но не е нужно да го подаваме вече
         />
       )}
 
       {currentScreen === "profile" && (
         <ProfileScreen
           onNavigate={handleNavigate}
-          isPremium={isPremium}
           premiumExpiry={premiumExpiry}
           isOnTrial={isOnTrial}
           remainingTrialDays={remainingTrialDays}
@@ -245,10 +178,7 @@ function PremiumProvider({
       {currentScreen === "chart" && (
         <ChartScreen
           metric={chartMetric}
-          onBack={() => {
-            handleNavigate("dashboard")
-            window.scrollTo({ top: 0, behavior: "instant" })
-          }}
+          onBack={() => handleNavigate("dashboard")}
           onNavigate={handleNavigate}
           isPremium={isPremium}
           hasPlan={hasPlan}
@@ -262,10 +192,10 @@ function PremiumProvider({
         <ScenesScreen
           doorName={doorName}
           onNavigate={handleNavigate}
-          isPremium={isPremium}
+          hasPlan={hasPlan}
           currentScreen={currentScreen}
         />
       )}
-    </>
+    </div>
   )
 }

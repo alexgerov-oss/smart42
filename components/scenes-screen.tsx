@@ -478,7 +478,6 @@ export default function ScenesScreen({
           currentScreen={currentScreen}
           onNavigate={onNavigate}
           hasPlan={effectiveHasPlan}
-          isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
@@ -809,7 +808,6 @@ export default function ScenesScreen({
         currentScreen={currentScreen}
         onNavigate={onNavigate}
         hasPlan={effectiveHasPlan}
-        isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}

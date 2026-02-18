@@ -13,7 +13,6 @@ import { AppBottomNav } from "@/components/app-bottom-nav"
 
 interface ActivityLogScreenProps {
   onNavigate: (screen: Screen) => void
-  isPremium: boolean
   hasPlan: boolean
   doorName: string
   currentScreen: Screen
@@ -120,13 +119,7 @@ function withinRange(createdAtIso: string, range: TimeRange): boolean {
   return diffMs <= 365 * day
 }
 
-export default function ActivityLogScreen({
-  onNavigate,
-  isPremium,
-  hasPlan,
-  doorName,
-  currentScreen,
-}: ActivityLogScreenProps) {
+export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, currentScreen }: ActivityLogScreenProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("day")
   const [eventType, setEventType] = useState<EventTypeFilter>("all")
   const [userFilter, setUserFilter] = useState<UserFilter>("all")
@@ -134,8 +127,8 @@ export default function ActivityLogScreen({
 
   const { currentUserAccess } = useAppContext()
 
-  // ✅ safety: if someone passes "admin-plan-only" hasPlan, we still treat Premium-like roles as having plan access
-  const effectiveHasPlan = Boolean(hasPlan || isPremium)
+  // ✅ единствена истина: plan идва от parent
+  const effectiveHasPlan = Boolean(hasPlan)
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
@@ -245,7 +238,6 @@ export default function ActivityLogScreen({
           currentScreen={currentScreen}
           onNavigate={onNavigate}
           hasPlan={effectiveHasPlan}
-          isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
@@ -281,7 +273,6 @@ export default function ActivityLogScreen({
           currentScreen={currentScreen}
           onNavigate={onNavigate}
           hasPlan={effectiveHasPlan}
-          isPremium={isPremium}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
@@ -412,7 +403,6 @@ export default function ActivityLogScreen({
         currentScreen={currentScreen}
         onNavigate={onNavigate}
         hasPlan={effectiveHasPlan}
-        isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}

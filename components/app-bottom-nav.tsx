@@ -11,13 +11,13 @@ interface AppBottomNavProps {
   currentScreen: Screen
   onNavigate: (screen: Screen) => void
 
-  // ✅ ново: използвай това когато имаш trial/premium/active subscription
+  // ✅ unified plan flag (trial/premium/subscription)
   hasPlan?: boolean
 
-  // ✅ старо (оставено за backward compatibility)
+  // ✅ legacy fallback (keep for older screens until we remove it everywhere)
   isPremium?: boolean
 
-  // ✅ вече НЕ са задължителни (ако липсват, ги смятаме вътре)
+  // ✅ optional (if missing, we compute them inside)
   canAccessActivity?: boolean
   canAccessScenes?: boolean
   canAccessSettings?: boolean
@@ -28,6 +28,7 @@ function getActiveTabFromScreen(currentScreen: Screen): Tab {
 
   if (s === "dashboard" || s.includes("dash")) return "home"
 
+  // Activity (incl. subscription/payment flow screens)
   if (
     s === "activity-log" ||
     s.includes("activity") ||
@@ -40,13 +41,7 @@ function getActiveTabFromScreen(currentScreen: Screen): Tab {
 
   if (s === "scenes" || s.includes("scene")) return "scenes"
 
-  if (
-    s === "settings" ||
-    s.includes("setting") ||
-    s.includes("controller") ||
-    s.includes("door") ||
-    s.includes("ibutton")
-  ) {
+  if (s === "settings" || s.includes("setting") || s.includes("controller") || s.includes("door") || s.includes("ibutton")) {
     return "settings"
   }
 
@@ -72,10 +67,10 @@ export function AppBottomNav({
 }: AppBottomNavProps) {
   const activeTab = getActiveTabFromScreen(currentScreen)
 
-  // ✅ plan = hasPlan (ако е подаден), иначе fallback към isPremium
+  // ✅ one plan source of truth: prefer hasPlan, fallback to isPremium for legacy callers
   const plan = typeof hasPlan === "boolean" ? hasPlan : Boolean(isPremium)
 
-  // ✅ fallback permissions ако някой екран НЕ подаде canAccess*
+  // ✅ fallback permissions if caller doesn't pass canAccess*
   const { currentUserAccess } = useAppContext()
 
   const permissionContext: PermissionContext = {
@@ -85,17 +80,14 @@ export function AppBottomNav({
     isTrialExpired: false,
   }
 
-  const canAccessActivity = typeof canAccessActivityProp === "boolean"
-    ? canAccessActivityProp
-    : Permissions.canAccessActivity(permissionContext)
+  const canAccessActivity =
+    typeof canAccessActivityProp === "boolean" ? canAccessActivityProp : Permissions.canAccessActivity(permissionContext)
 
-  const canAccessScenes = typeof canAccessScenesProp === "boolean"
-    ? canAccessScenesProp
-    : Permissions.canAccessScenes(permissionContext)
+  const canAccessScenes =
+    typeof canAccessScenesProp === "boolean" ? canAccessScenesProp : Permissions.canAccessScenes(permissionContext)
 
-  const canAccessSettings = typeof canAccessSettingsProp === "boolean"
-    ? canAccessSettingsProp
-    : Permissions.canAccessSettings(permissionContext)
+  const canAccessSettings =
+    typeof canAccessSettingsProp === "boolean" ? canAccessSettingsProp : Permissions.canAccessSettings(permissionContext)
 
   const activityLocked = !plan || !canAccessActivity
 
@@ -118,12 +110,13 @@ export function AppBottomNav({
 
         {/* Activity */}
         <button
+          disabled={!canAccessActivity}
           onClick={() => {
             if (!canAccessActivity) return
             onNavigate(plan ? "activity-log" : "subscription")
             scrollTop()
           }}
-          className={`flex flex-col items-center gap-1 transition-colors relative ${
+          className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${
             activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
           }`}
         >
@@ -136,12 +129,13 @@ export function AppBottomNav({
 
         {/* Scenes */}
         <button
+          disabled={!canAccessScenes}
           onClick={() => {
             if (!canAccessScenes) return
             onNavigate("scenes")
             scrollTop()
           }}
-          className={`flex flex-col items-center gap-1 transition-colors relative ${
+          className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${
             activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
           }`}
         >
@@ -154,12 +148,13 @@ export function AppBottomNav({
 
         {/* Settings */}
         <button
+          disabled={!canAccessSettings}
           onClick={() => {
             if (!canAccessSettings) return
             onNavigate("settings")
             scrollTop()
           }}
-          className={`flex flex-col items-center gap-1 transition-colors relative ${
+          className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${
             activeTab === "settings" ? "text-primary" : "text-muted-foreground"
           }`}
         >

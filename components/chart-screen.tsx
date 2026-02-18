@@ -189,7 +189,6 @@ export default function ChartScreen({
         currentScreen={currentScreen}
         onNavigate={onNavigate}
         hasPlan={hasPlan}
-        isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}

@@ -747,7 +747,6 @@ export default function SettingsScreen({
         currentScreen={currentScreen}
         onNavigate={onNavigate}
         hasPlan={effectiveHasPlan}
-        isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}

@@ -18,7 +18,6 @@ type AccessLevel = "admin" | "full" | "open-close" | "none" | string
 
 interface ProfileScreenProps {
   onNavigate: (screen: Screen) => void
-  isPremium: boolean
   premiumExpiry: string
   isOnTrial: boolean
   remainingTrialDays: number | null
@@ -28,7 +27,6 @@ interface ProfileScreenProps {
 
 export default function ProfileScreen({
   onNavigate,
-  isPremium,
   premiumExpiry,
   isOnTrial,
   remainingTrialDays,
@@ -432,10 +430,7 @@ export default function ProfileScreen({
 
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Current Access</Label>
-        <Select
-          value={currentUserAccess}
-          onValueChange={(value: "admin" | "full" | "open-close") => setCurrentUserAccess(value)}
-        >
+        <Select value={currentUserAccess} onValueChange={(value: "admin" | "full" | "open-close") => setCurrentUserAccess(value)}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
@@ -646,7 +641,6 @@ export default function ProfileScreen({
         currentScreen={currentScreen}
         onNavigate={onNavigate}
         hasPlan={hasPlan}
-        isPremium={isPremium}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
