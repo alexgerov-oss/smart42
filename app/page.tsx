@@ -60,9 +60,6 @@ export default function Home() {
   // ✅ единствената истина за plan
   const hasPlan = adminPurchasedPremium || isOnTrial
 
-  // ✅ backward compatibility (старите компоненти които гледат isPremium)
-  const isPremium = hasPlan
-
   const handleLogin = () => {
     setCurrentScreen("dashboard")
     scrollTop()
@@ -180,7 +177,6 @@ export default function Home() {
           metric={chartMetric}
           onBack={() => handleNavigate("dashboard")}
           onNavigate={handleNavigate}
-          isPremium={isPremium}
           hasPlan={hasPlan}
           isOnTrial={isOnTrial}
           remainingTrialDays={remainingTrialDays}

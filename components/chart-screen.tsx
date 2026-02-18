@@ -14,7 +14,6 @@ interface ChartScreenProps {
   metric: string
   onBack: () => void
   onNavigate: (screen: Screen) => void
-  isPremium: boolean
 
   // ✅ plan/trial flag from page.tsx
   hasPlan: boolean
@@ -37,7 +36,6 @@ export default function ChartScreen({
   metric,
   onBack,
   onNavigate,
-  isPremium,
   hasPlan,
   isOnTrial,
   remainingTrialDays,

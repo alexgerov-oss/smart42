@@ -14,9 +14,6 @@ interface AppBottomNavProps {
   // ✅ unified plan flag (trial/premium/subscription)
   hasPlan?: boolean
 
-  // ✅ legacy fallback (keep for older screens until we remove it everywhere)
-  isPremium?: boolean
-
   // ✅ optional (if missing, we compute them inside)
   canAccessActivity?: boolean
   canAccessScenes?: boolean
@@ -59,16 +56,15 @@ function scrollTop() {
 export function AppBottomNav({
   currentScreen,
   onNavigate,
-  hasPlan,
-  isPremium,
+  hasPlan = false,
   canAccessActivity: canAccessActivityProp,
   canAccessScenes: canAccessScenesProp,
   canAccessSettings: canAccessSettingsProp,
 }: AppBottomNavProps) {
   const activeTab = getActiveTabFromScreen(currentScreen)
 
-  // ✅ one plan source of truth: prefer hasPlan, fallback to isPremium for legacy callers
-  const plan = typeof hasPlan === "boolean" ? hasPlan : Boolean(isPremium)
+  // ✅ one plan source of truth
+  const plan = hasPlan
 
   // ✅ fallback permissions if caller doesn't pass canAccess*
   const { currentUserAccess } = useAppContext()

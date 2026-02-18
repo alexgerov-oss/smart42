@@ -110,8 +110,10 @@ type CoreWhenConditionExt = Omit<CoreWhenCondition, "type"> & {
 interface ScenesScreenProps {
   onNavigate: (screen: Screen) => void
   doorName: string
-  isPremium: boolean
-  hasPlan?: boolean
+
+  // ✅ единственото важно: plan flag
+  hasPlan: boolean
+
   currentScreen: Screen
 }
 
@@ -276,13 +278,7 @@ const formatSceneDescription = (scene: CoreScene): string => {
   return `IF ${conditions} → ${action}`
 }
 
-export default function ScenesScreen({
-  onNavigate,
-  doorName: _doorName,
-  isPremium,
-  hasPlan,
-  currentScreen,
-}: ScenesScreenProps) {
+export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan, currentScreen }: ScenesScreenProps) {
   const [isCreatingScene, setIsCreatingScene] = useState(false)
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null)
   const [sceneName, setSceneName] = useState("")
@@ -293,12 +289,9 @@ export default function ScenesScreen({
 
   const { currentUserAccess, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } = useAppContext()
 
-  // ✅ prefer plan flag from page/provider; fallback keeps legacy behavior if called elsewhere
-  const effectiveHasPlan = typeof hasPlan === "boolean" ? hasPlan : Boolean(isPremium)
-
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: effectiveHasPlan,
+    adminHasActiveSubscription: hasPlan,
     isTrialActive: false,
     isTrialExpired: false,
   }
@@ -435,7 +428,7 @@ export default function ScenesScreen({
     setScenes(scenes.filter((s) => s.id !== id))
   }
 
-  const isFreeAdmin = currentUserAccess === "admin" && !effectiveHasPlan
+  const isFreeAdmin = currentUserAccess === "admin" && !hasPlan
   const canCreateScene = isFreeAdmin ? scenes.length === 0 : true
 
   const handleStartCreatingScene = () => {
@@ -477,7 +470,7 @@ export default function ScenesScreen({
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
-          hasPlan={effectiveHasPlan}
+          hasPlan={hasPlan}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
@@ -807,7 +800,7 @@ export default function ScenesScreen({
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
-        hasPlan={effectiveHasPlan}
+        hasPlan={hasPlan}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}

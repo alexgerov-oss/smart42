@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,22 +31,23 @@ import { AppBottomNav } from "@/components/app-bottom-nav"
 
 interface SettingsScreenProps {
   onNavigate: (screen: Screen) => void
-  isPremium: boolean
-  hasPlan?: boolean
+
+  // ✅ единственото важно: plan flag (trial/premium)
+  hasPlan: boolean
+
   currentScreen: Screen
+
+  // (ползват се за Permissions контекста)
   isOnTrial?: boolean
   isTrialExpired?: boolean
-  adminHasActiveSubscription?: boolean
 }
 
 export default function SettingsScreen({
   onNavigate,
-  isPremium,
   hasPlan,
   currentScreen,
   isOnTrial = false,
   isTrialExpired = false,
-  adminHasActiveSubscription = false,
 }: SettingsScreenProps) {
   const [showControllerDialog, setShowControllerDialog] = useState(false)
   const [serialNumber, setSerialNumber] = useState("")
@@ -123,15 +124,11 @@ export default function SettingsScreen({
   const controller = getActiveController()
   const isAdmin = currentUserAccess === "admin"
 
-  // ✅ single source of truth (prefer prop from page/provider)
-  const effectiveHasPlan =
-    typeof hasPlan === "boolean" ? hasPlan : Boolean(isOnTrial || adminHasActiveSubscription)
-
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: effectiveHasPlan,
+    adminHasActiveSubscription: hasPlan,
     isTrialActive: isOnTrial,
-    isTrialExpired: isTrialExpired,
+    isTrialExpired,
   }
 
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)
@@ -143,7 +140,7 @@ export default function SettingsScreen({
   const canRenameAppUsers = Permissions.canRenameAppUsers(permissionContext)
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
-  const isFreeAdmin = isAdmin && !effectiveHasPlan
+  const isFreeAdmin = isAdmin && !hasPlan
 
   const visibleIButtonUsers =
     currentUserAccess === "admin" ? iButtonUsers : iButtonUsers.filter((user) => user.createdBy === currentUserAccess)
@@ -241,7 +238,11 @@ export default function SettingsScreen({
         return
       }
       if (!canCreateFullAccessAccount()) {
-        toast({ title: "Full Access Limit Reached", description: "Only one Full Access account is allowed.", variant: "destructive" })
+        toast({
+          title: "Full Access Limit Reached",
+          description: "Only one Full Access account is allowed.",
+          variant: "destructive",
+        })
         return
       }
     }
@@ -256,7 +257,11 @@ export default function SettingsScreen({
     toast(
       ok
         ? { title: "Invitation sent", description: "The user will receive an email to join." }
-        : { title: "Invitation not sent", description: "User was not added. Check plan/trial and duplicate email.", variant: "destructive" }
+        : {
+            title: "Invitation not sent",
+            description: "User was not added. Check plan/trial and duplicate email.",
+            variant: "destructive",
+          }
     )
   }
 
@@ -302,7 +307,11 @@ export default function SettingsScreen({
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
 
     if (isFreeAdmin && iButtonUsers.length >= 1) {
-      toast({ title: "iButton not added", description: "You cannot add more Ibuttons in the current plan. Get trial or premium.", variant: "destructive" })
+      toast({
+        title: "iButton not added",
+        description: "You cannot add more Ibuttons in the current plan. Get trial or premium.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -311,7 +320,7 @@ export default function SettingsScreen({
     if (typeof newId === "string" && newId.startsWith("ibutton-blocked-")) {
       toast({
         title: "iButton not added",
-        description: effectiveHasPlan
+        description: hasPlan
           ? "Trial/Premium is active but the app is still in free mode. Please refresh the page."
           : "You cannot add more Ibuttons in the current plan. Get trial or premium.",
         variant: "destructive",
@@ -737,7 +746,7 @@ export default function SettingsScreen({
                 Add User
               </Button>
 
-              {isAdmin && !effectiveHasPlan && <p className="text-sm text-muted-foreground">Get trial or premium to add app users.</p>}
+              {isAdmin && !hasPlan && <p className="text-sm text-muted-foreground">Get trial or premium to add app users.</p>}
             </CardContent>
           </Card>
         )}
@@ -746,7 +755,7 @@ export default function SettingsScreen({
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
-        hasPlan={effectiveHasPlan}
+        hasPlan={hasPlan}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
@@ -838,7 +847,10 @@ export default function SettingsScreen({
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-foreground">Access Level</Label>
 
-                <Select value={inviteUserAccess} onValueChange={(value: any) => setInviteUserAccess(value)}>
+                <Select
+                  value={inviteUserAccess}
+                  onValueChange={(value) => setInviteUserAccess(value === "full" ? "full" : "open-close")}
+                >
                   <SelectTrigger className="bg-background border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
@@ -877,7 +889,10 @@ export default function SettingsScreen({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteIButtonId && handleDeleteIButton(deleteIButtonId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={() => deleteIButtonId && handleDeleteIButton(deleteIButtonId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -894,7 +909,10 @@ export default function SettingsScreen({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteAppUserId && handleDeleteAppUser(deleteAppUserId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={() => deleteAppUserId && handleDeleteAppUser(deleteAppUserId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -905,7 +923,9 @@ export default function SettingsScreen({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Restart Controller</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to restart the controller? This will temporarily disconnect all devices.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Are you sure you want to restart the controller? This will temporarily disconnect all devices.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
