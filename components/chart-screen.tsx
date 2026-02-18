@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Home, Activity, Settings, User, Lock, Layers } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import type { Screen } from "@/app/page"
 import { useAppContext } from "@/lib/app-context"
-import { useToast } from "@/hooks/use-toast"
+import { Permissions, type PermissionContext } from "@/lib/permissions"
+import { AppBottomNav } from "@/components/app-bottom-nav"
 
 interface ChartScreenProps {
   metric: string
@@ -17,22 +18,37 @@ interface ChartScreenProps {
   currentScreen: Screen
 }
 
+// ✅ deterministic “fake data” (no Math.random)
+function getSeedFromString(input: string) {
+  let seed = 0
+  for (let i = 0; i < input.length; i++) seed = (seed + input.charCodeAt(i) * (i + 1)) % 100000
+  return seed
+}
+
 export default function ChartScreen({ metric, onBack, onNavigate, isPremium, currentScreen }: ChartScreenProps) {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("day")
 
   const { currentUserAccess } = useAppContext()
-  const canAccessScenes = currentUserAccess === "admin" || currentUserAccess === "full"
-  const canAccessSettings = currentUserAccess === "admin" || currentUserAccess === "full"
-  const { toast } = useToast()
+
+  const permissionContext: PermissionContext = {
+    currentUserAccess,
+    adminHasActiveSubscription: Boolean(isPremium),
+    isTrialActive: false,
+    isTrialExpired: false,
+  }
+
+  const canAccessActivity = Permissions.canAccessActivity(permissionContext)
+  const canAccessScenes = Permissions.canAccessScenes(permissionContext)
+  const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
   const getMetricTitle = () => {
     const titles: Record<string, string> = {
       wifi: "WiFi Signal Strength",
-      battery: "%",
-      "cpu-temp": "°C",
-      "cpu-load": "%",
-      latency: "ms",
-      "power-drops": "count",
+      battery: "Battery",
+      "cpu-temp": "CPU Temp",
+      "cpu-load": "CPU Load",
+      latency: "Latency",
+      "power-drops": "Power Drops",
     }
     return titles[metric] || "Metric"
   }
@@ -49,33 +65,29 @@ export default function ChartScreen({ metric, onBack, onNavigate, isPremium, cur
     return units[metric] || ""
   }
 
-  const generateData = () => {
+  const data = useMemo(() => {
     const dataPoints = timeRange === "day" ? 24 : timeRange === "week" ? 7 : timeRange === "month" ? 30 : 12
-    return Array.from({ length: dataPoints }, (_, i) => ({
-      name:
+
+    const seed = getSeedFromString(`${metric}:${timeRange}`)
+    const base = 30
+    const spread = 50
+
+    return Array.from({ length: dataPoints }, (_, i) => {
+      const name =
         timeRange === "day"
           ? `${i}:00`
           : timeRange === "week"
             ? `Day ${i + 1}`
             : timeRange === "month"
               ? `${i + 1}`
-              : `Month ${i + 1}`,
-      value: Math.floor(Math.random() * 50) + 30,
-    }))
-  }
+              : `Month ${i + 1}`
 
-  const data = generateData()
+      // ✅ stable pseudo-variation (no randomness)
+      const value = base + ((seed + i * 17 + (i % 3) * 11) % spread)
 
-  const getActiveTab = () => {
-    if (currentScreen === "dashboard") return "home"
-    if (currentScreen === "activity-log") return "activity-log"
-    if (currentScreen === "scenes") return "scenes"
-    if (currentScreen === "settings") return "settings"
-    if (currentScreen === "profile") return "profile"
-    return "home"
-  }
-
-  const activeTab = getActiveTab()
+      return { name, value }
+    })
+  }, [metric, timeRange])
 
   return (
     <div className="flex min-h-screen flex-col pb-20">
@@ -157,82 +169,14 @@ export default function ChartScreen({ metric, onBack, onNavigate, isPremium, cur
         </Card>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-        <div className="flex items-center justify-around p-4">
-          <button
-            onClick={() => onNavigate("dashboard")}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "home" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <Home className="h-6 w-6" />
-            <span className="text-xs">Home</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (isPremium) {
-                onNavigate("activity-log")
-              } else {
-                onNavigate("subscription")
-              }
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Activity className="h-6 w-6" />
-              {!isPremium && <Lock className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Activity</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (canAccessScenes) {
-                onNavigate("scenes")
-              }
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Layers className="h-6 w-6" />
-              {!canAccessScenes && <Lock className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Scenes</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (canAccessSettings) {
-                onNavigate("settings")
-              }
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "settings" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Settings className="h-6 w-6" />
-              {!canAccessSettings && <Lock className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Settings</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate("profile")}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "profile" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <User className="h-6 w-6" />
-            <span className="text-xs">Profile</span>
-          </button>
-        </div>
-      </div>
+      <AppBottomNav
+        currentScreen={currentScreen}
+        onNavigate={onNavigate}
+        hasPlan={isPremium}
+        canAccessActivity={canAccessActivity}
+        canAccessScenes={canAccessScenes}
+        canAccessSettings={canAccessSettings}
+      />
     </div>
   )
 }

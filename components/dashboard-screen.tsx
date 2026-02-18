@@ -10,8 +10,6 @@ import {
   Home,
   LockIcon,
   LockOpen,
-  Settings,
-  User,
   Wifi,
   Battery,
   Cpu,
@@ -20,7 +18,6 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  Layers,
   Plus,
   Pencil,
   Trash2,
@@ -43,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AppBottomNav } from "@/components/app-bottom-nav"
 
 interface DashboardScreenProps {
   onNavigate: (screen: Screen) => void
@@ -201,14 +199,6 @@ export default function DashboardScreen({
 
   const handleSliderTouchEnd = () => setIsDragging(false)
 
-  const handleRestrictedAccess = (tabName: string) => {
-    toast({
-      title: "Access Restricted",
-      description: `You don't have permission to access ${tabName}.`,
-      variant: "default",
-    })
-  }
-
   const activityLogs = [
     { id: 1, doorName: displayDoorName, time: "10:45 AM", action: "open", method: null, user: null },
     { id: 2, doorName: displayDoorName, time: "10:47 AM", action: "closed", method: null, user: null },
@@ -220,17 +210,6 @@ export default function DashboardScreen({
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)
-
-  const getActiveTab = () => {
-    if (currentScreen === "dashboard") return "home"
-    if (currentScreen === "activity-log") return "activity-log"
-    if (currentScreen === "scenes") return "scenes"
-    if (currentScreen === "settings") return "settings"
-    if (currentScreen === "profile") return "profile"
-    return "home"
-  }
-
-  const activeTab = getActiveTab()
 
   const handleAddDoor = () => {
     if (!canAddDoors) return
@@ -573,95 +552,15 @@ export default function DashboardScreen({
         </Card>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-        <div className="flex items-center justify-around p-4">
-          <button
-            onClick={() => {
-              onNavigate("dashboard")
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "home" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <Home className="h-6 w-6" />
-            <span className="text-xs">Home</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (canAccessActivity && isPremium) {
-                onNavigate("activity-log")
-              } else if (canAccessActivity) {
-                onNavigate("subscription")
-              } else {
-                handleRestrictedAccess("Activity")
-              }
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Activity className="h-6 w-6" />
-              {(!canAccessActivity || !isPremium) && (
-                <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />
-              )}
-            </div>
-            <span className="text-xs">Activity</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (canAccessScenes) {
-                onNavigate("scenes")
-                window.scrollTo({ top: 0, behavior: "instant" })
-              }
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Layers className="h-6 w-6" />
-              {!canAccessScenes && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Scenes</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (canAccessSettings) {
-                onNavigate("settings")
-                window.scrollTo({ top: 0, behavior: "instant" })
-              }
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === "settings" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <div className="relative">
-              <Settings className="h-6 w-6" />
-              {!canAccessSettings && <LockIcon className="h-3 w-3 absolute -top-1 -right-1 text-primary" />}
-            </div>
-            <span className="text-xs">Settings</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onNavigate("profile")
-              window.scrollTo({ top: 0, behavior: "instant" })
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              activeTab === "profile" ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <User className="h-6 w-6" />
-            <span className="text-xs">Profile</span>
-          </button>
-        </div>
-      </div>
+      {/* ✅ Единствената bottom nav вече е общата */}
+      <AppBottomNav
+        currentScreen={currentScreen}
+        onNavigate={onNavigate}
+        hasPlan={isPremium || isOnTrial}
+        canAccessActivity={canAccessActivity}
+        canAccessScenes={canAccessScenes}
+        canAccessSettings={canAccessSettings}
+      />
 
       {/* Add Door Modal */}
       <Dialog open={isAddDoorModalOpen} onOpenChange={setIsAddDoorModalOpen}>
