@@ -74,10 +74,9 @@ export default function ProfileScreen({
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    hasPlan: hasPlan,
-    isTrialActive: isOnTrial,
-    isTrialExpired,
+    hasPlan,
   }
+  
 
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)

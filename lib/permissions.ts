@@ -5,7 +5,8 @@
 
 import type { AccessRole, EntityType } from "@/lib/core/types"
 
-export type UserRole = "admin" | "full" | "open-close"
+// Keep alias for readability/back-compat
+export type UserRole = AccessRole
 
 export interface PermissionContext {
   currentUserAccess: UserRole
@@ -30,7 +31,7 @@ export interface PermissionContext {
 }
 
 /**
- * ✅ From lib/core/permissions.ts (merged here)
+ * ✅ From old lib/core/permissions.ts (merged here)
  * Entity rename rules.
  */
 export function canRenameEntity(role: AccessRole, entityType: EntityType): boolean {
@@ -48,13 +49,12 @@ function hasActivePlan(ctx: PermissionContext): boolean {
   // ⚠️ Legacy fallback
   const sub = Boolean(ctx.adminHasActiveSubscription)
 
-  // If trial info exists, use it; otherwise default restrictive (false)
+  // Trial signals (restrictive defaults)
   const trialDaysLeft = typeof ctx.trialDaysLeft === "number" ? ctx.trialDaysLeft : 0
   const trialActiveFlag = Boolean(ctx.isTrialActive)
   const trialExpiredFlag = Boolean(ctx.isTrialExpired)
 
   const trialActive = (trialDaysLeft > 0 || trialActiveFlag) && !trialExpiredFlag
-
   return sub || trialActive
 }
 
@@ -83,9 +83,8 @@ export class Permissions {
 
   /**
    * App users
-   * - Admin: always can add
-   * - Full: can add only if plan is active (trial/premium)
    * - Open/Close: cannot add
+   * - Admin/Full: can add only if plan is active (trial/premium)
    */
   static canAddAppUsers(ctx: PermissionContext): boolean {
     if (ctx.currentUserAccess === "open-close") return false
@@ -135,22 +134,16 @@ export class Permissions {
   }
 
   /**
-   * Activity access
+   * Activity / Settings / Scenes access
    */
   static canAccessActivity(ctx: PermissionContext): boolean {
     return ctx.currentUserAccess === "admin" || ctx.currentUserAccess === "full"
   }
 
-  /**
-   * Settings access
-   */
   static canAccessSettings(ctx: PermissionContext): boolean {
     return ctx.currentUserAccess === "admin" || ctx.currentUserAccess === "full"
   }
 
-  /**
-   * Scenes access
-   */
   static canAccessScenes(ctx: PermissionContext): boolean {
     return ctx.currentUserAccess === "admin" || ctx.currentUserAccess === "full"
   }

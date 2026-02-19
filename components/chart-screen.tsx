@@ -18,7 +18,7 @@ interface ChartScreenProps {
   // ✅ plan/trial flag from page.tsx
   hasPlan: boolean
 
-  // kept for permissions context
+  // legacy props (kept so callers don't break)
   isOnTrial: boolean
   remainingTrialDays: number | null
 
@@ -37,20 +37,16 @@ export default function ChartScreen({
   onBack,
   onNavigate,
   hasPlan,
-  isOnTrial,
-  remainingTrialDays,
+  isOnTrial: _isOnTrial,
+  remainingTrialDays: _remainingTrialDays,
   currentScreen,
 }: ChartScreenProps) {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("day")
   const { currentUserAccess } = useAppContext()
 
-  const isTrialExpired = remainingTrialDays !== null && remainingTrialDays === 0
-
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    hasPlan: hasPlan,
-    isTrialActive: isOnTrial,
-    isTrialExpired,
+    hasPlan,
   }
 
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)

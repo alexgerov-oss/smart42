@@ -38,13 +38,7 @@ function getActiveTabFromScreen(currentScreen: Screen): Tab {
 
   if (s === "scenes" || s.includes("scene")) return "scenes"
 
-  if (
-    s === "settings" ||
-    s.includes("setting") ||
-    s.includes("controller") ||
-    s.includes("door") ||
-    s.includes("ibutton")
-  ) {
+  if (s === "settings" || s.includes("setting") || s.includes("controller") || s.includes("door") || s.includes("ibutton")) {
     return "settings"
   }
 
@@ -69,14 +63,15 @@ export function AppBottomNav({
 }: AppBottomNavProps) {
   const activeTab = getActiveTabFromScreen(currentScreen)
 
+  // ✅ one plan source of truth
+  const plan = hasPlan
+
   // ✅ fallback permissions if caller doesn't pass canAccess*
   const { currentUserAccess } = useAppContext()
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    hasPlan: hasPlan,
-    isTrialActive: false,
-    isTrialExpired: false,
+    hasPlan: plan,
   }
 
   const canAccessActivity =
@@ -88,7 +83,7 @@ export function AppBottomNav({
   const canAccessSettings =
     typeof canAccessSettingsProp === "boolean" ? canAccessSettingsProp : Permissions.canAccessSettings(permissionContext)
 
-  const activityLocked = !hasPlan || !canAccessActivity
+  const activityLocked = !plan || !canAccessActivity
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
@@ -112,7 +107,7 @@ export function AppBottomNav({
           disabled={!canAccessActivity}
           onClick={() => {
             if (!canAccessActivity) return
-            onNavigate(hasPlan ? "activity-log" : "subscription")
+            onNavigate(plan ? "activity-log" : "subscription")
             scrollTop()
           }}
           className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${

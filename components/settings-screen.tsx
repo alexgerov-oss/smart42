@@ -37,17 +37,13 @@ interface SettingsScreenProps {
 
   currentScreen: Screen
 
-  // (ползват се за Permissions контекста)
-  isOnTrial?: boolean
-  isTrialExpired?: boolean
+  // legacy trial props removed (plan gating uses hasPlan only)
 }
 
 export default function SettingsScreen({
   onNavigate,
   hasPlan,
   currentScreen,
-  isOnTrial = false,
-  isTrialExpired = false,
 }: SettingsScreenProps) {
   const [showControllerDialog, setShowControllerDialog] = useState(false)
   const [serialNumber, setSerialNumber] = useState("")
@@ -127,9 +123,7 @@ export default function SettingsScreen({
   // ✅ FIX: permissions.ts очаква adminHasActiveSubscription (не hasPlan)
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: hasPlan,
-    isTrialActive: isOnTrial,
-    isTrialExpired,
+    hasPlan,
   }
 
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)

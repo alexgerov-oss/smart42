@@ -291,9 +291,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    hasPlan: hasPlan,
-    isTrialActive: false,
-    isTrialExpired: false,
+    hasPlan,
   }
 
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)
