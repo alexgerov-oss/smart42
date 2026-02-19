@@ -11,7 +11,7 @@ Goal:
 
 Plan naming (important):
 - ✅ **`hasPlan`** = единственото име в UI (trial OR premium)
-- ⚠️ `adminHasActiveSubscription` = legacy alias (само докато core hook-овете се мигрират)
+- hasPlan = unified plan flag (trial OR premium OR forced dev override)
 
 ---
 
@@ -44,7 +44,7 @@ Plan naming (important):
   - Derived:
     - `trialDaysLeft`
     - **`hasPlan`** (active plan = trial OR premium)
-  - ⚠️ During migration it may still expose `adminHasActiveSubscription` as legacy output;
+  - - Hook outputs should expose only: hasPlan (no legacy aliases).
     `lib/app-context.tsx` normalizes to `hasPlan` for UI.
 
 ### Core: UI prefs
@@ -131,7 +131,7 @@ UI -> AppContext -> scenes-state -> scenes-guard -> persistence
 ### 3.4 Plan / trial / premium gating
 UI -> `useAppContext().hasPlan`
 - UI components + `lib/permissions.ts` use **`hasPlan`** only.
-- Any legacy `adminHasActiveSubscription` should be confined to core wiring until fully migrated.
+- Only hasPlan is allowed (repo-wide).
 
 ---
 
