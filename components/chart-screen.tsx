@@ -48,7 +48,7 @@ export default function ChartScreen({
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: hasPlan,
+    hasPlan: hasPlan,
     isTrialActive: isOnTrial,
     isTrialExpired,
   }

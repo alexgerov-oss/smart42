@@ -127,12 +127,9 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
 
   const { currentUserAccess } = useAppContext()
 
-  // ✅ единствена истина: plan идва от parent
-  const effectiveHasPlan = Boolean(hasPlan)
-
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: effectiveHasPlan,
+    hasPlan: hasPlan,
     isTrialActive: false,
     isTrialExpired: false,
   }
@@ -141,7 +138,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
-  const canSeeActivityContent = canAccessActivity && effectiveHasPlan
+  const canSeeActivityContent = canAccessActivity && hasPlan
 
   useEffect(() => {
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0
@@ -237,7 +234,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
-          hasPlan={effectiveHasPlan}
+          hasPlan={hasPlan}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
@@ -246,7 +243,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
     )
   }
 
-  if (!effectiveHasPlan) {
+  if (!hasPlan) {
     return (
       <div className="flex min-h-screen flex-col pb-20">
         <div className="flex-1 flex items-center justify-center p-4">
@@ -272,7 +269,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
         <AppBottomNav
           currentScreen={currentScreen}
           onNavigate={onNavigate}
-          hasPlan={effectiveHasPlan}
+          hasPlan={hasPlan}
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
@@ -402,7 +399,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
       <AppBottomNav
         currentScreen={currentScreen}
         onNavigate={onNavigate}
-        hasPlan={effectiveHasPlan}
+        hasPlan={hasPlan}
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}

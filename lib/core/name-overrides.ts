@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react"
 import { storage } from "@/lib/core/storage"
 import { getUserOverride, setUserOverride } from "@/lib/core/naming"
-import { canRenameEntity } from "@/lib/core/permissions"
+import { canRenameEntity } from "@/lib/permissions"
 import type { AccessRole, EntityType, NameOverrides } from "@/lib/core/types"
 
 type UseNameOverridesParams = {

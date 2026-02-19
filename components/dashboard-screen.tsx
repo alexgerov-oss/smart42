@@ -112,7 +112,7 @@ export default function DashboardScreen({
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: plan,
+    hasPlan: plan,
     isTrialActive: isOnTrial,
     isTrialExpired: trialExpired,
   }

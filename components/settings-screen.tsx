@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { ArrowLeft, Info, LockIcon, Trash2, SquarePen } from "lucide-react"
 import type { Screen } from "@/app/page"
 import { useAppContext } from "@/lib/app-context"
@@ -124,6 +124,7 @@ export default function SettingsScreen({
   const controller = getActiveController()
   const isAdmin = currentUserAccess === "admin"
 
+  // ✅ FIX: permissions.ts очаква adminHasActiveSubscription (не hasPlan)
   const permissionContext: PermissionContext = {
     currentUserAccess,
     adminHasActiveSubscription: hasPlan,
@@ -134,13 +135,17 @@ export default function SettingsScreen({
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)
   const canManageControllers = Permissions.canManageControllers(permissionContext)
-  const canAddAppUsers = Permissions.canAddAppUsers(permissionContext)
+  const canAddAppUsers = Permissions.canAddAppUsers(permissionContext) && hasPlan
   const canAddIButtons = Permissions.canAddIButtons(permissionContext)
   const canRenameIButtons = Permissions.canRenameIButtons(permissionContext)
   const canRenameAppUsers = Permissions.canRenameAppUsers(permissionContext)
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
   const isFreeAdmin = isAdmin && !hasPlan
+
+  // ✅ Free Admin лимит: 1 App User без plan (втория е заключен)
+  const appUsersLimitReached = isFreeAdmin && appUsers.length >= 1
+  const canAddMoreAppUsers = canAddAppUsers && !appUsersLimitReached
 
   const visibleIButtonUsers =
     currentUserAccess === "admin" ? iButtonUsers : iButtonUsers.filter((user) => user.createdBy === currentUserAccess)
@@ -214,6 +219,18 @@ export default function SettingsScreen({
   }
 
   const handleOpenInviteDialog = () => {
+    if (!canAddAppUsers) return
+
+    if (appUsersLimitReached) {
+      toast({
+        title: "User not added",
+        description: "You can add only 1 App User on the free plan. Get trial or premium to add more.",
+        variant: "destructive",
+      })
+      setShowPremiumDialog(true)
+      return
+    }
+
     setInviteUserName("")
     setInviteUserEmail("")
     setInviteUserAccess("open-close")
@@ -229,6 +246,17 @@ export default function SettingsScreen({
   const handleSendInvitation = () => {
     if (!canAddAppUsers) return
     if (!canSendInvitation) return
+
+    // ✅ UI guard за free admin лимита (да има ясно съобщение)
+    if (appUsersLimitReached) {
+      toast({
+        title: "Invitation not sent",
+        description: "You can add only 1 App User on the free plan. Get trial or premium to add more.",
+        variant: "destructive",
+      })
+      setShowPremiumDialog(true)
+      return
+    }
 
     const finalAccess = inviteUserAccess
 
@@ -249,20 +277,21 @@ export default function SettingsScreen({
 
     const ok = addAppUser(inviteUserName.trim(), inviteUserEmail.trim(), finalAccess)
 
+    if (!ok) {
+      toast({
+        title: "Invitation not sent",
+        description: "User was not added. Check plan/trial and duplicate email.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setInviteUserName("")
     setInviteUserEmail("")
     setInviteUserAccess("open-close")
     setShowInviteAppUserDialog(false)
 
-    toast(
-      ok
-        ? { title: "Invitation sent", description: "The user will receive an email to join." }
-        : {
-            title: "Invitation not sent",
-            description: "User was not added. Check plan/trial and duplicate email.",
-            variant: "destructive",
-          }
-    )
+    toast({ title: "Invitation sent", description: "The user will receive an email to join." })
   }
 
   const handleDeleteIButton = (id: string) => {
@@ -405,7 +434,12 @@ export default function SettingsScreen({
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Controller</h2>
                 {controller && (
-                  <Button onClick={() => handleRestartController()} variant="ghost" size="sm" disabled={!isAdmin || controller.isRestarting}>
+                  <Button
+                    onClick={() => handleRestartController()}
+                    variant="ghost"
+                    size="sm"
+                    disabled={!isAdmin || controller.isRestarting}
+                  >
                     Restart
                   </Button>
                 )}
@@ -423,7 +457,9 @@ export default function SettingsScreen({
                         </>
                       ) : (
                         <>
-                          <div className={`h-2 w-2 rounded-full ${controller.status === "online" ? "bg-green-500" : "bg-red-500"}`} />
+                          <div
+                            className={`h-2 w-2 rounded-full ${controller.status === "online" ? "bg-green-500" : "bg-red-500"}`}
+                          />
                           <span className="text-xs text-muted-foreground capitalize">{controller.status}</span>
                         </>
                       )}
@@ -432,7 +468,12 @@ export default function SettingsScreen({
 
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">{controller.serialNumber}</p>
-                    <Button onClick={handleOpenControllerDialog} variant="ghost" size="sm" className="h-8 w-8 p-0 text-primary">
+                    <Button
+                      onClick={handleOpenControllerDialog}
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-primary"
+                    >
                       <SquarePen className="h-4 w-4" />
                     </Button>
                   </div>
@@ -447,7 +488,12 @@ export default function SettingsScreen({
               )}
 
               {!controller && (
-                <Button onClick={handleAddControllerClick} variant="default" className="w-full" disabled={!canManageControllers}>
+                <Button
+                  onClick={handleAddControllerClick}
+                  variant="default"
+                  className="w-full"
+                  disabled={!canManageControllers}
+                >
                   Add Controller
                 </Button>
               )}
@@ -456,6 +502,7 @@ export default function SettingsScreen({
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>{editingControllerId ? "Edit Controller" : "Add Controller"}</DialogTitle>
+                    <DialogDescription>Set the controller serial number and optional IP address.</DialogDescription>
                   </DialogHeader>
 
                   <div className="space-y-4 py-4">
@@ -517,13 +564,20 @@ export default function SettingsScreen({
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">Quick Controls</h2>
               {currentUserAccess === "admin" && (
-                <Button onClick={handleToggleQuickControlsLock} variant="ghost" size="sm" className="h-8 text-xs text-primary hover:text-primary/80 px-2">
+                <Button
+                  onClick={handleToggleQuickControlsLock}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-primary hover:text-primary/80 px-2"
+                >
                   {quickControlsLocked ? "Press to Unlock" : "Press to Lock"}
                 </Button>
               )}
             </div>
 
-            {areQuickControlsDisabled && <p className="text-xs text-muted-foreground">Quick controls are locked by the administrator.</p>}
+            {areQuickControlsDisabled && (
+              <p className="text-xs text-muted-foreground">Quick controls are locked by the administrator.</p>
+            )}
 
             {/* Automatic Lock */}
             <div className="space-y-3">
@@ -673,7 +727,12 @@ export default function SettingsScreen({
                       )}
 
                       {user.id !== "1" && canEditItem(user.createdBy, user.id) && (
-                        <Button onClick={() => setDeleteIButtonId(user.id)} variant="ghost" size="sm" className="text-xs text-destructive">
+                        <Button
+                          onClick={() => setDeleteIButtonId(user.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-destructive"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
@@ -684,7 +743,11 @@ export default function SettingsScreen({
 
               {!isListeningMode && (
                 <>
-                  <Button onClick={handleAddIButtonUser} className="w-full relative flex items-center gap-2" disabled={!canAddIButtons}>
+                  <Button
+                    onClick={handleAddIButtonUser}
+                    className="w-full relative flex items-center gap-2"
+                    disabled={!canAddIButtons}
+                  >
                     {!canAddIButtons && <LockIcon className="h-4 w-4" />}
                     Add iButton User
                   </Button>
@@ -731,7 +794,12 @@ export default function SettingsScreen({
                           >
                             <SquarePen className="h-4 w-4" />
                           </Button>
-                          <Button onClick={() => setDeleteAppUserId(user.id)} variant="ghost" size="sm" className="text-xs text-destructive">
+                          <Button
+                            onClick={() => setDeleteAppUserId(user.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-destructive"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </>
@@ -741,12 +809,21 @@ export default function SettingsScreen({
                 ))}
               </div>
 
-              <Button onClick={handleOpenInviteDialog} className="w-full relative flex items-center gap-2" disabled={!canAddAppUsers}>
-                {!canAddAppUsers && <LockIcon className="h-4 w-4" />}
+              <Button
+                onClick={handleOpenInviteDialog}
+                className="w-full relative flex items-center gap-2"
+                disabled={!canAddMoreAppUsers}
+              >
+                {!canAddMoreAppUsers && <LockIcon className="h-4 w-4" />}
                 Add User
               </Button>
 
-              {isAdmin && !hasPlan && <p className="text-sm text-muted-foreground">Get trial or premium to add app users.</p>}
+              {isAdmin && !hasPlan && !appUsersLimitReached && (
+                <p className="text-sm text-muted-foreground">On free plan you can add 1 app user. Get trial or premium to add more.</p>
+              )}
+              {appUsersLimitReached && (
+                <p className="text-sm text-muted-foreground">Limit reached (free plan). Get trial or premium to add more app users.</p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -830,6 +907,7 @@ export default function SettingsScreen({
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Invite New User</DialogTitle>
+            <DialogDescription>Enter user details and choose access level.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -872,7 +950,7 @@ export default function SettingsScreen({
 
           <DialogFooter>
             <DialogCancel>Cancel</DialogCancel>
-            <DialogAction disabled={!canSendInvitation} onClick={handleSendInvitation}>
+            <DialogAction disabled={!canSendInvitation || appUsersLimitReached} onClick={handleSendInvitation}>
               Send Invitation
             </DialogAction>
           </DialogFooter>

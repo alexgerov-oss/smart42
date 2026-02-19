@@ -3,21 +3,67 @@
  * Defaults to MOST restrictive behavior on any uncertainty
  */
 
+import type { AccessRole, EntityType } from "@/lib/core/types"
+
 export type UserRole = "admin" | "full" | "open-close"
 
 export interface PermissionContext {
   currentUserAccess: UserRole
-  adminHasActiveSubscription: boolean
-  isTrialActive: boolean
-  isTrialExpired: boolean
+
+  /**
+   * ✅ Unified plan flag (trial/premium/subscription)
+   * If missing => treated as NO plan (restrictive).
+   */
+  hasPlan?: boolean
+
+  /**
+   * ⚠️ Legacy alias (temporary)
+   * Keep optional so we don't break callers during refactors.
+   * Remove after repo-wide migration is done.
+   */
+  adminHasActiveSubscription?: boolean
+
+  // Optional trial fields (some parts of the app may not provide them)
+  trialDaysLeft?: number
+  isTrialActive?: boolean
+  isTrialExpired?: boolean
 }
 
 /**
- * Permission checks - all default to restrictive behavior
+ * ✅ From lib/core/permissions.ts (merged here)
+ * Entity rename rules.
+ */
+export function canRenameEntity(role: AccessRole, entityType: EntityType): boolean {
+  // Scenes can be renamed by all roles (as it was)
+  if (entityType === "scenes") return true
+
+  // For others: admin and full can rename
+  return role === "admin" || role === "full"
+}
+
+function hasActivePlan(ctx: PermissionContext): boolean {
+  // ✅ Prefer unified field
+  if (typeof ctx.hasPlan === "boolean") return ctx.hasPlan
+
+  // ⚠️ Legacy fallback
+  const sub = Boolean(ctx.adminHasActiveSubscription)
+
+  // If trial info exists, use it; otherwise default restrictive (false)
+  const trialDaysLeft = typeof ctx.trialDaysLeft === "number" ? ctx.trialDaysLeft : 0
+  const trialActiveFlag = Boolean(ctx.isTrialActive)
+  const trialExpiredFlag = Boolean(ctx.isTrialExpired)
+
+  const trialActive = (trialDaysLeft > 0 || trialActiveFlag) && !trialExpiredFlag
+
+  return sub || trialActive
+}
+
+/**
+ * Permission checks - default to restrictive behavior
  */
 export class Permissions {
   /**
-   * Admin can do everything except be restricted by trial
+   * Doors management (Admin only)
    */
   static canAddDoors(ctx: PermissionContext): boolean {
     return ctx.currentUserAccess === "admin"
@@ -36,19 +82,14 @@ export class Permissions {
   }
 
   /**
-   * Full Access can add app users ONLY if admin has premium OR active trial
+   * App users
+   * - Admin: always can add
+   * - Full: can add only if plan is active (trial/premium)
+   * - Open/Close: cannot add
    */
   static canAddAppUsers(ctx: PermissionContext): boolean {
-    if (ctx.currentUserAccess === "admin") {
-      // Admin can always add users (not restricted by trial)
-      return true
-    }
-    if (ctx.currentUserAccess === "full") {
-      // Full Access can add users if admin has premium OR active trial
-      return ctx.adminHasActiveSubscription && !ctx.isTrialExpired
-    }
-    // Open/Close Only cannot add users
-    return false
+    if (ctx.currentUserAccess === "open-close") return false
+    return hasActivePlan(ctx)
   }
 
   static canEditAppUsers(ctx: PermissionContext): boolean {
@@ -115,22 +156,16 @@ export class Permissions {
   }
 
   /**
-   * Lock/unlock doors - all roles can do this
+   * Lock/unlock doors - ALWAYS allowed
    */
-  static canLockUnlockDoors(ctx: PermissionContext): boolean {
+  static canLockUnlockDoors(_ctx: PermissionContext): boolean {
     return true
   }
 
   /**
-   * Quick controls - all roles can use, but admin can lock them
+   * Quick controls - all roles can use (admin may lock them elsewhere in UI)
    */
-  static canUseQuickControls(ctx: PermissionContext): boolean {
+  static canUseQuickControls(_ctx: PermissionContext): boolean {
     return true
   }
 }
-
-
-
-
-
-

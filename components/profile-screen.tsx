@@ -74,7 +74,7 @@ export default function ProfileScreen({
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: hasPlan,
+    hasPlan: hasPlan,
     isTrialActive: isOnTrial,
     isTrialExpired,
   }

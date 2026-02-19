@@ -9,6 +9,10 @@ Goal:
 - `lib/core/*` = **business logic hooks + pure helpers**
 - Components consume via `useAppContext()`
 
+Plan naming (important):
+- ✅ **`hasPlan`** = единственото име в UI (trial OR premium)
+- ⚠️ `adminHasActiveSubscription` = legacy alias (само докато core hook-овете се мигрират)
+
 ---
 
 ## 1) Folder Map (what lives where)
@@ -33,12 +37,15 @@ Goal:
 - `lib/app-context.tsx`
   - Provides `AppContext` + `AppProvider`
   - Composes core hooks and exposes one unified API
+  - Exposes **`hasPlan`** to UI (trial OR premium)
 
 ### Core: subscription/plan
 - `lib/core/subscription-state.ts`
   - Derived:
     - `trialDaysLeft`
-    - `adminHasActiveSubscription` (active plan = trial OR premium)
+    - **`hasPlan`** (active plan = trial OR premium)
+  - ⚠️ During migration it may still expose `adminHasActiveSubscription` as legacy output;
+    `lib/app-context.tsx` normalizes to `hasPlan` for UI.
 
 ### Core: UI prefs
 - `lib/core/ui-preferences.ts` (or `quick-controls-state.ts` if that is the actual file)
@@ -120,6 +127,11 @@ UI -> AppContext -> users-state -> guards/helpers -> persistence
 
 ### 3.3 Scenes
 UI -> AppContext -> scenes-state -> scenes-guard -> persistence
+
+### 3.4 Plan / trial / premium gating
+UI -> `useAppContext().hasPlan`
+- UI components + `lib/permissions.ts` use **`hasPlan`** only.
+- Any legacy `adminHasActiveSubscription` should be confined to core wiring until fully migrated.
 
 ---
 

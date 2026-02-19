@@ -15,9 +15,8 @@ const FORCE_SUBSCRIPTION = process.env.NEXT_PUBLIC_FORCE_SUBSCRIPTION === "1"
 const ADMIN_ROLE: AccessRole = "admin"
 
 // NOTE:
-// currentUserAccess НЕ е нужен за изчисленията (subscription/trial е “на системата”),
-// но го приемаме optional само за back-compat (в момента не го ползваме).
-export function useSubscriptionState(_args?: { currentUserAccess?: AccessRole }) {
+// subscription/trial са “на системата” (admin-owned). Няма нужда от currentUserAccess тук.
+export function useSubscriptionState() {
   // Trial
   const [trial, setTrial] = useState<TrialState>(() => loadTrial())
   const didInitTrial = useRef(false)
@@ -43,14 +42,11 @@ export function useSubscriptionState(_args?: { currentUserAccess?: AccessRole })
   // Derived
   const trialDaysLeftValue = useMemo(() => trialDaysLeft(trial), [trial])
 
-  // ✅ Active plan = trial OR premium (owned by Admin/system)
-  const hasActivePlan = useMemo(() => {
+  const hasPlan = useMemo(() => {
     const hasTrial = trialDaysLeftValue > 0
     const hasPremium = adminHasPremium(ADMIN_ROLE, premium)
-    return hasTrial || hasPremium
+    return FORCE_SUBSCRIPTION || hasTrial || hasPremium
   }, [trialDaysLeftValue, premium])
-
-  const adminHasActiveSubscription = FORCE_SUBSCRIPTION || hasActivePlan
 
   return {
     trial,
@@ -58,6 +54,11 @@ export function useSubscriptionState(_args?: { currentUserAccess?: AccessRole })
     premium,
     setPremium,
     trialDaysLeft: trialDaysLeftValue,
-    adminHasActiveSubscription,
+
+    // ✅ new unified name
+    hasPlan,
+
+    // ✅ kept temporarily so older wiring doesn't break
+    adminHasActiveSubscription: hasPlan,
   }
 }

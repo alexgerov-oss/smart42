@@ -8,19 +8,19 @@ export type CreatorIdentity = { name: string; email: string }
  * - Ако има trial/premium (active plan) -> unlimited
  * - Ако няма -> само 1 общо
  */
-export function canCreateIButtonUser(role: AccessRole, adminHasActiveSubscription: boolean, currentCount: number): boolean {
+export function canCreateIButtonUser(role: AccessRole, hasPlan: boolean, currentCount: number): boolean {
   if (role === "open-close") return false
-  return adminHasActiveSubscription ? true : currentCount < 1
+  return hasPlan ? true : currentCount < 1
 }
 
 /**
  * App users:
  * - Open/Close не може
- * - Трябва active plan (trial/premium)
+ * - Трябва active plan (trial/premium) за ВСИЧКИ (вкл. admin)
  */
-export function canCreateAppUser(role: AccessRole, adminHasActiveSubscription: boolean): boolean {
+export function canCreateAppUser(role: AccessRole, hasPlan: boolean): boolean {
   if (role === "open-close") return false
-  return adminHasActiveSubscription
+  return Boolean(hasPlan)
 }
 
 export function fullAccessAccountCount(appUsers: AppUser[]): number {
@@ -60,7 +60,6 @@ export function makeIButtonUser(params: {
 }
 
 export function appendIButtonUser(users: IButtonUser[], newUser: IButtonUser): IButtonUser[] {
-  // basic safety: avoid duplicate id
   if (users.some((u) => u.id === newUser.id)) return users
   return [...users, newUser]
 }

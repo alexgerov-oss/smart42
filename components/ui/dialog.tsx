@@ -6,6 +6,30 @@ import { XIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
+// ---- internal helper: detect if a DialogDescription exists anywhere in the tree ----
+function hasDialogDescription(node: React.ReactNode): boolean {
+  let found = false
+
+  React.Children.forEach(node, (child) => {
+    if (found) return
+    if (!React.isValidElement(child)) return
+
+    // Our wrapper OR the raw primitive
+    if (child.type === DialogDescription || child.type === DialogPrimitive.Description) {
+      found = true
+      return
+    }
+
+    // Recurse into nested children (e.g. inside DialogHeader)
+    const nested = (child.props as { children?: React.ReactNode } | undefined)?.children
+    if (nested && hasDialogDescription(nested)) {
+      found = true
+    }
+  })
+
+  return found
+}
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -54,6 +78,15 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  // ✅ If there is NO <DialogDescription>, explicitly unset aria-describedby to avoid Radix warning
+  const hasDescription = hasDialogDescription(children)
+
+  // We only add aria-describedby when there is NO description and caller didn't specify it.
+  const contentProps = { ...props } as React.ComponentProps<typeof DialogPrimitive.Content>
+  if (!hasDescription && !('aria-describedby' in contentProps)) {
+    ;(contentProps as any)['aria-describedby'] = undefined
+  }
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -63,7 +96,7 @@ function DialogContent({
           'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
           className,
         )}
-        {...props}
+        {...contentProps}
       >
         {children}
         {showCloseButton && (

@@ -291,7 +291,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    adminHasActiveSubscription: hasPlan,
+    hasPlan: hasPlan,
     isTrialActive: false,
     isTrialExpired: false,
   }

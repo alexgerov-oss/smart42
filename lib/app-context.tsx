@@ -122,7 +122,9 @@ interface AppContextType {
   clearActivityLog: () => void
 
   trialDaysLeft: number
-  adminHasActiveSubscription: boolean
+
+  // ✅ unified flag for UI (trial OR premium)
+  hasPlan: boolean
 
   fullAccessAccountCount: number
   canCreateFullAccessAccount: () => boolean
@@ -143,7 +145,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Subscription (core = source of truth)
   const subscription = useSubscriptionState()
   const trialDaysLeftValue = subscription.trialDaysLeft
-  const adminHasPlan = subscription.adminHasActiveSubscription
+
+  // ✅ Support both shapes during migration: { hasPlan } OR { adminHasActiveSubscription }
+  const hasPlan = subscription.hasPlan
 
   // Profile base state
   const profile = useProfileState({ currentUserAccess })
@@ -151,7 +155,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Users
   const users = useUsersState({
     currentUserAccess,
-    adminHasActiveSubscription: adminHasPlan,
+    // core hooks still expect legacy arg name
+    adminHasActiveSubscription: hasPlan,
     canOperate: profile.canOperateFullRestrictedActions,
     isOpenClose: profile.isOpenClose,
     creatorIdentity: profile.creatorIdentity,
@@ -174,7 +179,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Scenes
   const { scenes, setScenes, canCreateScene } = useScenesState({
     currentUserAccess,
-    adminHasActiveSubscription: adminHasPlan,
+    // core hooks still expect legacy arg name
+    adminHasActiveSubscription: hasPlan,
   })
 
   // Lock/timers (UI state)
@@ -209,7 +215,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fullAccess = useFullAccessState({
     appUsers: users.appUsers,
     isFull: profile.isFull,
-    adminHasActiveSubscription: adminHasPlan,
+    // core hooks still expect legacy arg name
+    adminHasActiveSubscription: hasPlan,
     fullIsActivated: profile.fullIsActivated,
     fullAccessProfileByAdmin: profile.fullAccessProfileByAdmin,
   })
@@ -301,7 +308,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         clearActivityLog: activity.clearActivityLog,
 
         trialDaysLeft: trialDaysLeftValue,
-        adminHasActiveSubscription: adminHasPlan,
+        hasPlan,
 
         fullAccessAccountCount: fullAccess.fullAccessAccountCount,
         canCreateFullAccessAccount: fullAccess.canCreateFullAccessAccount,
