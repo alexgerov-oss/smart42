@@ -17,11 +17,6 @@ interface ChartScreenProps {
 
   // ✅ plan/trial flag from page.tsx
   hasPlan: boolean
-
-  // legacy props (kept so callers don't break)
-  isOnTrial: boolean
-  remainingTrialDays: number | null
-
   currentScreen: Screen
 }
 
@@ -37,8 +32,6 @@ export default function ChartScreen({
   onBack,
   onNavigate,
   hasPlan,
-  isOnTrial: _isOnTrial,
-  remainingTrialDays: _remainingTrialDays,
   currentScreen,
 }: ChartScreenProps) {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("day")

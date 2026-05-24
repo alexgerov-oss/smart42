@@ -63,15 +63,12 @@ export function AppBottomNav({
 }: AppBottomNavProps) {
   const activeTab = getActiveTabFromScreen(currentScreen)
 
-  // ✅ one plan source of truth
-  const plan = hasPlan
-
   // ✅ fallback permissions if caller doesn't pass canAccess*
   const { currentUserAccess } = useAppContext()
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
-    hasPlan: plan,
+    hasPlan,
   }
 
   const canAccessActivity =

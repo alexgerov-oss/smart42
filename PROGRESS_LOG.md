@@ -1,3 +1,25 @@
+## 2026-05-24 — PermissionContext cleanup: ChartScreen/AppBottomNav
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Standardized `AppBottomNav` permission context to pass `{ currentUserAccess, hasPlan }` directly.
+- Removed unused legacy `isOnTrial` / `remainingTrialDays` props from `ChartScreen`.
+- Removed the same unused props from the `ChartScreen` call in `app/page.tsx`.
+- No UI/layout/color/spacing changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: not needed for this small prop cleanup
+
+Result:
+- OK
+
+Next:
+- Continue with minimal permission/context cleanup only where safe.
+
 ## 2026-05-24 — Refactor cleanup: remove adminHasActiveSubscription legacy flag
 
 Baseline/branch:

@@ -178,8 +178,6 @@ export default function Home() {
           onBack={() => handleNavigate("dashboard")}
           onNavigate={handleNavigate}
           hasPlan={hasPlan}
-          isOnTrial={isOnTrial}
-          remainingTrialDays={remainingTrialDays}
           currentScreen={currentScreen}
         />
       )}
