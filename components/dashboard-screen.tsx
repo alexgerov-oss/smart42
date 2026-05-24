@@ -88,7 +88,6 @@ export default function DashboardScreen({
     currentUserAccess,
     getEntityName,
     setEntityName,
-    getFullAccessUserProfile,
     doors,
     addDoor,
     updateDoor,
@@ -108,7 +107,7 @@ export default function DashboardScreen({
 
   const doorSystemName = selectedDoor?.systemName || doorName
   const displayDoorName = activeDoorId ? getEntityName("doors", activeDoorId, doorSystemName) : doorSystemName
-  const displayUserName = currentUserAccess === "full" ? getFullAccessUserProfile()?.name || userName : userName
+  const displayUserName = userName
 
   const permissionContext: PermissionContext = {
     currentUserAccess,

@@ -4,8 +4,8 @@ import { useMemo, useState } from "react"
 import type { AccessRole } from "@/lib/core/types"
 
 // ✅ opts is optional + safe default (prevents "destructure of undefined")
-const DEFAULT_FULL_ACCESS_NAME = "Jane Smith"
-const DEFAULT_FULL_ACCESS_EMAIL = "jane.smith@example.com"
+const DEFAULT_FULL_ACCESS_NAME = ""
+const DEFAULT_FULL_ACCESS_EMAIL = ""
 
 export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
   const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
@@ -24,18 +24,18 @@ export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
   const [userNamesByRole, setUserNamesByRole] = useState<Record<AccessRole, string>>({
     admin: "John Doe",
     full: DEFAULT_FULL_ACCESS_NAME,
-    "open-close": "Guest User",
+    "open-close": "",
   })
 
-  const userName = userNamesByRole[currentUserAccess] ?? userNamesByRole.admin ?? "User"
+  const userName = userNamesByRole[currentUserAccess] ?? ""
 
   const [userEmailsByRole, setUserEmailsByRole] = useState<Record<AccessRole, string>>({
     admin: "john.doe@example.com",
     full: DEFAULT_FULL_ACCESS_EMAIL,
-    "open-close": "guest@example.com",
+    "open-close": "",
   })
 
-  const userEmail = userEmailsByRole[currentUserAccess] ?? userEmailsByRole.admin ?? "user@example.com"
+  const userEmail = userEmailsByRole[currentUserAccess] ?? ""
 
   const setUserEmail = (email: string) => {
     const nextEmail = email.trim()

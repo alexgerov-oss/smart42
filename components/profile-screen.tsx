@@ -88,7 +88,13 @@ export default function ProfileScreen({
 
   const handleAccessChange = (value: "admin" | "full" | "open-close") => {
     if (value === "full") {
-      const fullAccessUserExists = appUsers.some((user) => user.access === "full")
+      const fullAccessUserExists = appUsers.some(
+        (user) =>
+          user.access === "full" &&
+          user.name.trim() !== "" &&
+          Boolean(user.email && user.email.trim() !== "") &&
+          Boolean(user.password && user.password.trim() !== ""),
+      )
 
       if (!hasPlan) {
         toast({

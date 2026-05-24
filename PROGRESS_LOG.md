@@ -1,3 +1,27 @@
+## 2026-05-24 — Bugfix: remove default Full Access mock profile
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Removed default Full Access mock identity values.
+- Full Access no longer starts with Jane Smith / jane.smith@example.com.
+- Switching to Full Access now requires a real Admin-created Full Access App User with name, email, and password.
+- Home now shows the current role-local userName, so Full Access local name changes appear on Home.
+- Removed unused Full Access profile fallback from Dashboard.
+- No layout/color/spacing changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: cleared localStorage appUsers/iButtonUsers and confirmed Full Access is blocked until Admin creates the user
+
+Result:
+- OK
+
+Next:
+- Continue manual role/login sanity checks.
+
 ## 2026-05-24 — Bugfix: add App User password login flow
 
 Baseline/branch:
