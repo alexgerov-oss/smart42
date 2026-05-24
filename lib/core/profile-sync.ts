@@ -65,8 +65,8 @@ export function createSetUserNameHandler(params: {
   const { canOperate, isOpenClose, currentUserAccess, isAdmin, isFull, setUserNamesByRole, setAppUsers } = params
 
   return (name: string) => {
-    if (!canOperate) return
     if (isOpenClose) return
+    if (!canOperate && !isFull) return
 
     setUserNamesByRole((prev) => updateRoleName(prev, currentUserAccess, name))
 

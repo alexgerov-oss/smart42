@@ -67,7 +67,7 @@ export default function ProfileScreen({
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState("")
 
-  const displayName = access === "full" ? getFullAccessUserProfile()?.name || userName : userName
+  const displayName = userName
   const displayEmail = access === "full" ? getFullAccessUserProfile()?.email || userEmail : userEmail
 
   const isTrialExpired = remainingTrialDays !== null && remainingTrialDays === 0
@@ -85,11 +85,6 @@ export default function ProfileScreen({
   const validateEmailFormat = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   const handleSaveName = () => {
-    if (access === "full") {
-      setIsEditingName(false)
-      setTempName("")
-      return
-    }
     if (tempName.trim()) setUserName(tempName)
     setIsEditingName(false)
     setTempName("")
