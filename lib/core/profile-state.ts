@@ -26,7 +26,19 @@ export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
 
   const userName = userNamesByRole[currentUserAccess] ?? userNamesByRole.admin ?? "User"
 
-  const [userEmail, setUserEmail] = useState("john.doe@example.com")
+  const [userEmailsByRole, setUserEmailsByRole] = useState<Record<AccessRole, string>>({
+    admin: "john.doe@example.com",
+    full: "jane.smith@example.com",
+    "open-close": "guest@example.com",
+  })
+
+  const userEmail = userEmailsByRole[currentUserAccess] ?? userEmailsByRole.admin ?? "user@example.com"
+
+  const setUserEmail = (email: string) => {
+    const nextEmail = email.trim()
+    if (!nextEmail) return
+    setUserEmailsByRole((prev) => ({ ...prev, [currentUserAccess]: nextEmail }))
+  }
 
   // Full access profile (created by admin)
   const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)

@@ -42,7 +42,6 @@ export default function ProfileScreen({
     setCurrentUserAccess,
     sessionPassword,
     setSessionPassword,
-    getFullAccessUserProfile,
   } = useAppContext()
 
   const access = currentUserAccess as AccessLevel
@@ -68,7 +67,7 @@ export default function ProfileScreen({
   const [passwordError, setPasswordError] = useState("")
 
   const displayName = userName
-  const displayEmail = access === "full" ? getFullAccessUserProfile()?.email || userEmail : userEmail
+  const displayEmail = userEmail
 
   const isTrialExpired = remainingTrialDays !== null && remainingTrialDays === 0
 
@@ -91,16 +90,6 @@ export default function ProfileScreen({
   }
 
   const handleSaveEmail = () => {
-    if (access === "full") {
-      setIsEditingEmail(false)
-      setTempEmail1("")
-      setTempEmail2("")
-      setEmailChangePassword("")
-      setEmailChangePasswordError("")
-      setEmailError("")
-      return
-    }
-
     if (!validateEmailFormat(tempEmail1)) {
       setEmailError("Invalid email format")
       return
