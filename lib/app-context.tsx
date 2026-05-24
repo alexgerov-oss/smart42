@@ -76,6 +76,7 @@ interface AppContextType {
   setUserName: (name: string) => void
   userEmail: string
   setUserEmail: (email: string) => void
+  setUserProfileForRole: (role: AccessRole, profile: { name?: string; email?: string }) => void
 
   iButtonUsers: IButtonUser[]
   canCreateIButtonUser: () => boolean
@@ -259,6 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUserName: setUserNameHandler,
         userEmail: profile.userEmail,
         setUserEmail: profile.setUserEmail,
+        setUserProfileForRole: profile.setUserProfileForRole,
 
         iButtonUsers: users.iButtonUsers,
         canCreateIButtonUser: users.canCreateIButtonUser,

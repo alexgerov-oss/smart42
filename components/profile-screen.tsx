@@ -41,6 +41,7 @@ export default function ProfileScreen({
     setUserEmail,
     currentUserAccess,
     setCurrentUserAccess,
+    setUserProfileForRole,
     appUsers,
     sessionPassword,
     setSessionPassword,
@@ -86,33 +87,56 @@ export default function ProfileScreen({
 
   const validateEmailFormat = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
+  const getCompleteAppUserForAccess = (access: "full" | "open-close") =>
+    appUsers.find(
+      (user) =>
+        user.access === access &&
+        user.name.trim() !== "" &&
+        Boolean(user.email && user.email.trim() !== "") &&
+        Boolean(user.password && user.password.trim() !== ""),
+    )
+
   const handleAccessChange = (value: "admin" | "full" | "open-close") => {
-    if (value === "full") {
-      const fullAccessUserExists = appUsers.some(
-        (user) =>
-          user.access === "full" &&
-          user.name.trim() !== "" &&
-          Boolean(user.email && user.email.trim() !== "") &&
-          Boolean(user.password && user.password.trim() !== ""),
-      )
+    if (value === "admin") {
+      setCurrentUserAccess(value)
+      return
+    }
 
-      if (!hasPlan) {
-        toast({
-          title: "Full Access locked",
-          description: "Get trial or premium to use Full Access.",
-          variant: "destructive",
-        })
-        return
-      }
+    if (!hasPlan) {
+      toast({
+        title: "User access locked",
+        description: "Get trial or premium to use App Users.",
+        variant: "destructive",
+      })
+      return
+    }
 
-      if (!fullAccessUserExists) {
-        toast({
-          title: "Full Access unavailable",
-          description: "Admin must add a Full Access user first.",
-          variant: "destructive",
-        })
-        return
-      }
+    const matchingAppUser = getCompleteAppUserForAccess(value)
+
+    if (value === "full" && !matchingAppUser) {
+      toast({
+        title: "Full Access unavailable",
+        description: "Admin must add a Full Access user first.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (value === "open-close" && !matchingAppUser) {
+      toast({
+        title: "Open/Close Only unavailable",
+        description: "Admin or Full Access must add this user first.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (matchingAppUser) {
+      setUserProfileForRole(value, {
+        name: matchingAppUser.name,
+        email: matchingAppUser.email,
+      })
+      if (matchingAppUser.password) setSessionPassword(matchingAppUser.password)
     }
 
     setCurrentUserAccess(value)

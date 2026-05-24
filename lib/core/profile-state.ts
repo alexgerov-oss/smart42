@@ -43,6 +43,19 @@ export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
     setUserEmailsByRole((prev) => ({ ...prev, [currentUserAccess]: nextEmail }))
   }
 
+  const setUserProfileForRole = (role: AccessRole, profile: { name?: string; email?: string }) => {
+    const nextName = profile.name?.trim()
+    const nextEmail = profile.email?.trim()
+
+    if (nextName) {
+      setUserNamesByRole((prev) => ({ ...prev, [role]: nextName }))
+    }
+
+    if (nextEmail) {
+      setUserEmailsByRole((prev) => ({ ...prev, [role]: nextEmail }))
+    }
+  }
+
   // Full access profile (created by admin)
   const [fullAccessProfileByAdmin, _setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
 
@@ -88,6 +101,7 @@ export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
     userName,
     userEmail,
     setUserEmail,
+    setUserProfileForRole,
 
     fullAccessCreatedByAdmin,
     setFullAccessCreatedByAdmin,

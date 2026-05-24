@@ -21,6 +21,7 @@ export default function LoginScreen({ onLogin, onNavigate }: LoginScreenProps) {
     appUsers,
     setCurrentUserAccess,
     setUserEmail,
+    setUserProfileForRole,
   } = useAppContext()
 
   const [email, setEmail] = useState("")
@@ -39,6 +40,10 @@ export default function LoginScreen({ onLogin, onNavigate }: LoginScreenProps) {
     )
 
     if (matchingAppUser) {
+      setUserProfileForRole(matchingAppUser.access, {
+        name: matchingAppUser.name,
+        email: matchingAppUser.email,
+      })
       setCurrentUserAccess(matchingAppUser.access)
       if (matchingAppUser.email) setUserEmail(matchingAppUser.email)
       setSessionPassword(password)

@@ -1,3 +1,30 @@
+## 2026-05-24 — Bugfix: gate Open/Close profile and restore default door
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Applied complete App User checks to Open/Close Only role switching.
+- Open/Close Only can no longer be entered unless a real App User exists with name, email, and password.
+- Admin or Full Access can create Open/Close users when plan rules allow it.
+- Added role profile initialization for App Users so Open/Close receives the Admin/Full-created name and email.
+- App User login now initializes the target role-local profile.
+- Restored default Main Door when browser storage has no doors, so Lock/Unlock still works after clearing localStorage.
+- No layout/color/spacing changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Open/Close blocked until complete App User exists
+- manual: Open/Close shows created name/email after switch/login
+- manual: Lock/Unlock works again after clearing localStorage
+
+Result:
+- OK
+
+Next:
+- Continue manual role/login sanity checks.
+
 ## 2026-05-24 — Bugfix: remove default Full Access mock profile
 
 Baseline/branch:
