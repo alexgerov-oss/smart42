@@ -5,7 +5,7 @@
 
 import type { AccessRole, EntityType } from "@/lib/core/types"
 
-// Keep alias for readability/back-compat
+// Alias for readability
 export type UserRole = AccessRole
 
 export interface PermissionContext {
