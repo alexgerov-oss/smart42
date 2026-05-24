@@ -137,9 +137,7 @@ export default function SettingsScreen({
 
   const isFreeAdmin = isAdmin && !hasPlan
 
-  // ✅ Free Admin лимит: 1 App User без plan (втория е заключен)
-  const appUsersLimitReached = isFreeAdmin && appUsers.length >= 1
-  const canAddMoreAppUsers = canAddAppUsers && !appUsersLimitReached
+  const canAddMoreAppUsers = canAddAppUsers
 
   const visibleIButtonUsers =
     currentUserAccess === "admin" ? iButtonUsers : iButtonUsers.filter((user) => user.createdBy === currentUserAccess)
@@ -215,10 +213,10 @@ export default function SettingsScreen({
   const handleOpenInviteDialog = () => {
     if (!canAddAppUsers) return
 
-    if (appUsersLimitReached) {
+    if (!hasPlan) {
       toast({
         title: "User not added",
-        description: "You can add only 1 App User on the free plan. Get trial or premium to add more.",
+        description: "Get trial or premium to add app users.",
         variant: "destructive",
       })
       setShowPremiumDialog(true)
@@ -241,11 +239,10 @@ export default function SettingsScreen({
     if (!canAddAppUsers) return
     if (!canSendInvitation) return
 
-    // ✅ UI guard за free admin лимита (да има ясно съобщение)
-    if (appUsersLimitReached) {
+    if (!hasPlan) {
       toast({
         title: "Invitation not sent",
-        description: "You can add only 1 App User on the free plan. Get trial or premium to add more.",
+        description: "Get trial or premium to add app users.",
         variant: "destructive",
       })
       setShowPremiumDialog(true)
@@ -808,11 +805,8 @@ export default function SettingsScreen({
                 Add User
               </Button>
 
-              {isAdmin && !hasPlan && !appUsersLimitReached && (
-                <p className="text-sm text-muted-foreground">On free plan you can add 1 app user. Get trial or premium to add more.</p>
-              )}
-              {appUsersLimitReached && (
-                <p className="text-sm text-muted-foreground">Limit reached (free plan). Get trial or premium to add more app users.</p>
+              {isFreeAdmin && (
+                <p className="text-sm text-muted-foreground">Get trial or premium to add app users.</p>
               )}
             </CardContent>
           </Card>
@@ -940,7 +934,7 @@ export default function SettingsScreen({
 
           <DialogFooter>
             <DialogCancel>Cancel</DialogCancel>
-            <DialogAction disabled={!canSendInvitation || appUsersLimitReached} onClick={handleSendInvitation}>
+            <DialogAction disabled={!canSendInvitation || !canAddMoreAppUsers} onClick={handleSendInvitation}>
               Send Invitation
             </DialogAction>
           </DialogFooter>

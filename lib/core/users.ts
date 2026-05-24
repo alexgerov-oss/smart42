@@ -5,12 +5,14 @@ export type CreatorIdentity = { name: string; email: string }
 /**
  * iButtons:
  * - Open/Close не може да добавя
- * - Ако има trial/premium (active plan) -> unlimited
- * - Ако няма -> само 1 общо
+ * - Admin без plan може максимум 1
+ * - Full Access може само ако Admin има active plan
+ * - Ако има trial/premium (active plan) -> Admin/Full могат да добавят
  */
 export function canCreateIButtonUser(role: AccessRole, hasPlan: boolean, currentCount: number): boolean {
   if (role === "open-close") return false
-  return hasPlan ? true : currentCount < 1
+  if (hasPlan) return true
+  return role === "admin" && currentCount < 1
 }
 
 /**

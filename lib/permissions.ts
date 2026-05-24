@@ -93,9 +93,14 @@ export class Permissions {
 
   /**
    * iButton permissions
+   * - Admin can add; free limit is enforced in core/users.ts
+   * - Full Access can add only if Admin has active plan
+   * - Open/Close cannot add
    */
   static canAddIButtons(ctx: PermissionContext): boolean {
-    return ctx.currentUserAccess === "admin" || ctx.currentUserAccess === "full"
+    if (ctx.currentUserAccess === "admin") return true
+    if (ctx.currentUserAccess === "full") return hasActivePlan(ctx)
+    return false
   }
 
   static canEditIButtons(ctx: PermissionContext): boolean {
