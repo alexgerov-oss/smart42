@@ -80,7 +80,7 @@ export function AppBottomNav({
   const canAccessSettings =
     typeof canAccessSettingsProp === "boolean" ? canAccessSettingsProp : Permissions.canAccessSettings(permissionContext)
 
-  const activityLocked = !plan || !canAccessActivity
+  const activityLocked = !hasPlan || !canAccessActivity
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
