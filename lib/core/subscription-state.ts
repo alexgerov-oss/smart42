@@ -57,8 +57,5 @@ export function useSubscriptionState() {
 
     // ✅ new unified name
     hasPlan,
-
-    // ✅ kept temporarily so older wiring doesn't break
-    adminHasActiveSubscription: hasPlan,
   }
 }

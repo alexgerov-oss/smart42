@@ -146,7 +146,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const subscription = useSubscriptionState()
   const trialDaysLeftValue = subscription.trialDaysLeft
 
-  // ✅ Support both shapes during migration: { hasPlan } OR { adminHasActiveSubscription }
   const hasPlan = subscription.hasPlan
 
   // Profile base state
@@ -155,8 +154,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Users
   const users = useUsersState({
     currentUserAccess,
-    // core hooks still expect legacy arg name
-    adminHasActiveSubscription: hasPlan,
+    hasPlan,
     canOperate: profile.canOperateFullRestrictedActions,
     isOpenClose: profile.isOpenClose,
     creatorIdentity: profile.creatorIdentity,
@@ -179,8 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Scenes
   const { scenes, setScenes, canCreateScene } = useScenesState({
     currentUserAccess,
-    // core hooks still expect legacy arg name
-    adminHasActiveSubscription: hasPlan,
+    hasPlan,
   })
 
   // Lock/timers (UI state)
@@ -215,8 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fullAccess = useFullAccessState({
     appUsers: users.appUsers,
     isFull: profile.isFull,
-    // core hooks still expect legacy arg name
-    adminHasActiveSubscription: hasPlan,
+    hasPlan,
     fullIsActivated: profile.fullIsActivated,
     fullAccessProfileByAdmin: profile.fullAccessProfileByAdmin,
   })

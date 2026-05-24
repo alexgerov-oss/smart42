@@ -9,10 +9,10 @@ export type PlanState = {
 export function computePlanState(args: {
   isOnTrial?: boolean
   remainingTrialDays?: number | null
-  adminHasActiveSubscription?: boolean
+  hasSubscription?: boolean
 }): PlanState {
   const isOnTrial = Boolean(args.isOnTrial)
-  const adminHasActiveSubscription = Boolean(args.adminHasActiveSubscription)
+  const hasSubscription = Boolean(args.hasSubscription)
 
   const isTrialExpired =
     args.remainingTrialDays !== null &&
@@ -22,7 +22,7 @@ export function computePlanState(args: {
   const isTrialActive = isOnTrial && !isTrialExpired
 
   // ✅ единствена истина: plan = subscription OR active trial
-  const hasPlan = adminHasActiveSubscription || isTrialActive
+  const hasPlan = hasSubscription || isTrialActive
 
   return { hasPlan, isTrialExpired, isTrialActive }
 }

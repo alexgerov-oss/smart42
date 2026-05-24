@@ -119,8 +119,7 @@ export default function SettingsScreen({
 
   const controller = getActiveController()
   const isAdmin = currentUserAccess === "admin"
-
-  // ✅ FIX: permissions.ts очаква adminHasActiveSubscription (не hasPlan)
+
   const permissionContext: PermissionContext = {
     currentUserAccess,
     hasPlan,

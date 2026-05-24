@@ -1,3 +1,35 @@
+## 2026-05-24 — Refactor cleanup: remove adminHasActiveSubscription legacy flag
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Removed the legacy `adminHasActiveSubscription` naming repo-wide.
+- Standardized remaining core wiring to use the unified `hasPlan` flag.
+- Updated:
+  - `lib/app-context.tsx`
+  - `lib/core/full-access-state.ts`
+  - `lib/core/scenes-guard.ts`
+  - `lib/core/scenes-state.ts`
+  - `lib/core/subscription-state.ts`
+  - `lib/core/users-state.ts`
+  - `lib/permissions.ts`
+  - `lib/plan.ts`
+  - `components/settings-screen.tsx` comment cleanup
+- No UI/layout/color/spacing changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Lock/Unlock works and sends API calls
+
+Result:
+- OK
+
+Next:
+- Continue refactor-v2 with minimal diffs only.
+- Optional next step: standardize remaining `PermissionContext` usage and remove unused trial fields where safe.
+
 
 ## 2026-02-09 — Session
 

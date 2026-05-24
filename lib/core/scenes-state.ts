@@ -6,27 +6,27 @@ import { canCreateScene as canCreateSceneCore, normalizeNextScenes } from "@/lib
 import { loadScenes, saveScenes } from "@/lib/core/scenes-persistence"
 
 // ✅ opts is optional + safe defaults (prevents "destructure of undefined")
-export function useScenesState(opts?: { currentUserAccess?: AccessRole; adminHasActiveSubscription?: boolean }) {
+export function useScenesState(opts?: { currentUserAccess?: AccessRole; hasPlan?: boolean }) {
   const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
-  const adminHasActiveSubscription: boolean = opts?.adminHasActiveSubscription ?? false
+  const hasPlan: boolean = opts?.hasPlan ?? false
 
   const [scenes, setScenesState] = useState<Scene[]>(() => loadScenes())
 
   const canCreateScene = useCallback(() => {
     return canCreateSceneCore({
       currentUserAccess,
-      adminHasActiveSubscription,
+      hasPlan,
       scenesCount: scenes.length,
     })
-  }, [currentUserAccess, adminHasActiveSubscription, scenes.length])
+  }, [currentUserAccess, hasPlan, scenes.length])
 
   const setScenes = useCallback(
     (next: Scene[]) => {
-      const normalized = normalizeNextScenes({ currentUserAccess, adminHasActiveSubscription, next })
+      const normalized = normalizeNextScenes({ currentUserAccess, hasPlan, next })
       setScenesState(normalized)
       saveScenes(normalized)
     },
-    [currentUserAccess, adminHasActiveSubscription],
+    [currentUserAccess, hasPlan],
   )
 
   return useMemo(

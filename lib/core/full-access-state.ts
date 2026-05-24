@@ -13,20 +13,20 @@ const EMPTY_APP_USERS: AppUser[] = []
 export function useFullAccessState(opts?: {
   appUsers?: AppUser[]
   isFull?: boolean
-  adminHasActiveSubscription?: boolean
+  hasPlan?: boolean
   fullIsActivated?: boolean
   fullAccessProfileByAdmin?: { name: string; email: string } | null
 }) {
   const appUsers = opts?.appUsers ?? EMPTY_APP_USERS
   const isFull = opts?.isFull ?? false
-  const adminHasActiveSubscription = opts?.adminHasActiveSubscription ?? false
+  const hasPlan = opts?.hasPlan ?? false
   const fullIsActivated = opts?.fullIsActivated ?? false
   const fullAccessProfileByAdmin = opts?.fullAccessProfileByAdmin ?? null
 
   const fullAccessAccountCount = useMemo(() => fullAccessAccountCountCore(appUsers), [appUsers])
   const canCreateFullAccessAccount = () => canCreateFullAccessAccountCore(appUsers)
   const isFullAccessUserActivated = (): boolean => fullIsActivated
-  const canFullAccessAddUsers = (): boolean => (!isFull ? true : adminHasActiveSubscription)
+  const canFullAccessAddUsers = (): boolean => (!isFull ? true : hasPlan)
   const getFullAccessUserProfile = () => fullAccessProfileByAdmin
 
   return {

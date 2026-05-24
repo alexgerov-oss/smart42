@@ -22,7 +22,7 @@ import { loadAppUsers, loadIButtonUsers, saveAppUsers, saveIButtonUsers } from "
 // ✅ opts optional + safe defaults (prevents "destructure of undefined")
 export function useUsersState(opts?: {
   currentUserAccess?: AccessRole
-  adminHasActiveSubscription?: boolean
+  hasPlan?: boolean
   canOperate?: boolean
   isOpenClose?: boolean
   creatorIdentity?: { name: string; email: string }
@@ -31,7 +31,7 @@ export function useUsersState(opts?: {
   onFullAccessProfileByAdminChange?: (profile: { name: string; email: string } | null) => void
 }) {
   const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "open-close"
-  const adminHasActiveSubscription = opts?.adminHasActiveSubscription ?? false
+  const hasPlan = opts?.hasPlan ?? false
   const canOperate = opts?.canOperate ?? false
   const isOpenClose = opts?.isOpenClose ?? (currentUserAccess === "open-close")
   const creatorIdentity = opts?.creatorIdentity ?? { name: "", email: "" }
@@ -63,15 +63,15 @@ export function useUsersState(opts?: {
   const canMutate = (currentUserAccess === "admin" ? true : canOperate) && !isOpenClose
 
   const canCreateIButtonUser = () =>
-    canCreateIButtonUserCore(currentUserAccess, adminHasActiveSubscription, iButtonUsers.length)
+    canCreateIButtonUserCore(currentUserAccess, hasPlan, iButtonUsers.length)
 
   // ✅ FIX: Free Admin (без plan) -> максимум 1 App User
   const canCreateAppUser = () => {
     // Free Admin limit
-    if (currentUserAccess === "admin" && !adminHasActiveSubscription) {
+    if (currentUserAccess === "admin" && !hasPlan) {
       return appUsers.length < 1
     }
-    return canCreateAppUserCore(currentUserAccess, adminHasActiveSubscription)
+    return canCreateAppUserCore(currentUserAccess, hasPlan)
   }
 
   const updateIButtonUser = (id: string, name: string) => {

@@ -16,14 +16,6 @@ export interface PermissionContext {
    * If missing => treated as NO plan (restrictive).
    */
   hasPlan?: boolean
-
-  /**
-   * ⚠️ Legacy alias (temporary)
-   * Keep optional so we don't break callers during refactors.
-   * Remove after repo-wide migration is done.
-   */
-  adminHasActiveSubscription?: boolean
-
   // Optional trial fields (some parts of the app may not provide them)
   trialDaysLeft?: number
   isTrialActive?: boolean
@@ -45,17 +37,13 @@ export function canRenameEntity(role: AccessRole, entityType: EntityType): boole
 function hasActivePlan(ctx: PermissionContext): boolean {
   // ✅ Prefer unified field
   if (typeof ctx.hasPlan === "boolean") return ctx.hasPlan
-
-  // ⚠️ Legacy fallback
-  const sub = Boolean(ctx.adminHasActiveSubscription)
-
   // Trial signals (restrictive defaults)
   const trialDaysLeft = typeof ctx.trialDaysLeft === "number" ? ctx.trialDaysLeft : 0
   const trialActiveFlag = Boolean(ctx.isTrialActive)
   const trialExpiredFlag = Boolean(ctx.isTrialExpired)
 
   const trialActive = (trialDaysLeft > 0 || trialActiveFlag) && !trialExpiredFlag
-  return sub || trialActive
+  return trialActive
 }
 
 /**
