@@ -119,7 +119,8 @@ export default function SettingsScreen({
 
   const controller = getActiveController()
   const isAdmin = currentUserAccess === "admin"
-
+
+
   const permissionContext: PermissionContext = {
     currentUserAccess,
     hasPlan,
@@ -357,22 +358,18 @@ export default function SettingsScreen({
   }
 
   const handleToggleAutoLock = (checked: boolean) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setAutoLockEnabled(checked)
   }
 
   const handleAutoLockDelayChange = (value: number[]) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setAutoLockDelay(value[0])
   }
 
   const handleToggleAutoNightLock = (checked: boolean) => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setAutoNightLockEnabled(checked)
   }
 
   const handleNightLockTimeChange = (hour: string, minute: string, period: "AM" | "PM") => {
-    if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     setNightLockHour(hour)
     setNightLockMinute(minute)
     setNightLockPeriod(period)
