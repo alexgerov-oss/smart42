@@ -107,13 +107,14 @@ export function useUsersState(opts?: {
   }
 
   // ✅ Стабилно добавяне с проверка за план + duplicate email
-  const addAppUser = (name: string, email: string, access: AccessRole): boolean => {
+  const addAppUser = (name: string, email: string, password: string, access: AccessRole): boolean => {
     if (!canMutate) return false
     if (!canCreateAppUser()) return false
 
     const cleanName = name.trim()
     const cleanEmail = email.trim()
-    if (!cleanName || !cleanEmail) return false
+    const cleanPassword = password.trim()
+    if (!cleanName || !cleanEmail || !cleanPassword) return false
 
     const emailKey = cleanEmail.toLowerCase()
 
@@ -123,6 +124,7 @@ export function useUsersState(opts?: {
       id: newId,
       name: cleanName,
       email: cleanEmail,
+      password: cleanPassword,
       access,
       currentUserAccess,
       creatorName: creatorIdentity.name,

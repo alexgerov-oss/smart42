@@ -90,7 +90,7 @@ interface AppContextType {
   updateAppUser: (id: string, name: string) => void
   addIButtonUser: () => string
   removeIButtonUser: (id: string) => void
-  addAppUser: (name: string, email: string, access: AccessRole) => boolean
+  addAppUser: (name: string, email: string, password: string, access: AccessRole) => boolean
 
   removeAppUser: (id: string) => void
   updateAppUserAccess: (id: string, access: AccessRole) => void

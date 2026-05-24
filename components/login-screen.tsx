@@ -15,7 +15,13 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onLogin, onNavigate }: LoginScreenProps) {
-  const { sessionPassword, setSessionPassword } = useAppContext()
+  const {
+    sessionPassword,
+    setSessionPassword,
+    appUsers,
+    setCurrentUserAccess,
+    setUserEmail,
+  } = useAppContext()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -27,16 +33,31 @@ export default function LoginScreen({ onLogin, onNavigate }: LoginScreenProps) {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
 
+    const cleanEmail = email.trim().toLowerCase()
+    const matchingAppUser = appUsers.find(
+      (user) => (user.email || "").trim().toLowerCase() === cleanEmail && user.password === password,
+    )
+
+    if (matchingAppUser) {
+      setCurrentUserAccess(matchingAppUser.access)
+      if (matchingAppUser.email) setUserEmail(matchingAppUser.email)
+      setSessionPassword(password)
+      onLogin()
+      return
+    }
+
     if (!sessionPassword) {
-      // First login - accept any password and store it
+      // First admin login - accept any password and store it
+      setCurrentUserAccess("admin")
       setSessionPassword(password)
       onLogin()
     } else {
-      // Subsequent login - validate against stored password
+      // Subsequent admin login - validate against stored password
       if (password === sessionPassword) {
+        setCurrentUserAccess("admin")
         onLogin()
       } else {
-        setLoginError("Incorrect password")
+        setLoginError("Incorrect email or password")
       }
     }
   }

@@ -1,3 +1,28 @@
+## 2026-05-24 — Bugfix: add App User password login flow
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added password field to AppUser mock model.
+- Admin now sets App User password when inviting/creating an App User.
+- App User creation requires non-empty name, email, and password.
+- Login now checks App User email/password first.
+- Matching App User login switches to that user's access role.
+- Existing Admin sessionPassword login remains as fallback.
+- No layout/color/spacing changes beyond adding the required password input to existing invite dialog.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: pending login checks
+
+Result:
+- OK
+
+Next:
+- Manual test Admin creates Full Access with email/password, then login with those credentials.
+
 ## 2026-05-24 — Bugfix: gate Full Access role switching
 
 Baseline/branch:

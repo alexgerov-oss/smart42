@@ -90,6 +90,7 @@ export function makeAppUser(params: {
   id: string
   name: string
   email: string
+  password: string
   access: AccessRole
   currentUserAccess: AccessRole
   creatorName: string
@@ -98,6 +99,7 @@ export function makeAppUser(params: {
     id: params.id,
     name: params.name.trim(),
     email: params.email.trim(),
+    password: params.password,
     status: "invited",
     access: params.access,
     createdBy: params.currentUserAccess,
