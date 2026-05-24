@@ -133,9 +133,6 @@ export default function Home() {
           onNavigate={handleNavigate}
           hasPlan={hasPlan}
           currentScreen={currentScreen}
-          isOnTrial={isOnTrial}
-          isTrialExpired={isTrialExpired}
-          // е optional в SettingsScreen, но не е нужно да го подаваме вече
         />
       )}
 
