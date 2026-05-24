@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -121,6 +121,7 @@ export function CircularTimePicker({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[400px] p-6">
+          <DialogTitle className="sr-only">{label}</DialogTitle>
           <div className="space-y-4">
             <div className="text-center space-y-2">
               <div className="text-2xl font-bold">

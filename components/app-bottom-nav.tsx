@@ -104,7 +104,7 @@ export function AppBottomNav({
           disabled={!canAccessActivity}
           onClick={() => {
             if (!canAccessActivity) return
-            onNavigate(plan ? "activity-log" : "subscription")
+            onNavigate(hasPlan ? "activity-log" : "subscription")
             scrollTop()
           }}
           className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${
