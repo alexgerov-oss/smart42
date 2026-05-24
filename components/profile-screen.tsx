@@ -13,6 +13,7 @@ import type { Screen } from "@/app/page"
 import { useAppContext } from "@/lib/app-context"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
+import { useToast } from "@/hooks/use-toast"
 
 type AccessLevel = "admin" | "full" | "open-close" | "none" | string
 
@@ -40,11 +41,13 @@ export default function ProfileScreen({
     setUserEmail,
     currentUserAccess,
     setCurrentUserAccess,
+    appUsers,
     sessionPassword,
     setSessionPassword,
   } = useAppContext()
 
   const access = currentUserAccess as AccessLevel
+  const { toast } = useToast()
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [isEditingEmail, setIsEditingEmail] = useState(false)
@@ -82,6 +85,32 @@ export default function ProfileScreen({
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
 
   const validateEmailFormat = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  const handleAccessChange = (value: "admin" | "full" | "open-close") => {
+    if (value === "full") {
+      const fullAccessUserExists = appUsers.some((user) => user.access === "full")
+
+      if (!hasPlan) {
+        toast({
+          title: "Full Access locked",
+          description: "Get trial or premium to use Full Access.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (!fullAccessUserExists) {
+        toast({
+          title: "Full Access unavailable",
+          description: "Admin must add a Full Access user first.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    setCurrentUserAccess(value)
+  }
 
   const handleSaveName = () => {
     if (tempName.trim()) setUserName(tempName)
@@ -413,7 +442,7 @@ export default function ProfileScreen({
 
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Current Access</Label>
-        <Select value={currentUserAccess} onValueChange={(value: "admin" | "full" | "open-close") => setCurrentUserAccess(value)}>
+        <Select value={currentUserAccess} onValueChange={handleAccessChange}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>

@@ -1,3 +1,27 @@
+## 2026-05-24 — Bugfix: gate Full Access role switching
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Blocked switching to Full Access when Admin has no trial/premium.
+- Blocked switching to Full Access when Admin has not created a Full Access App User.
+- Removed old free-admin App User creation fallback in users-state.
+- Full Access role-local name/email now initialize from the Admin-created Full Access profile.
+- Full Access can still later change own local name/email.
+- No UI/layout/color/spacing changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: pending role switch checks
+
+Result:
+- OK
+
+Next:
+- Add proper per-user password model for App Users in a separate step.
+
 python - <<'PY'
 from pathlib import Path
 

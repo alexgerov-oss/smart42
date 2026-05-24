@@ -4,6 +4,9 @@ import { useMemo, useState } from "react"
 import type { AccessRole } from "@/lib/core/types"
 
 // ✅ opts is optional + safe default (prevents "destructure of undefined")
+const DEFAULT_FULL_ACCESS_NAME = "Jane Smith"
+const DEFAULT_FULL_ACCESS_EMAIL = "jane.smith@example.com"
+
 export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
   const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
 
@@ -20,7 +23,7 @@ export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
   // Profile
   const [userNamesByRole, setUserNamesByRole] = useState<Record<AccessRole, string>>({
     admin: "John Doe",
-    full: "Jane Smith",
+    full: DEFAULT_FULL_ACCESS_NAME,
     "open-close": "Guest User",
   })
 
@@ -28,7 +31,7 @@ export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
 
   const [userEmailsByRole, setUserEmailsByRole] = useState<Record<AccessRole, string>>({
     admin: "john.doe@example.com",
-    full: "jane.smith@example.com",
+    full: DEFAULT_FULL_ACCESS_EMAIL,
     "open-close": "guest@example.com",
   })
 
@@ -41,7 +44,32 @@ export function useProfileState(opts?: { currentUserAccess?: AccessRole }) {
   }
 
   // Full access profile (created by admin)
-  const [fullAccessProfileByAdmin, setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
+  const [fullAccessProfileByAdmin, _setFullAccessProfileByAdmin] = useState<{ name: string; email: string } | null>(null)
+
+  const setFullAccessProfileByAdmin = (profile: { name: string; email: string } | null) => {
+    const previousProfile = fullAccessProfileByAdmin
+    _setFullAccessProfileByAdmin(profile)
+
+    if (!profile) return
+
+    setUserNamesByRole((prev) => {
+      const currentFullName = prev.full
+      const canInitializeFullName =
+        currentFullName === DEFAULT_FULL_ACCESS_NAME ||
+        Boolean(previousProfile && currentFullName === previousProfile.name)
+
+      return canInitializeFullName ? { ...prev, full: profile.name } : prev
+    })
+
+    setUserEmailsByRole((prev) => {
+      const currentFullEmail = prev.full
+      const canInitializeFullEmail =
+        currentFullEmail === DEFAULT_FULL_ACCESS_EMAIL ||
+        Boolean(previousProfile && currentFullEmail === previousProfile.email)
+
+      return canInitializeFullEmail ? { ...prev, full: profile.email } : prev
+    })
+  }
 
   const creatorIdentity = useMemo(() => {
     if (isFull && fullAccessProfileByAdmin) {

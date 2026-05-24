@@ -65,14 +65,7 @@ export function useUsersState(opts?: {
   const canCreateIButtonUser = () =>
     canCreateIButtonUserCore(currentUserAccess, hasPlan, iButtonUsers.length)
 
-  // ✅ FIX: Free Admin (без plan) -> максимум 1 App User
-  const canCreateAppUser = () => {
-    // Free Admin limit
-    if (currentUserAccess === "admin" && !hasPlan) {
-      return appUsers.length < 1
-    }
-    return canCreateAppUserCore(currentUserAccess, hasPlan)
-  }
+  const canCreateAppUser = () => canCreateAppUserCore(currentUserAccess, hasPlan)
 
   const updateIButtonUser = (id: string, name: string) => {
     if (!canMutate) return
