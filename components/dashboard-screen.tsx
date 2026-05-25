@@ -142,6 +142,7 @@ export default function DashboardScreen({
     removeDoor,
     lockDoor,
     unlockDoor,
+    logActivity,
   } = useAppContext()
 
   const { toast } = useToast()
@@ -190,6 +191,19 @@ export default function DashboardScreen({
       toast({ title: "Action failed", description: res.error, variant: "destructive" })
       return false
     }
+
+    const now = new Date()
+
+    logActivity({
+      createdAt: now.toISOString(),
+      doorName: displayDoorName,
+      timeLabel: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      dateLabel: "Today",
+      action: nextState,
+      method: "App",
+      user: displayUserName,
+      eventType: nextState === "lock" ? "door-lock" : "door-unlock",
+    })
 
     // demo sensor state
     setDoorSensorOpen(nextState === "unlock")
