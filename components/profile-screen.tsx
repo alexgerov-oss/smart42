@@ -15,6 +15,7 @@ import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
 
 type AccessLevel = "admin" | "full" | "open-close" | "none" | string
 
@@ -647,21 +648,13 @@ export default function ProfileScreen({
             <h1 className="text-xl font-bold text-foreground">Profile</h1>
           </div>
 
-          <div className="flex items-center gap-2" aria-label="Profile visibility theme">
-            {PROFILE_VISIBILITY_THEMES.map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                aria-label={`Set ${theme} visibility theme`}
-                onClick={() => handleVisibilityThemeChange(theme)}
-                className={cn(
-                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
-                  PROFILE_VISIBILITY_THEME_CLASSES[theme].swatch,
-                  visibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
-                )}
-              />
-            ))}
-          </div>
+          <VisibilityThemeSelector
+            themes={PROFILE_VISIBILITY_THEMES}
+            value={visibilityTheme}
+            onChange={handleVisibilityThemeChange}
+            ariaLabel="Profile visibility theme"
+            themeClasses={PROFILE_VISIBILITY_THEME_CLASSES}
+          />
         </div>
       </div>
 

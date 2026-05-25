@@ -29,6 +29,7 @@ import { DialogCancel } from "@/components/ui/dialog-cancel"
 import { DialogAction } from "@/components/ui/dialog-action"
 import { AppBottomNav } from "@/components/app-bottom-nav"
 import { cn } from "@/lib/utils"
+import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
 
 interface SettingsScreenProps {
   onNavigate: (screen: Screen) => void
@@ -480,21 +481,13 @@ export default function SettingsScreen({
             <h1 className="text-xl font-bold text-foreground">Settings</h1>
           </div>
 
-          <div className="flex items-center gap-2" aria-label="Settings visibility theme">
-            {SETTINGS_VISIBILITY_THEMES.map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                aria-label={`Set ${theme} visibility theme`}
-                onClick={() => handleVisibilityThemeChange(theme)}
-                className={cn(
-                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
-                  SETTINGS_VISIBILITY_THEME_CLASSES[theme].swatch,
-                  visibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
-                )}
-              />
-            ))}
-          </div>
+          <VisibilityThemeSelector
+            themes={SETTINGS_VISIBILITY_THEMES}
+            value={visibilityTheme}
+            onChange={handleVisibilityThemeChange}
+            ariaLabel="Settings visibility theme"
+            themeClasses={SETTINGS_VISIBILITY_THEME_CLASSES}
+          />
         </div>
       </div>
 

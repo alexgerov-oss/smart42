@@ -11,6 +11,7 @@ import { ModalSelector } from "@/components/ui/modal-selector"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
 import { cn } from "@/lib/utils"
+import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
 
 interface ActivityLogScreenProps {
   onNavigate: (screen: Screen) => void
@@ -347,21 +348,13 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
             <h1 className="text-xl font-bold text-foreground">Activity Log</h1>
           </div>
 
-          <div className="flex items-center gap-2" aria-label="Activity visibility theme">
-            {ACTIVITY_VISIBILITY_THEMES.map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                aria-label={`Set ${theme} visibility theme`}
-                onClick={() => handleVisibilityThemeChange(theme)}
-                className={cn(
-                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
-                  ACTIVITY_VISIBILITY_THEME_CLASSES[theme].swatch,
-                  visibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
-                )}
-              />
-            ))}
-          </div>
+          <VisibilityThemeSelector
+            themes={ACTIVITY_VISIBILITY_THEMES}
+            value={visibilityTheme}
+            onChange={handleVisibilityThemeChange}
+            ariaLabel="Activity visibility theme"
+            themeClasses={ACTIVITY_VISIBILITY_THEME_CLASSES}
+          />
         </div>
       </div>
 

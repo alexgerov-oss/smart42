@@ -41,6 +41,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AppBottomNav } from "@/components/app-bottom-nav"
+import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
 
 interface DashboardScreenProps {
   onNavigate: (screen: Screen) => void
@@ -319,21 +320,13 @@ export default function DashboardScreen({
             <span className="text-base font-bold text-foreground">SmartDoor Inc.</span>
           </div>
 
-          <div className="flex items-center gap-2" aria-label="Home visibility theme">
-            {HOME_VISIBILITY_THEMES.map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                aria-label={`Set ${theme} visibility theme`}
-                onClick={() => setHomeVisibilityTheme(theme)}
-                className={cn(
-                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
-                  HOME_VISIBILITY_THEME_CLASSES[theme].swatch,
-                  homeVisibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
-                )}
-              />
-            ))}
-          </div>
+          <VisibilityThemeSelector
+            themes={HOME_VISIBILITY_THEMES}
+            value={homeVisibilityTheme}
+            onChange={setHomeVisibilityTheme}
+            ariaLabel="Home visibility theme"
+            themeClasses={HOME_VISIBILITY_THEME_CLASSES}
+          />
         </div>
 
         <div className="flex items-center justify-between">
