@@ -105,7 +105,7 @@ export default function LoginScreen({ onLogin, onNavigate }: LoginScreenProps) {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                className="bg-input border-gray-500 text-foreground placeholder:text-muted-foreground"
                 required
               />
             </div>
@@ -123,7 +123,7 @@ export default function LoginScreen({ onLogin, onNavigate }: LoginScreenProps) {
                   setPassword(e.target.value)
                   if (loginError) setLoginError("")
                 }}
-                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                className="bg-input border-gray-500 text-foreground placeholder:text-muted-foreground"
                 required
               />
               {loginError && <p className="text-xs text-destructive">{loginError}</p>}
@@ -160,7 +160,7 @@ export default function LoginScreen({ onLogin, onNavigate }: LoginScreenProps) {
                     placeholder="Enter your email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                    className="bg-input border-gray-500 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="flex gap-2">

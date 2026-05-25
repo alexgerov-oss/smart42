@@ -1,3 +1,29 @@
+## 2026-05-25 — UI polish: improve Login input visibility
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Improved default visibility of Login screen input fields.
+- Changed Email and Password input normal border from theme border to gray-500.
+- Focus behavior remains unchanged.
+- No layout/spacing/animation changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Email and Password fields are clearly visible before focus
+- manual: focus border still works
+- manual: Admin/App User login still works
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock
+
+Result:
+- OK
+
+Next:
+- Continue only with explicit UI tweaks requested by the user.
+- Keep diffs minimal and avoid unrelated visual changes.
+
 ## 2026-05-25 — UI polish: add inactive Quick Controls switch outline
 
 Baseline/branch:
