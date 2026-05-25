@@ -10,6 +10,7 @@ import { useAppContext } from "@/lib/app-context"
 import { ModalSelector } from "@/components/ui/modal-selector"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
+import { cn } from "@/lib/utils"
 
 interface ActivityLogScreenProps {
   onNavigate: (screen: Screen) => void
@@ -20,6 +21,8 @@ interface ActivityLogScreenProps {
 
 type ActivityVisibilityTheme = "dark" | "soft" | "day"
 
+const ACTIVITY_VISIBILITY_THEMES: ActivityVisibilityTheme[] = ["dark", "soft", "day"]
+
 const ACTIVITY_VISIBILITY_THEME_CLASSES: Record<
   ActivityVisibilityTheme,
   {
@@ -28,6 +31,7 @@ const ACTIVITY_VISIBILITY_THEME_CLASSES: Record<
     filterBar: string
     mutedText: string
     bottomNavInactiveText: string
+    swatch: string
   }
 > = {
   dark: {
@@ -36,6 +40,7 @@ const ACTIVITY_VISIBILITY_THEME_CLASSES: Record<
     filterBar: "bg-background/95 supports-backdrop-filter:bg-background/60",
     mutedText: "text-muted-foreground",
     bottomNavInactiveText: "text-muted-foreground",
+    swatch: "bg-black",
   },
   soft: {
     card: "bg-[#232b3a]",
@@ -43,6 +48,7 @@ const ACTIVITY_VISIBILITY_THEME_CLASSES: Record<
     filterBar: "bg-[#151b27]/95 supports-backdrop-filter:bg-[#151b27]/60",
     mutedText: "text-gray-300",
     bottomNavInactiveText: "text-gray-300",
+    swatch: "bg-[linear-gradient(135deg,#111827_0%,#111827_50%,#ffffff_50%,#ffffff_100%)]",
   },
   day: {
     card: "bg-[#2d374c]",
@@ -50,6 +56,7 @@ const ACTIVITY_VISIBILITY_THEME_CLASSES: Record<
     filterBar: "bg-[#151d2b]/95 supports-backdrop-filter:bg-[#151d2b]/60",
     mutedText: "text-gray-200",
     bottomNavInactiveText: "text-gray-100",
+    swatch: "bg-white",
   },
 }
 
@@ -160,13 +167,18 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
   const [userFilter, setUserFilter] = useState<UserFilter>("all")
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  const [visibilityTheme] = useState<ActivityVisibilityTheme>(() => {
+  const [visibilityTheme, setVisibilityTheme] = useState<ActivityVisibilityTheme>(() => {
     if (typeof window === "undefined") return "soft"
     const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
     return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
   })
 
   const activityTheme = ACTIVITY_VISIBILITY_THEME_CLASSES[visibilityTheme]
+
+  const handleVisibilityThemeChange = (theme: ActivityVisibilityTheme) => {
+    setVisibilityTheme(theme)
+    window.localStorage.setItem("homeVisibilityTheme", theme)
+  }
 
   const { currentUserAccess } = useAppContext()
 
@@ -327,11 +339,29 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
   return (
     <div className="flex flex-col min-h-screen pb-20">
       <div className={`${activityTheme.header} border-b border-border p-4`}>
-        <div className="flex items-center gap-3">
-          <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <h1 className="text-xl font-bold text-foreground">Activity Log</h1>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <h1 className="text-xl font-bold text-foreground">Activity Log</h1>
+          </div>
+
+          <div className="flex items-center gap-2" aria-label="Activity visibility theme">
+            {ACTIVITY_VISIBILITY_THEMES.map((theme) => (
+              <button
+                key={theme}
+                type="button"
+                aria-label={`Set ${theme} visibility theme`}
+                onClick={() => handleVisibilityThemeChange(theme)}
+                className={cn(
+                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
+                  ACTIVITY_VISIBILITY_THEME_CLASSES[theme].swatch,
+                  visibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
+                )}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
