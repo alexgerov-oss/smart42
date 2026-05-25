@@ -14,6 +14,7 @@ import { useAppContext } from "@/lib/app-context"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 type AccessLevel = "admin" | "full" | "open-close" | "none" | string
 
@@ -28,6 +29,8 @@ interface ProfileScreenProps {
 
 type ProfileVisibilityTheme = "dark" | "soft" | "day"
 
+const PROFILE_VISIBILITY_THEMES: ProfileVisibilityTheme[] = ["dark", "soft", "day"]
+
 const PROFILE_VISIBILITY_THEME_CLASSES: Record<
   ProfileVisibilityTheme,
   {
@@ -36,6 +39,7 @@ const PROFILE_VISIBILITY_THEME_CLASSES: Record<
     tile: string
     mutedText: string
     bottomNavInactiveText: string
+    swatch: string
   }
 > = {
   dark: {
@@ -44,6 +48,7 @@ const PROFILE_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-background",
     mutedText: "text-muted-foreground",
     bottomNavInactiveText: "text-muted-foreground",
+    swatch: "bg-black",
   },
   soft: {
     card: "bg-[#232b3a]",
@@ -51,6 +56,7 @@ const PROFILE_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-[#151b27]",
     mutedText: "text-gray-300",
     bottomNavInactiveText: "text-gray-300",
+    swatch: "bg-[linear-gradient(135deg,#111827_0%,#111827_50%,#ffffff_50%,#ffffff_100%)]",
   },
   day: {
     card: "bg-[#2d374c]",
@@ -58,6 +64,7 @@ const PROFILE_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-[#151d2b]",
     mutedText: "text-gray-200",
     bottomNavInactiveText: "text-gray-100",
+    swatch: "bg-white",
   },
 }
 
@@ -85,13 +92,18 @@ export default function ProfileScreen({
   const access = currentUserAccess as AccessLevel
   const { toast } = useToast()
 
-  const [visibilityTheme] = useState<ProfileVisibilityTheme>(() => {
+  const [visibilityTheme, setVisibilityTheme] = useState<ProfileVisibilityTheme>(() => {
     if (typeof window === "undefined") return "soft"
     const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
     return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
   })
 
   const profileTheme = PROFILE_VISIBILITY_THEME_CLASSES[visibilityTheme]
+
+  const handleVisibilityThemeChange = (theme: ProfileVisibilityTheme) => {
+    setVisibilityTheme(theme)
+    window.localStorage.setItem("homeVisibilityTheme", theme)
+  }
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [isEditingEmail, setIsEditingEmail] = useState(false)
@@ -627,11 +639,29 @@ export default function ProfileScreen({
   return (
     <div className="flex min-h-screen flex-col pb-20">
       <div className={`${profileTheme.header} border-b border-border p-4`}>
-        <div className="flex items-center gap-3">
-          <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <h1 className="text-xl font-bold text-foreground">Profile</h1>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <h1 className="text-xl font-bold text-foreground">Profile</h1>
+          </div>
+
+          <div className="flex items-center gap-2" aria-label="Profile visibility theme">
+            {PROFILE_VISIBILITY_THEMES.map((theme) => (
+              <button
+                key={theme}
+                type="button"
+                aria-label={`Set ${theme} visibility theme`}
+                onClick={() => handleVisibilityThemeChange(theme)}
+                className={cn(
+                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
+                  PROFILE_VISIBILITY_THEME_CLASSES[theme].swatch,
+                  visibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
+                )}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
