@@ -59,7 +59,6 @@ export default function SettingsScreen({
 
   const [inviteUserName, setInviteUserName] = useState("")
   const [inviteUserEmail, setInviteUserEmail] = useState("")
-  const [inviteUserPassword, setInviteUserPassword] = useState("")
   const [inviteUserAccess, setInviteUserAccess] = useState<"full" | "open-close">("open-close")
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
@@ -226,7 +225,6 @@ export default function SettingsScreen({
 
     setInviteUserName("")
     setInviteUserEmail("")
-    setInviteUserPassword("")
     setInviteUserAccess("open-close")
     setShowInviteAppUserDialog(true)
   }
@@ -235,8 +233,7 @@ export default function SettingsScreen({
   const canSendInvitation =
     inviteUserName.trim() !== "" &&
     inviteUserEmail.trim() !== "" &&
-    isValidEmail(inviteUserEmail.trim()) &&
-    inviteUserPassword.trim() !== ""
+    isValidEmail(inviteUserEmail.trim())
 
   const getAppUserDisplayName = (user: { id: string; name: string }) => getEntityName("appusers", user.id, user.name)
 
@@ -271,7 +268,7 @@ export default function SettingsScreen({
       }
     }
 
-    const ok = addAppUser(inviteUserName.trim(), inviteUserEmail.trim(), inviteUserPassword.trim(), finalAccess)
+    const ok = addAppUser(inviteUserName.trim(), inviteUserEmail.trim(), finalAccess)
 
     if (!ok) {
       toast({
@@ -284,7 +281,6 @@ export default function SettingsScreen({
 
     setInviteUserName("")
     setInviteUserEmail("")
-    setInviteUserPassword("")
     setInviteUserAccess("open-close")
     setShowInviteAppUserDialog(false)
 
@@ -909,16 +905,6 @@ export default function SettingsScreen({
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">Email</label>
               <Input type="email" value={inviteUserEmail} onChange={(e) => setInviteUserEmail(e.target.value)} placeholder="user@example.com" />
-            </div>
-
-            <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Password</label>
-              <Input
-                type="password"
-                value={inviteUserPassword}
-                onChange={(e) => setInviteUserPassword(e.target.value)}
-                placeholder="Enter user password"
-              />
             </div>
 
             {currentUserAccess !== "full" && (

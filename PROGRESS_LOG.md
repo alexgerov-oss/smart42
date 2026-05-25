@@ -1,3 +1,43 @@
+python - <<'PY'
+from pathlib import Path
+
+p = Path("PROGRESS_LOG.md")
+old = p.read_text(encoding="utf-8")
+
+entry = """## 2026-05-25 — Bugfix: remove manual App User password field
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Removed the manual Password input from the Invite New User dialog.
+- App Users are now created with name, email, and access role only.
+- Added temporary mock generated password for new App Users: smart42-temp.
+- App User login still works with the created email and the temporary mock password.
+- Kept existing local/mock storage flow until backend/email delivery is added.
+- No layout/color/spacing/animation changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Admin with trial/premium can create Full Access user without password field
+- manual: Full Access login works with created email + smart42-temp
+- manual: Admin with trial/premium can create Open/Close user without password field
+- manual: Open/Close login works with created email + smart42-temp
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock
+
+Result:
+- OK
+
+Next:
+- Continue manual role/login sanity pass.
+- Later replace mock temporary password with real backend-generated password + email delivery.
+
+"""
+
+p.write_text(entry + old, encoding="utf-8")
+PY
+
 ## 2026-05-24 — Bugfix: gate Open/Close profile and restore default door
 
 Baseline/branch:
