@@ -26,6 +26,41 @@ interface ProfileScreenProps {
   hasPlan: boolean
 }
 
+type ProfileVisibilityTheme = "dark" | "soft" | "day"
+
+const PROFILE_VISIBILITY_THEME_CLASSES: Record<
+  ProfileVisibilityTheme,
+  {
+    card: string
+    header: string
+    tile: string
+    mutedText: string
+    bottomNavInactiveText: string
+  }
+> = {
+  dark: {
+    card: "bg-card",
+    header: "bg-card",
+    tile: "bg-background",
+    mutedText: "text-muted-foreground",
+    bottomNavInactiveText: "text-muted-foreground",
+  },
+  soft: {
+    card: "bg-[#232b3a]",
+    header: "bg-[#232b3a]",
+    tile: "bg-[#151b27]",
+    mutedText: "text-gray-300",
+    bottomNavInactiveText: "text-gray-300",
+  },
+  day: {
+    card: "bg-[#2d374c]",
+    header: "bg-[#2d374c]",
+    tile: "bg-[#151d2b]",
+    mutedText: "text-gray-200",
+    bottomNavInactiveText: "text-gray-100",
+  },
+}
+
 export default function ProfileScreen({
   onNavigate,
   premiumExpiry,
@@ -49,6 +84,14 @@ export default function ProfileScreen({
 
   const access = currentUserAccess as AccessLevel
   const { toast } = useToast()
+
+  const [visibilityTheme] = useState<ProfileVisibilityTheme>(() => {
+    if (typeof window === "undefined") return "soft"
+    const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
+    return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
+  })
+
+  const profileTheme = PROFILE_VISIBILITY_THEME_CLASSES[visibilityTheme]
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [isEditingEmail, setIsEditingEmail] = useState(false)
@@ -218,14 +261,14 @@ export default function ProfileScreen({
 
   // ✅ render functions (NOT components) to satisfy react-hooks/static-components
   const renderContactCard = () => (
-    <Card className="bg-card border-border p-4 space-y-4">
+    <Card className={`${profileTheme.card} border-border p-4 space-y-4`}>
       <h3 className="text-sm font-semibold text-foreground">Contact Information</h3>
 
       <div className="space-y-4">
         {/* Name */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Name</Label>
+            <Label className={`text-xs ${profileTheme.mutedText}`}>Name</Label>
             {!isEditingName && (
               <Button
                 onClick={() => {
@@ -260,7 +303,7 @@ export default function ProfileScreen({
               </div>
             </div>
           ) : (
-            <div className="rounded-lg bg-background p-3">
+            <div className={`rounded-lg ${profileTheme.tile} p-3`}>
               <div className="flex items-center gap-3">
                 <UserIcon className="h-5 w-5 text-primary" />
                 <p className="text-sm text-foreground">{displayName}</p>
@@ -272,7 +315,7 @@ export default function ProfileScreen({
         {/* Email */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Email</Label>
+            <Label className={`text-xs ${profileTheme.mutedText}`}>Email</Label>
             {!isEditingEmail && (
               <Button
                 onClick={() => {
@@ -361,7 +404,7 @@ export default function ProfileScreen({
               </div>
             </div>
           ) : (
-            <div className="rounded-lg bg-background p-3">
+            <div className={`rounded-lg ${profileTheme.tile} p-3`}>
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-primary" />
                 <p className="text-sm text-foreground break-all">{displayEmail}</p>
@@ -373,7 +416,7 @@ export default function ProfileScreen({
         {/* Password */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Password</Label>
+            <Label className={`text-xs ${profileTheme.mutedText}`}>Password</Label>
             {!isEditingPassword && (
               <Button
                 onClick={() => {
@@ -453,10 +496,10 @@ export default function ProfileScreen({
               </div>
             </div>
           ) : (
-            <div className="rounded-lg bg-background p-3">
+            <div className={`rounded-lg ${profileTheme.tile} p-3`}>
               <div className="flex items-center gap-3">
                 <LockIcon className="h-5 w-5 text-primary" />
-                <p className="text-sm text-muted-foreground">••••••••</p>
+                <p className={`text-sm ${profileTheme.mutedText}`}>••••••••</p>
               </div>
             </div>
           )}
@@ -466,12 +509,12 @@ export default function ProfileScreen({
   )
 
   const renderAccessTestingCard = () => (
-    <Card className="bg-card border-border p-4 space-y-3">
+    <Card className={`${profileTheme.card} border-border p-4 space-y-3`}>
       <h3 className="text-sm font-semibold text-foreground">Access Level (Testing)</h3>
-      <p className="text-xs text-muted-foreground">Switch between access levels to test UI behavior</p>
+      <p className={`text-xs ${profileTheme.mutedText}`}>Switch between access levels to test UI behavior</p>
 
       <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Current Access</Label>
+        <Label className={`text-xs ${profileTheme.mutedText}`}>Current Access</Label>
         <Select value={currentUserAccess} onValueChange={handleAccessChange}>
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -487,7 +530,7 @@ export default function ProfileScreen({
   )
 
   const renderLogoutCard = () => (
-    <Card className="bg-card border-border p-4 space-y-3">
+    <Card className={`${profileTheme.card} border-border p-4 space-y-3`}>
       <h3 className="text-sm font-semibold text-foreground">Account Actions</h3>
       <Button
         onClick={() => onNavigate("login")}
@@ -500,7 +543,7 @@ export default function ProfileScreen({
   )
 
   const renderHeaderProfileCard = () => (
-    <Card className="bg-card border-border p-6">
+    <Card className={`${profileTheme.card} border-border p-6`}>
       <div className="flex flex-col items-center space-y-4">
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/20">
           <UserIcon className="h-12 w-12 text-primary" />
@@ -520,10 +563,10 @@ export default function ProfileScreen({
                 ) : (
                   <>
                     <p className="text-sm font-semibold text-yellow-500">Member</p>
-                    <p className="text-xs text-muted-foreground">Valid until: {premiumExpiry}</p>
+                    <p className={`text-xs ${profileTheme.mutedText}`}>Valid until: {premiumExpiry}</p>
                   </>
                 )}
-                <div className="mt-3 rounded-lg bg-background border border-border p-3 text-left">
+                <div className={`mt-3 rounded-lg ${profileTheme.tile} border border-border p-3 text-left`}>
                   <p className="text-xs text-blue-500 leading-relaxed">
                     Admin role: full control over controller, users, iButtons, scenes and system settings.
                   </p>
@@ -531,8 +574,8 @@ export default function ProfileScreen({
               </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Free user</p>
-                <div className="mt-2 rounded-lg bg-background border border-border p-3 text-left">
+                <p className={`text-sm ${profileTheme.mutedText}`}>Free user</p>
+                <div className={`mt-2 rounded-lg ${profileTheme.tile} border border-border p-3 text-left`}>
                   <p className="text-xs text-blue-500 leading-relaxed">
                     Admin role: full control over controller, users, iButtons, scenes and system settings.
                   </p>
@@ -558,13 +601,13 @@ export default function ProfileScreen({
               ) : (
                 <>
                   <p className="text-sm font-semibold text-yellow-500">Member</p>
-                  <p className="text-xs text-muted-foreground">Valid until: {premiumExpiry}</p>
+                  <p className={`text-xs ${profileTheme.mutedText}`}>Valid until: {premiumExpiry}</p>
                 </>
               )}
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Free user</p>
+              <p className={`text-sm ${profileTheme.mutedText}`}>Free user</p>
               <div className="flex justify-center">
                 <Button
                   onClick={() => onNavigate("subscription")}
@@ -583,7 +626,7 @@ export default function ProfileScreen({
 
   return (
     <div className="flex min-h-screen flex-col pb-20">
-      <div className="bg-card border-b border-border p-4">
+      <div className={`${profileTheme.header} border-b border-border p-4`}>
         <div className="flex items-center gap-3">
           <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-6 w-6" />
@@ -615,7 +658,7 @@ export default function ProfileScreen({
 
             {canAccessSupport && (
               <TabsContent value="support" className="space-y-4">
-                <Card className="bg-card border-border p-4 space-y-4">
+                <Card className={`${profileTheme.card} border-border p-4 space-y-4`}>
                   <h3 className="text-lg font-semibold text-foreground">Contact Support</h3>
 
                   {supportSubmitted ? (
@@ -625,14 +668,14 @@ export default function ProfileScreen({
                           <Send className="h-8 w-8 text-accent" />
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground px-4">
+                      <p className={`text-sm ${profileTheme.mutedText} px-4`}>
                         Your ticket has been received. We will contact you by email as soon as possible.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-sm text-muted-foreground">Issue Category</Label>
+                        <Label className={`text-sm ${profileTheme.mutedText}`}>Issue Category</Label>
                         <Select value={supportCategory} onValueChange={(value) => setSupportCategory(value)}>
                           <SelectTrigger className="w-full [&>span]:data-placeholder:text-white">
                             <SelectValue placeholder="Select an issue category" />
@@ -647,7 +690,7 @@ export default function ProfileScreen({
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-sm text-muted-foreground">Message</Label>
+                        <Label className={`text-sm ${profileTheme.mutedText}`}>Message</Label>
                         <Textarea
                           value={supportMessage}
                           onChange={(e) => setSupportMessage(e.target.value)}
@@ -686,6 +729,7 @@ export default function ProfileScreen({
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
+        inactiveTextClassName={profileTheme.bottomNavInactiveText}
       />
     </div>
   )
