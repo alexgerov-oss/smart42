@@ -14,7 +14,6 @@ import { CircularTimePicker } from "@/components/ui/circular-time-picker"
 import { useAppContext } from "@/lib/app-context"
 import { useToast } from "@/components/ui/use-toast"
 import { ModalSelector } from "@/components/ui/modal-selector"
-import { cn } from "@/lib/utils"
 import type { Scene as CoreScene, WhenCondition as CoreWhenCondition } from "@/lib/core/types"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
@@ -584,7 +583,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                       <p className={`text-sm ${scenesTheme.mutedText} mt-1`}>{formatSceneDescription(scene)}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+                      <div className={buttonVariants({ variant: "ghost", size: "sm" })}>
                         <Switch
                           checked={scene.active}
                           onCheckedChange={() => handleToggleScene(scene.id)}
