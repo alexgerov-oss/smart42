@@ -1,3 +1,54 @@
+## 2026-05-25 — UI polish: add visibility theme selector to app tabs
+
+Baseline/branch:
+- branch: refactor-v2
+- commits:
+  - e92316c style: add visibility theme selector to settings
+  - 86d012c style: add visibility theme selector to activity
+  - 4ab46b5 style: add visibility theme selector to scenes
+  - 4282929 style: add visibility theme selector to profile
+
+What we changed:
+- Added the same 3 visibility theme selector squares to the main app tabs:
+  - Settings
+  - Activity
+  - Scenes
+  - Profile
+- Selector placement matches Home:
+  - top right side
+  - aligned opposite the page title
+- Selectors update the shared localStorage key:
+  - homeVisibilityTheme
+- Changing the selector from any supported tab now syncs the selected visibility theme with Home and the other themed tabs.
+- Added swatch styling per screen:
+  - dark square
+  - diagonal dark/white square
+  - white square
+- Kept black header/bottom/navigation areas unchanged where they were intended to remain black.
+- Kept red/green/status colors unchanged.
+- Kept primary/accent colors unchanged.
+- No permission logic changes.
+- No layout/spacing/animation changes beyond placing the selector in the existing header row.
+
+Tests done:
+- lint: OK after each screen change
+- build: OK after each screen change
+- final lint: OK
+- final build: OK
+- manual: Settings selector works and syncs theme to Home
+- manual: Activity selector works and syncs theme to Home
+- manual: Scenes selector works and syncs theme to Home
+- manual: Profile selector works and syncs theme to Home
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock after each screen change
+
+Result:
+- OK
+
+Next:
+- Consider extracting the duplicated visibility theme selector/theme constants into a shared component/helper later.
+- Do not do broad refactor unless explicitly requested.
+- Continue with small screen-by-screen UI diffs.
+
 ## 2026-05-25 — UI polish: apply visibility theme across main app tabs
 
 Baseline/branch:
