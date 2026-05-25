@@ -1,3 +1,43 @@
+## 2026-05-25 — Refactor cleanup: safe type/import simplifications
+
+Baseline/branch:
+- branch: refactor-v2
+
+Commits:
+- c5b2754 refactor: remove unused cn imports
+- b83c95e refactor: simplify scenes button variant class
+- 7c89415 refactor: type crypto randomUUID helper
+- 40b45c0 refactor: remove activity log id any cast
+
+What we changed:
+- Removed unused `cn` imports after visibility selector extraction.
+- Simplified one `Scenes` className from `cn(buttonVariants(...))` to `buttonVariants(...)`.
+- Removed `any` casts around `crypto.randomUUID` in `lib/id.ts`.
+- Removed unnecessary `any` cast in `lib/core/activity-log-state.ts`.
+
+What we did NOT change:
+- No UI changes.
+- No theme color changes.
+- No layout/spacing/animation changes.
+- No permission logic changes.
+- No localStorage behavior changes.
+- No Lock/Unlock logic changes.
+- No activity log behavior changes.
+- No ID generation behavior changes.
+
+Tests done:
+- lint: OK after each code change
+- build: OK after each code change
+- pushes: OK
+- final working tree: clean
+
+Notes:
+- `components/ui/dialog.tsx` still contains one `any` workaround for `aria-describedby`.
+- We intentionally did not touch it because it is a shared Dialog/accessibility workaround and has higher risk of changing UI/accessibility behavior.
+
+Result:
+- OK
+
 ## 2026-05-25 — UI polish: add visibility theme selector to app tabs
 
 Baseline/branch:
