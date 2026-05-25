@@ -1,3 +1,30 @@
+## 2026-05-25 — UI polish: improve Lock/Unlock slider outline
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Improved Lock/Unlock slider visibility on the Home/Dashboard screen.
+- Kept the slider track fill black.
+- Changed the slider track border from theme border to gray-700.
+- Kept the red/green lock/unlock knob behavior unchanged.
+- No layout/spacing/animation changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Lock/Unlock slider is visually clearer
+- manual: Lock button still works
+- manual: Unlock button still works
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock
+
+Result:
+- OK
+
+Next:
+- Continue only with explicit UI tweaks requested by the user.
+- Keep diffs minimal and avoid unrelated visual changes.
+
 ## 2026-05-25 — UI polish: improve Login input visibility
 
 Baseline/branch:

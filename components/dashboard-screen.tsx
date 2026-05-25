@@ -347,7 +347,7 @@ export default function DashboardScreen({
               </span>
 
               <div
-                className="relative w-24 h-16 bg-black rounded-full cursor-pointer select-none overflow-hidden border-2 border-border"
+                className="relative w-24 h-16 bg-black rounded-full cursor-pointer select-none overflow-hidden border-2 border-gray-700"
                 onMouseDown={handleSliderMouseDown}
                 onMouseMove={handleSliderMouseMove}
                 onMouseUp={handleSliderMouseUp}
