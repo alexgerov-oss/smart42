@@ -65,7 +65,7 @@ type KnownUser = (typeof users)[number]
 type UserFilter = "all" | KnownUser
 
 type ActivityLogEntry = {
-  id: number
+  id: number | string
   createdAt: string // ISO date string
   doorName?: string
   time: string
@@ -180,7 +180,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
     window.localStorage.setItem("homeVisibilityTheme", theme)
   }
 
-  const { currentUserAccess } = useAppContext()
+  const { currentUserAccess, activityLog } = useAppContext()
 
   // ✅ единствена истина: plan идва от parent
   const effectiveHasPlan = Boolean(hasPlan)
@@ -200,7 +200,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0
   }, [])
 
-  const activityLogs: ActivityLogEntry[] = useMemo(() => {
+  const demoActivityLogs: ActivityLogEntry[] = useMemo(() => {
     const now = new Date()
     const isoToday = (h: number, m: number) =>
       new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0).toISOString()
@@ -253,6 +253,27 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
       },
     ]
   }, [doorName])
+
+  const realActivityLogs: ActivityLogEntry[] = useMemo(() => {
+    return activityLog.map((log) => {
+      const createdAt = new Date(log.createdAt)
+      return {
+        id: log.id,
+        createdAt: log.createdAt,
+        doorName: log.doorName,
+        time: log.timeLabel ?? createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        date: log.dateLabel ?? createdAt.toLocaleDateString(),
+        action: log.action,
+        method: log.method,
+        user: log.user,
+        role: log.role,
+        description: log.description,
+        eventType: log.eventType,
+      }
+    })
+  }, [activityLog])
+
+  const activityLogs = realActivityLogs.length > 0 ? realActivityLogs : demoActivityLogs
 
   const showUserFilter = useMemo(() => {
     return (USER_FILTER_EVENT_TYPES as readonly string[]).includes(eventType)
