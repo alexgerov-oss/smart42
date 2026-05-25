@@ -40,6 +40,37 @@ interface SettingsScreenProps {
   // legacy trial props removed (plan gating uses hasPlan only)
 }
 
+type SettingsVisibilityTheme = "dark" | "soft" | "day"
+
+const SETTINGS_VISIBILITY_THEME_CLASSES: Record<
+  SettingsVisibilityTheme,
+  {
+    card: string
+    tile: string
+    mutedText: string
+    bottomNavInactiveText: string
+  }
+> = {
+  dark: {
+    card: "bg-card",
+    tile: "bg-background",
+    mutedText: "text-muted-foreground",
+    bottomNavInactiveText: "text-muted-foreground",
+  },
+  soft: {
+    card: "bg-[#232b3a]",
+    tile: "bg-[#151b27]",
+    mutedText: "text-gray-300",
+    bottomNavInactiveText: "text-gray-300",
+  },
+  day: {
+    card: "bg-[#2d374c]",
+    tile: "bg-[#151d2b]",
+    mutedText: "text-gray-200",
+    bottomNavInactiveText: "text-gray-100",
+  },
+}
+
 export default function SettingsScreen({
   onNavigate,
   hasPlan,
@@ -74,6 +105,14 @@ export default function SettingsScreen({
 
   const [deleteIButtonId, setDeleteIButtonId] = useState<string | null>(null)
   const [deleteAppUserId, setDeleteAppUserId] = useState<string | null>(null)
+
+  const [visibilityTheme] = useState<SettingsVisibilityTheme>(() => {
+    if (typeof window === "undefined") return "soft"
+    const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
+    return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
+  })
+
+  const settingsTheme = SETTINGS_VISIBILITY_THEME_CLASSES[visibilityTheme]
 
   const { toast } = useToast()
 
@@ -432,7 +471,7 @@ export default function SettingsScreen({
       <div className="flex-1 space-y-4 p-4 pb-6">
         {/* Controller Section */}
         {canManageControllers && (
-          <Card className="border-border">
+          <Card className={`${settingsTheme.card} border-border`}>
             <CardContent className="p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Controller</h2>
@@ -449,9 +488,9 @@ export default function SettingsScreen({
               </div>
 
               {controller && (
-                <div className="rounded-lg bg-background p-3 space-y-2">
+                <div className={`rounded-lg ${settingsTheme.tile} p-3 space-y-2`}>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">Serial number</p>
+                    <p className={`text-xs ${settingsTheme.mutedText}`}>Serial number</p>
                     <div className="flex items-center gap-1">
                       {controller.isRestarting ? (
                         <>
@@ -463,7 +502,7 @@ export default function SettingsScreen({
                           <div
                             className={`h-2 w-2 rounded-full ${controller.status === "online" ? "bg-green-500" : "bg-red-500"}`}
                           />
-                          <span className="text-xs text-muted-foreground capitalize">{controller.status}</span>
+                          <span className={`text-xs ${settingsTheme.mutedText} capitalize`}>{controller.status}</span>
                         </>
                       )}
                     </div>
@@ -483,7 +522,7 @@ export default function SettingsScreen({
 
                   {controller.ip && (
                     <div className="mt-3 pt-3 border-t border-border space-y-1">
-                      <p className="text-xs text-muted-foreground">IP Address</p>
+                      <p className={`text-xs ${settingsTheme.mutedText}`}>IP Address</p>
                       <p className="text-sm font-medium text-foreground">{controller.ip}</p>
                     </div>
                   )}
@@ -520,12 +559,12 @@ export default function SettingsScreen({
                         placeholder="Enter controller serial number"
                         className="bg-background border-border"
                       />
-                      <p className="text-xs text-muted-foreground">≥8 alphanumeric characters</p>
+                      <p className={`text-xs ${settingsTheme.mutedText}`}>≥8 alphanumeric characters</p>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="ip" className="text-sm font-medium">
-                        Controller IP <span className="text-muted-foreground text-xs">(Optional)</span>
+                        Controller IP <span className={`${settingsTheme.mutedText} text-xs`}>(Optional)</span>
                       </Label>
                       <Input
                         id="ip"
@@ -562,7 +601,7 @@ export default function SettingsScreen({
         )}
 
         {/* Quick Controls Section */}
-        <Card className="border-border">
+        <Card className={`${settingsTheme.card} border-border`}>
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">Quick Controls</h2>
@@ -579,15 +618,15 @@ export default function SettingsScreen({
             </div>
 
             {areQuickControlsDisabled && (
-              <p className="text-xs text-muted-foreground">Quick controls are locked by the administrator.</p>
+              <p className={`text-xs ${settingsTheme.mutedText}`}>Quick controls are locked by the administrator.</p>
             )}
 
             {/* Automatic Lock */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-background p-3">
+              <div className={`flex items-center justify-between rounded-lg ${settingsTheme.tile} p-3`}>
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${autoLockEnabled ? "bg-accent/20" : "bg-muted"}`}>
-                    <LockIcon className={`h-5 w-5 ${autoLockEnabled ? "text-accent" : "text-muted-foreground"}`} />
+                    <LockIcon className={`h-5 w-5 ${autoLockEnabled ? "text-accent" : settingsTheme.mutedText}`} />
                   </div>
                   <Label htmlFor="auto-lock" className="text-sm font-medium text-foreground pl-3">
                     Automatic Lock
@@ -603,7 +642,7 @@ export default function SettingsScreen({
               </div>
 
               {autoLockEnabled && (
-                <div className="space-y-2 rounded-lg bg-background p-3">
+                <div className={`space-y-2 rounded-lg ${settingsTheme.tile} p-3`}>
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium text-foreground">Lock Delay</Label>
                     <span className="text-sm font-semibold text-primary">{autoLockDelay}s</span>
@@ -623,10 +662,10 @@ export default function SettingsScreen({
 
             {/* Automatic Night Lock */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-background p-3">
+              <div className={`flex items-center justify-between rounded-lg ${settingsTheme.tile} p-3`}>
                 <div className="flex items-center gap-6">
                   <div className={`p-2 rounded-lg ${autoNightLockEnabled ? "bg-primary/20" : "bg-muted"}`}>
-                    <LockIcon className={`h-5 w-5 ${autoNightLockEnabled ? "text-primary" : "text-muted-foreground"}`} />
+                    <LockIcon className={`h-5 w-5 ${autoNightLockEnabled ? "text-primary" : settingsTheme.mutedText}`} />
                   </div>
                   <Label htmlFor="night-lock" className="text-sm font-medium text-foreground">
                     Automatic Night Lock
@@ -642,7 +681,7 @@ export default function SettingsScreen({
               </div>
 
               {autoNightLockEnabled && (
-                <div className="space-y-3 rounded-lg bg-background p-3">
+                <div className={`space-y-3 rounded-lg ${settingsTheme.tile} p-3`}>
                   <Label className="text-sm font-medium text-foreground text-center block">Lock Time</Label>
                   <div className="flex justify-center">
                     <CircularTimePicker
@@ -662,7 +701,7 @@ export default function SettingsScreen({
 
         {/* iButton Access */}
         {canAddIButtons && (
-          <Card className="border-border">
+          <Card className={`${settingsTheme.card} border-border`}>
             <CardContent className="p-4 space-y-4">
               <h2 className="text-lg font-semibold text-foreground">iButton Access</h2>
 
@@ -711,7 +750,7 @@ export default function SettingsScreen({
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{getEntityName("ibuttons", user.id, user.name)}</p>
-                        <p className="text-sm text-muted-foreground">{user.chipId}</p>
+                        <p className={`text-sm ${settingsTheme.mutedText}`}>{user.chipId}</p>
                       </div>
 
                       {canRenameIButtons && canEditItem(user.createdBy, user.id) && (
@@ -756,7 +795,7 @@ export default function SettingsScreen({
                   </Button>
 
                   {isFreeAdmin && iButtonUsers.length >= 1 && (
-                    <p className="text-sm text-muted-foreground">Get trial or premium to add more iButtons.</p>
+                    <p className={`text-sm ${settingsTheme.mutedText}`}>Get trial or premium to add more iButtons.</p>
                   )}
                 </>
               )}
@@ -766,7 +805,7 @@ export default function SettingsScreen({
 
         {/* App Users */}
         {(canAddAppUsers || canRenameAppUsers) && (
-          <Card className="border-border">
+          <Card className={`${settingsTheme.card} border-border`}>
             <CardContent className="p-4 space-y-4">
               <h2 className="text-lg font-semibold text-foreground">App Users</h2>
 
@@ -776,7 +815,7 @@ export default function SettingsScreen({
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{getAppUserDisplayName(user)}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className={`text-sm ${settingsTheme.mutedText}`}>
                           {user.email} • {user.access === "admin" ? "Admin" : user.access === "full" ? "Full Access" : "Open/Close Only"}
                           {user.status === "invited"
                             ? ` • Invited by ${user.createdByRole === "full" ? "Full Access" : "Admin"} on ${formatCreatedAt(user.createdAt)}`
@@ -824,7 +863,7 @@ export default function SettingsScreen({
               </Button>
 
               {isFreeAdmin && (
-                <p className="text-sm text-muted-foreground">Get trial or premium to add app users.</p>
+                <p className={`text-sm ${settingsTheme.mutedText}`}>Get trial or premium to add app users.</p>
               )}
             </CardContent>
           </Card>
@@ -838,6 +877,7 @@ export default function SettingsScreen({
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
+        inactiveTextClassName={settingsTheme.bottomNavInactiveText}
       />
 
       {/* dialogs */}
