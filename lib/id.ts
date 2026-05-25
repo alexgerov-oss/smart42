@@ -9,10 +9,10 @@ function bytesToHex(bytes: Uint8Array): string {
 
 export function newId(prefix = ""): string {
   // Prefer crypto-based ids (no Date.now / Math.random)
-  const c = globalThis.crypto as Crypto | undefined
+  const c = globalThis.crypto as (Crypto & { randomUUID?: () => string }) | undefined
 
-  if (c && "randomUUID" in c && typeof (c as any).randomUUID === "function") {
-    const id = (c as any).randomUUID() as string
+  if (typeof c?.randomUUID === "function") {
+    const id = c.randomUUID()
     return prefix ? `${prefix}_${id}` : id
   }
 
