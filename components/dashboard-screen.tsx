@@ -112,9 +112,9 @@ export default function DashboardScreen({
   const [isDragging, setIsDragging] = useState(false)
   const [selectedDoorId, setSelectedDoorId] = useState(DEFAULT_DOOR_ID)
   const [homeVisibilityTheme, setHomeVisibilityTheme] = useState<HomeVisibilityTheme>(() => {
-    if (typeof window === "undefined") return "dark"
+    if (typeof window === "undefined") return "soft"
     const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
-    return savedTheme === "soft" || savedTheme === "day" ? savedTheme : "dark"
+    return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
   })
 
   const [isAddDoorModalOpen, setIsAddDoorModalOpen] = useState(false)
@@ -156,6 +156,8 @@ export default function DashboardScreen({
   const displayDoorName = activeDoorId ? getEntityName("doors", activeDoorId, doorSystemName) : doorSystemName
   const displayUserName = userName
   const homeTheme = HOME_VISIBILITY_THEME_CLASSES[homeVisibilityTheme]
+  const bottomNavInactiveTextClassName = homeVisibilityTheme === "day" ? "text-gray-100" : homeTheme.mutedText
+  const unlockInactiveTextClassName = homeVisibilityTheme === "day" ? "text-white" : homeTheme.mutedText
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
@@ -440,7 +442,7 @@ export default function DashboardScreen({
               <span
                 onClick={() => void handleLabelClick("unlock")}
                 className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
-                  doorState === "unlock" ? "text-green-500 opacity-100" : `${homeTheme.mutedText} opacity-70`
+                  doorState === "unlock" ? "text-green-500 opacity-100" : `${unlockInactiveTextClassName} opacity-70`
                 }`}
               >
                 Unlock
@@ -616,6 +618,7 @@ export default function DashboardScreen({
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
+        inactiveTextClassName={bottomNavInactiveTextClassName}
       />
 
       <Dialog open={isAddDoorModalOpen} onOpenChange={setIsAddDoorModalOpen}>

@@ -18,6 +18,9 @@ interface AppBottomNavProps {
   canAccessActivity?: boolean
   canAccessScenes?: boolean
   canAccessSettings?: boolean
+
+  // Home visibility theme can make inactive gray nav items brighter.
+  inactiveTextClassName?: string
 }
 
 function getActiveTabFromScreen(currentScreen: Screen): Tab {
@@ -60,6 +63,7 @@ export function AppBottomNav({
   canAccessActivity: canAccessActivityProp,
   canAccessScenes: canAccessScenesProp,
   canAccessSettings: canAccessSettingsProp,
+  inactiveTextClassName = "text-muted-foreground",
 }: AppBottomNavProps) {
   const activeTab = getActiveTabFromScreen(currentScreen)
 
@@ -92,7 +96,7 @@ export function AppBottomNav({
             scrollTop()
           }}
           className={`flex flex-col items-center gap-1 transition-colors ${
-            activeTab === "home" ? "text-primary" : "text-muted-foreground"
+            activeTab === "home" ? "text-primary" : inactiveTextClassName
           }`}
         >
           <Home className="h-6 w-6" />
@@ -108,7 +112,7 @@ export function AppBottomNav({
             scrollTop()
           }}
           className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${
-            activeTab === "activity-log" ? "text-primary" : "text-muted-foreground"
+            activeTab === "activity-log" ? "text-primary" : inactiveTextClassName
           }`}
         >
           <div className="relative">
@@ -127,7 +131,7 @@ export function AppBottomNav({
             scrollTop()
           }}
           className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${
-            activeTab === "scenes" ? "text-primary" : "text-muted-foreground"
+            activeTab === "scenes" ? "text-primary" : inactiveTextClassName
           }`}
         >
           <div className="relative">
@@ -146,7 +150,7 @@ export function AppBottomNav({
             scrollTop()
           }}
           className={`flex flex-col items-center gap-1 transition-colors relative disabled:opacity-50 disabled:pointer-events-none ${
-            activeTab === "settings" ? "text-primary" : "text-muted-foreground"
+            activeTab === "settings" ? "text-primary" : inactiveTextClassName
           }`}
         >
           <div className="relative">
@@ -163,7 +167,7 @@ export function AppBottomNav({
             scrollTop()
           }}
           className={`flex flex-col items-center gap-1 transition-colors ${
-            activeTab === "profile" ? "text-primary" : "text-muted-foreground"
+            activeTab === "profile" ? "text-primary" : inactiveTextClassName
           }`}
         >
           <User className="h-6 w-6" />
