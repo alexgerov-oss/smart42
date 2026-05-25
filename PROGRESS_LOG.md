@@ -1,4 +1,51 @@
-## 2026-05-25 — UI prototype: Home visibility theme selector
+## 2026-05-25 — UI polish: sync bottom nav with Home visibility theme
+
+Baseline/branch:
+- branch: refactor-v2
+- commit: d8f6935
+
+What we changed:
+- Updated bottom navigation inactive gray icons/text to follow the selected Home visibility theme.
+- Bottom navigation bar background remains unchanged/black.
+- Active bottom nav tab color remains unchanged (`text-primary`).
+- Home visibility themes now affect bottom nav inactive text/icons:
+  - dark: original muted gray
+  - soft: brighter gray
+  - day: brightest gray
+- Adjusted day theme bottom nav gray to be clearly brighter than soft.
+- Made default Home visibility theme `soft` for first app load when no localStorage value exists.
+- Made inactive Unlock label brighter only in the day theme.
+- No layout/spacing/animation changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: bottom nav inactive icons/text change correctly across all 3 Home visibility themes
+- manual: bottom nav bar stays black
+- manual: active bottom nav tab color unchanged
+- manual: inactive Unlock label is brighter in day theme
+- manual: default first-load Home visibility theme is soft
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock
+
+Result:
+- OK
+
+Next:
+- Decide whether visibility theme remains Home-only or becomes app-wide.
+- If app-wide, apply one screen at a time with minimal diffs:
+  - Settings
+  - Activity
+  - Scenes
+  - Profile
+- Do not start broad theme refactor.
+
+python - <<'PY'
+from pathlib import Path
+
+p = Path("PROGRESS_LOG.md")
+old = p.read_text(encoding="utf-8")
+
+entry = """## 2026-05-25 — UI prototype: Home visibility theme selector
 
 Baseline/branch:
 - branch: refactor-v2
@@ -53,7 +100,18 @@ Next:
     git restore components/dashboard-screen.tsx
   - Do not start broader theme refactor until Home + navigation are stable.
 
-## 2026-05-25 — UI polish: improve Lock/Unlock slider outline
+"""
+
+p.write_text(entry + old, encoding="utf-8")
+PY
+
+python - <<'PY'
+from pathlib import Path
+
+p = Path("PROGRESS_LOG.md")
+old = p.read_text(encoding="utf-8")
+
+entry = """## 2026-05-25 — UI polish: improve Lock/Unlock slider outline
 
 Baseline/branch:
 - branch: refactor-v2
@@ -80,7 +138,18 @@ Next:
 - Continue only with explicit UI tweaks requested by the user.
 - Keep diffs minimal and avoid unrelated visual changes.
 
-## 2026-05-25 — UI polish: improve Login input visibility
+"""
+
+p.write_text(entry + old, encoding="utf-8")
+PY
+
+python - <<'PY'
+from pathlib import Path
+
+p = Path("PROGRESS_LOG.md")
+old = p.read_text(encoding="utf-8")
+
+entry = """## 2026-05-25 — UI polish: improve Login input visibility
 
 Baseline/branch:
 - branch: refactor-v2
@@ -106,7 +175,18 @@ Next:
 - Continue only with explicit UI tweaks requested by the user.
 - Keep diffs minimal and avoid unrelated visual changes.
 
-## 2026-05-25 — UI polish: add inactive Quick Controls switch outline
+"""
+
+p.write_text(entry + old, encoding="utf-8")
+PY
+
+python - <<'PY'
+from pathlib import Path
+
+p = Path("PROGRESS_LOG.md")
+old = p.read_text(encoding="utf-8")
+
+entry = """## 2026-05-25 — UI polish: add inactive Quick Controls switch outline
 
 Baseline/branch:
 - branch: refactor-v2
@@ -133,6 +213,11 @@ Result:
 Next:
 - Continue only with explicit UI tweaks requested by the user.
 - Keep diffs minimal and avoid unrelated visual changes.
+
+"""
+
+p.write_text(entry + old, encoding="utf-8")
+PY
 
 python - <<'PY'
 from pathlib import Path
