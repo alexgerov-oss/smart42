@@ -1,3 +1,76 @@
+## 2026-05-25 — Test: add Auto Lock Playwright smoke test
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a new Playwright smoke test:
+  - `tests/e2e/auto-lock-smoke.spec.ts`
+- The test checks the existing Automatic Lock behavior without changing app UI or app logic.
+- Test flow:
+  - opens the app
+  - logs in through the existing mock Admin login flow
+  - opens Settings
+  - finds Quick Controls
+  - enables Automatic Lock
+  - sets Lock Delay slider to the minimum value:
+    - 5 seconds
+  - goes back to Home
+  - clicks Unlock
+  - verifies `POST /api/doors/unlock`
+  - verifies the Automatic lock countdown appears
+  - waits for the countdown to finish
+  - verifies the Automatic lock countdown disappears
+
+Important finding:
+- Current Automatic Lock logic does NOT send `POST /api/doors/lock`.
+- Current code only changes local UI/app state by calling:
+  - `setDoorState("lock")`
+- Therefore this smoke test verifies the current timer/UI behavior, not a backend/controller lock API call.
+- This is intentional for now because we did not change app logic.
+
+What we did NOT change:
+- No app UI changes.
+- No layout/spacing/color/animation changes.
+- No business logic changes.
+- No Lock/Unlock logic changes.
+- No auto-lock logic changes.
+- No API route changes.
+- No permission logic changes.
+- No localStorage key changes.
+
+Tests done:
+- `npx playwright test tests/e2e/auto-lock-smoke.spec.ts`: OK
+  - result: 1 passed
+- Auto Lock minimum delay test confirmed:
+  - Automatic Lock can be enabled from Settings
+  - Lock Delay can be set to 5 seconds
+  - Unlock sends `POST /api/doors/unlock`
+  - countdown appears
+  - countdown finishes and UI returns to locked state behavior
+
+Result:
+- OK
+
+Notes:
+- This test is useful for future refactors touching:
+  - Quick Controls
+  - Automatic Lock
+  - Lock Delay slider
+  - `lib/core/lock-state.ts`
+  - `lib/core/lock-timers.ts`
+  - Dashboard lock/unlock UI
+- If we later decide that Automatic Lock must also send a real lock API request to the controller, app logic must be changed separately and this test should be updated then.
+
+Next:
+- Run full checks before commit:
+  - `npm run test:e2e`
+  - `npm run lint`
+  - `npm run build`
+- If all checks pass, commit:
+  - `git add PROGRESS_LOG.md tests/e2e/auto-lock-smoke.spec.ts`
+  - `git commit -m "test: add auto lock smoke test"`
+
 ## 2026-05-25 — Test infrastructure: add Playwright smoke tests
 
 Baseline/branch:

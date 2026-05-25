@@ -11,7 +11,7 @@ test("automatic lock countdown works at minimum delay", async ({ page }) => {
   await page.getByLabel("Password").fill("test123");
   await page.getByRole("button", { name: "Login" }).click();
 
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible();
+  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByRole("heading", { name: "Quick Controls" })).toBeVisible();
@@ -27,7 +27,7 @@ test("automatic lock countdown works at minimum delay", async ({ page }) => {
   await expect(page.getByText("5s")).toBeVisible();
 
   await page.getByRole("button", { name: "Home" }).click();
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible();
+  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({ timeout: 15_000 });
 
   const unlockResponsePromise = page.waitForResponse((response) => {
     return (

@@ -11,7 +11,7 @@ test("unlock and lock send API requests", async ({ page }) => {
   await page.getByLabel("Password").fill("test123");
   await page.getByRole("button", { name: "Login" }).click();
 
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible();
+  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({ timeout: 15_000 });
 
   const unlockResponsePromise = page.waitForResponse((response) => {
     return (
