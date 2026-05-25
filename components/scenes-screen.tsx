@@ -117,6 +117,41 @@ interface ScenesScreenProps {
   currentScreen: Screen
 }
 
+type ScenesVisibilityTheme = "dark" | "soft" | "day"
+
+const SCENES_VISIBILITY_THEME_CLASSES: Record<
+  ScenesVisibilityTheme,
+  {
+    card: string
+    header: string
+    tile: string
+    mutedText: string
+    bottomNavInactiveText: string
+  }
+> = {
+  dark: {
+    card: "bg-card",
+    header: "bg-card",
+    tile: "bg-background",
+    mutedText: "text-muted-foreground",
+    bottomNavInactiveText: "text-muted-foreground",
+  },
+  soft: {
+    card: "bg-[#232b3a]",
+    header: "bg-[#232b3a]",
+    tile: "bg-[#151b27]",
+    mutedText: "text-gray-300",
+    bottomNavInactiveText: "text-gray-300",
+  },
+  day: {
+    card: "bg-[#2d374c]",
+    header: "bg-[#2d374c]",
+    tile: "bg-[#151d2b]",
+    mutedText: "text-gray-200",
+    bottomNavInactiveText: "text-gray-100",
+  },
+}
+
 // ---- Helpers ----
 const getUnit = (type: string): string => {
   const unitMap: Record<string, string> = {
@@ -285,6 +320,14 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
   const [sceneNameError, setSceneNameError] = useState("")
   const [whenConditions, setWhenConditions] = useState<WhenCondition[]>([{ type: "wifi", operator: "<" }])
   const [thenAction, setThenAction] = useState<ThenAction>({ type: "push", customText: "" })
+  const [visibilityTheme] = useState<ScenesVisibilityTheme>(() => {
+    if (typeof window === "undefined") return "soft"
+    const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
+    return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
+  })
+
+  const scenesTheme = SCENES_VISIBILITY_THEME_CLASSES[visibilityTheme]
+
   const { toast } = useToast()
 
   const { currentUserAccess, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } = useAppContext()
@@ -441,7 +484,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
   if (!canAccessScenes) {
     return (
       <div className="flex min-h-screen flex-col pb-20">
-        <div className="bg-card border-b border-border p-4">
+        <div className={`${scenesTheme.header} border-b border-border p-4`}>
           <div className="flex items-center gap-3">
             <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
               <ArrowLeft className="h-6 w-6" />
@@ -451,14 +494,14 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
         </div>
 
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="bg-card border-border p-8 text-center space-y-4 max-w-sm">
+          <Card className={`${scenesTheme.card} border-border p-8 text-center space-y-4 max-w-sm`}>
             <div className="flex justify-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
                 <LockIcon className="h-8 w-8 text-primary" />
               </div>
             </div>
             <h2 className="text-xl font-bold text-foreground">Access Restricted</h2>
-            <p className="text-sm text-muted-foreground">Scenes are available for Full access and Admin users only.</p>
+            <p className={`text-sm ${scenesTheme.mutedText}`}>Scenes are available for Full access and Admin users only.</p>
             <Button onClick={() => onNavigate("dashboard")} variant="outline" className="w-full border-border">
               Back to Dashboard
             </Button>
@@ -472,6 +515,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
+          inactiveTextClassName={scenesTheme.bottomNavInactiveText}
         />
       </div>
     )
@@ -479,7 +523,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
 
   return (
     <div className="flex min-h-screen flex-col pb-20">
-      <div className="bg-card border-b border-border p-4">
+      <div className={`${scenesTheme.header} border-b border-border p-4`}>
         <div className="flex items-center gap-3">
           <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-6 w-6" />
@@ -497,15 +541,15 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
               Add Scene
             </Button>
 
-            {isFreeAdmin && scenes.length >= 1 && <p className="text-sm text-muted-foreground">Upgrade to create more scenes.</p>}
+            {isFreeAdmin && scenes.length >= 1 && <p className={`text-sm ${scenesTheme.mutedText}`}>Upgrade to create more scenes.</p>}
 
             {visibleScenes.map((scene) => (
-              <Card key={scene.id} className="border-border">
+              <Card key={scene.id} className={`${scenesTheme.card} border-border`}>
                 <div className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground">{getEntityName("scenes", scene.id, scene.name)}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{formatSceneDescription(scene)}</p>
+                      <p className={`text-sm ${scenesTheme.mutedText} mt-1`}>{formatSceneDescription(scene)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
@@ -530,11 +574,11 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
         )}
 
         {isCreatingScene && (
-          <Card className="bg-card border-border p-4 space-y-4">
+          <Card className={`${scenesTheme.card} border-border p-4 space-y-4`}>
             <h3 className="text-lg font-semibold text-foreground">{editingSceneId ? "Edit Scene" : "New Scene"}</h3>
 
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Scene Name</Label>
+              <Label className={`text-sm ${scenesTheme.mutedText}`}>Scene Name</Label>
               <Input
                 value={sceneName}
                 onChange={(e) => {
@@ -548,7 +592,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-muted-foreground">WHEN Conditions</Label>
+                <Label className={`text-sm ${scenesTheme.mutedText}`}>WHEN Conditions</Label>
                 <Button onClick={handleAddCondition} size="sm" variant="outline">
                   <Plus className="h-3 w-3 mr-1" />
                   Add
@@ -556,7 +600,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
               </div>
 
               {whenConditions.map((condition, index) => (
-                <div key={index} className="rounded-lg bg-background p-3 space-y-3">
+                <div key={index} className={`rounded-lg ${scenesTheme.tile} p-3 space-y-3`}>
                   <div className="flex items-start gap-2">
                     <div className="flex-1 space-y-3">
                       <ModalSelector
@@ -658,7 +702,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                                 placeholder="Enter value"
                                 className="flex-1 bg-background border-border"
                               />
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">{getUnit(condition.type)}</span>
+                              <span className={`text-xs ${scenesTheme.mutedText} whitespace-nowrap`}>{getUnit(condition.type)}</span>
                             </div>
                           </div>
                         )}
@@ -676,7 +720,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                             placeholder="Enter value"
                             className="bg-background border-border"
                           />
-                          <p className="text-xs text-muted-foreground">
+                          <p className={`text-xs ${scenesTheme.mutedText}`}>
                             Notifications will be sent only after power is restored. 0 or 1 = every restore.
                           </p>
                         </div>
@@ -753,7 +797,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm text-muted-foreground">THEN Action (select one)</Label>
+              <Label className={`text-sm ${scenesTheme.mutedText}`}>THEN Action (select one)</Label>
               <Select
                 value={thenAction.type}
                 onValueChange={(value: string) => {
@@ -802,6 +846,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
+        inactiveTextClassName={scenesTheme.bottomNavInactiveText}
       />
     </div>
   )
