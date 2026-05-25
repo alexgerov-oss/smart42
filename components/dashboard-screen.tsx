@@ -26,6 +26,7 @@ import { useAppContext } from "@/lib/app-context"
 import { getWifiClass, getDoorStatusClass, validateColorTokens } from "@/lib/color-utils"
 import { useToast } from "@/hooks/use-toast"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
+import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -55,6 +56,47 @@ interface DashboardScreenProps {
 
 const DEFAULT_DOOR_ID = "main-door"
 
+type HomeVisibilityTheme = "dark" | "soft" | "day"
+
+const HOME_VISIBILITY_THEMES: HomeVisibilityTheme[] = ["dark", "soft", "day"]
+
+const HOME_VISIBILITY_THEME_CLASSES: Record<
+  HomeVisibilityTheme,
+  {
+    card: string
+    tile: string
+    tileHover: string
+    mutedText: string
+    weakText: string
+    swatch: string
+  }
+> = {
+  dark: {
+    card: "bg-card",
+    tile: "bg-background",
+    tileHover: "hover:bg-background/80",
+    mutedText: "text-muted-foreground",
+    weakText: "text-gray-400",
+    swatch: "bg-black",
+  },
+  soft: {
+    card: "bg-[#232b3a]",
+    tile: "bg-[#151b27]",
+    tileHover: "hover:bg-[#1a2232]",
+    mutedText: "text-gray-300",
+    weakText: "text-gray-300",
+    swatch: "bg-[linear-gradient(135deg,#111827_0%,#111827_50%,#ffffff_50%,#ffffff_100%)]",
+  },
+  day: {
+    card: "bg-[#2d374c]",
+    tile: "bg-[#151d2b]",
+    tileHover: "hover:bg-[#1b2536]",
+    mutedText: "text-gray-200",
+    weakText: "text-gray-200",
+    swatch: "bg-white",
+  },
+}
+
 export default function DashboardScreen({
   onNavigate,
   hasPlan,
@@ -69,6 +111,11 @@ export default function DashboardScreen({
   const [doorSensorOpen, setDoorSensorOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [selectedDoorId, setSelectedDoorId] = useState(DEFAULT_DOOR_ID)
+  const [homeVisibilityTheme, setHomeVisibilityTheme] = useState<HomeVisibilityTheme>(() => {
+    if (typeof window === "undefined") return "dark"
+    const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
+    return savedTheme === "soft" || savedTheme === "day" ? savedTheme : "dark"
+  })
 
   const [isAddDoorModalOpen, setIsAddDoorModalOpen] = useState(false)
   const [isEditDoorModalOpen, setIsEditDoorModalOpen] = useState(false)
@@ -108,6 +155,7 @@ export default function DashboardScreen({
   const doorSystemName = selectedDoor?.systemName || doorName
   const displayDoorName = activeDoorId ? getEntityName("doors", activeDoorId, doorSystemName) : doorSystemName
   const displayUserName = userName
+  const homeTheme = HOME_VISIBILITY_THEME_CLASSES[homeVisibilityTheme]
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
@@ -127,6 +175,10 @@ export default function DashboardScreen({
   useEffect(() => {
     validateColorTokens()
   }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem("homeVisibilityTheme", homeVisibilityTheme)
+  }, [homeVisibilityTheme])
 
   const callDoorAction = async (doorId: string, nextState: "lock" | "unlock") => {
     const res = nextState === "lock" ? await lockDoor(doorId) : await unlockDoor(doorId)
@@ -257,16 +309,34 @@ export default function DashboardScreen({
   return (
     <div className="flex min-h-screen flex-col pb-20">
       <div className="bg-background p-4 border-b border-border">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <Home className="h-5 w-5 text-primary-foreground" />
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Home className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-base font-bold text-foreground">SmartDoor Inc.</span>
           </div>
-          <span className="text-base font-bold text-foreground">SmartDoor Inc.</span>
+
+          <div className="flex items-center gap-2" aria-label="Home visibility theme">
+            {HOME_VISIBILITY_THEMES.map((theme) => (
+              <button
+                key={theme}
+                type="button"
+                aria-label={`Set ${theme} visibility theme`}
+                onClick={() => setHomeVisibilityTheme(theme)}
+                className={cn(
+                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
+                  HOME_VISIBILITY_THEME_CLASSES[theme].swatch,
+                  homeVisibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
+                )}
+              />
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Welcome back</p>
+            <p className={cn("text-xs", homeTheme.mutedText)}>Welcome back</p>
             <p className="text-lg font-semibold text-foreground">{displayUserName}</p>
           </div>
 
@@ -276,18 +346,18 @@ export default function DashboardScreen({
                 {isOnTrial && remainingTrialDays !== null ? (
                   <>
                     <span className="text-sm font-semibold text-yellow-500">Trial version</span>
-                    <p className="text-xs text-gray-400">{remainingTrialDays} days left</p>
+                    <p className={cn("text-xs", homeTheme.weakText)}>{remainingTrialDays} days left</p>
                   </>
                 ) : (
                   <>
                     <span className="text-sm font-semibold text-yellow-500">Member</span>
-                    <p className="text-xs text-muted-foreground">Until: {premiumExpiry}</p>
+                    <p className={cn("text-xs", homeTheme.mutedText)}>Until: {premiumExpiry}</p>
                   </>
                 )}
               </div>
             ) : (
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Free user</p>
+                <p className={cn("text-xs", homeTheme.mutedText)}>Free user</p>
                 <button
                   onClick={() => onNavigate("subscription")}
                   className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
@@ -304,7 +374,7 @@ export default function DashboardScreen({
       <div className="flex-1 space-y-4 p-4">
         <div className="flex items-center gap-2 mb-2">
           <Select value={activeDoorId} onValueChange={setSelectedDoorId}>
-            <SelectTrigger className="flex-1">
+            <SelectTrigger className={cn("flex-1 border-gray-500 [&_svg]:opacity-90", homeTheme.mutedText)}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -334,13 +404,13 @@ export default function DashboardScreen({
           )}
         </div>
 
-        <Card className="bg-card border-border p-4 space-y-3 min-h-[140px]">
+        <Card className={cn(homeTheme.card, "border-border p-4 space-y-3 min-h-[140px]")}>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
               <span
                 onClick={() => void handleLabelClick("lock")}
                 className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
-                  doorState === "lock" ? "text-red-500 opacity-100" : "text-gray-300 opacity-50"
+                  doorState === "lock" ? "text-red-500 opacity-100" : `${homeTheme.mutedText} opacity-70`
                 }`}
               >
                 Lock
@@ -370,7 +440,7 @@ export default function DashboardScreen({
               <span
                 onClick={() => void handleLabelClick("unlock")}
                 className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
-                  doorState === "unlock" ? "text-green-500 opacity-100" : "text-gray-300 opacity-50"
+                  doorState === "unlock" ? "text-green-500 opacity-100" : `${homeTheme.mutedText} opacity-70`
                 }`}
               >
                 Unlock
@@ -380,7 +450,7 @@ export default function DashboardScreen({
             <div className="flex items-center justify-between min-h-[32px]">
               {doorState === "unlock" && autoLockEnabled && countdown !== null && countdown > 0 ? (
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Automatic lock</span>
+                  <span className={homeTheme.mutedText}>Automatic lock</span>
                   <span className={`font-bold tabular-nums text-lg ${getDoorStatusClass("lock")}`}>{countdown}s</span>
                 </div>
               ) : (
@@ -392,7 +462,7 @@ export default function DashboardScreen({
           </div>
         </Card>
 
-        <Card className="bg-card border-border p-4 space-y-4">
+        <Card className={cn(homeTheme.card, "border-border p-4 space-y-4")}>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">System Status</h2>
             {controller ? (
@@ -409,7 +479,7 @@ export default function DashboardScreen({
                 </span>
               </div>
             ) : (
-              <span className="text-xs text-muted-foreground">No controller</span>
+              <span className={cn("text-xs", homeTheme.mutedText)}>No controller</span>
             )}
           </div>
 
@@ -417,9 +487,9 @@ export default function DashboardScreen({
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => onShowChart("wifi")}
-                className="space-y-1 rounded-lg bg-background p-3 hover:bg-background/80 transition-colors text-left"
+                className={cn("space-y-1 rounded-lg p-3 transition-colors text-left", homeTheme.tile, homeTheme.tileHover)}
               >
-                <p className="text-xs text-muted-foreground">WiFi Signal</p>
+                <p className={cn("text-xs", homeTheme.mutedText)}>WiFi Signal</p>
                 <div className="flex items-center gap-2">
                   <Wifi className={`${getWifiClass(-50)}`} />
                   <p className={`text-sm font-semibold ${getWifiClass(-50)}`}>-50 dBm</p>
@@ -428,9 +498,9 @@ export default function DashboardScreen({
 
               <button
                 onClick={() => onShowChart("battery")}
-                className="space-y-1 rounded-lg bg-background p-3 hover:bg-background/80 transition-colors text-left"
+                className={cn("space-y-1 rounded-lg p-3 transition-colors text-left", homeTheme.tile, homeTheme.tileHover)}
               >
-                <p className="text-xs text-muted-foreground">Battery</p>
+                <p className={cn("text-xs", homeTheme.mutedText)}>Battery</p>
                 <div className="flex items-center gap-2">
                   <Battery className="h-4 w-4 text-accent" />
                   <p className="text-sm font-semibold text-foreground">78%</p>
@@ -439,9 +509,9 @@ export default function DashboardScreen({
 
               <button
                 onClick={() => onShowChart("cpu-temp")}
-                className="space-y-1 rounded-lg bg-background p-3 hover:bg-background/80 transition-colors text-left"
+                className={cn("space-y-1 rounded-lg p-3 transition-colors text-left", homeTheme.tile, homeTheme.tileHover)}
               >
-                <p className="text-xs text-muted-foreground">CPU Temp</p>
+                <p className={cn("text-xs", homeTheme.mutedText)}>CPU Temp</p>
                 <div className="flex items-center gap-2">
                   <Cpu className="h-4 w-4 text-primary" />
                   <p className="text-sm font-semibold text-foreground">42°C</p>
@@ -450,9 +520,9 @@ export default function DashboardScreen({
 
               <button
                 onClick={() => onShowChart("cpu-load")}
-                className="space-y-1 rounded-lg bg-background p-3 hover:bg-background/80 transition-colors text-left"
+                className={cn("space-y-1 rounded-lg p-3 transition-colors text-left", homeTheme.tile, homeTheme.tileHover)}
               >
-                <p className="text-xs text-muted-foreground">CPU Load</p>
+                <p className={cn("text-xs", homeTheme.mutedText)}>CPU Load</p>
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
                   <p className="text-sm font-semibold text-foreground">35%</p>
@@ -461,9 +531,9 @@ export default function DashboardScreen({
 
               <button
                 onClick={() => onShowChart("latency")}
-                className="space-y-1 rounded-lg bg-background p-3 hover:bg-background/80 transition-colors text-left"
+                className={cn("space-y-1 rounded-lg p-3 transition-colors text-left", homeTheme.tile, homeTheme.tileHover)}
               >
-                <p className="text-xs text-muted-foreground">Latency</p>
+                <p className={cn("text-xs", homeTheme.mutedText)}>Latency</p>
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-accent" />
                   <p className="text-sm font-semibold text-foreground">12 ms</p>
@@ -472,9 +542,9 @@ export default function DashboardScreen({
 
               <button
                 onClick={() => onShowChart("power-drops")}
-                className="space-y-1 rounded-lg bg-background p-3 hover:bg-background/80 transition-colors text-left"
+                className={cn("space-y-1 rounded-lg p-3 transition-colors text-left", homeTheme.tile, homeTheme.tileHover)}
               >
-                <p className="text-xs text-muted-foreground">Power Drops</p>
+                <p className={cn("text-xs", homeTheme.mutedText)}>Power Drops</p>
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-yellow-500" />
                   <p className="text-sm font-semibold text-foreground">2 events</p>
@@ -482,11 +552,11 @@ export default function DashboardScreen({
               </button>
 
               {controller && (
-                <div className="space-y-1 rounded-lg bg-background p-3 col-span-2">
-                  <p className="text-xs text-muted-foreground">Controller</p>
+                <div className={cn("space-y-1 rounded-lg p-3 col-span-2", homeTheme.tile)}>
+                  <p className={cn("text-xs", homeTheme.mutedText)}>Controller</p>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">{controller.serialNumber}</p>
-                    {controller.ip && <p className="text-xs text-muted-foreground">{controller.ip}</p>}
+                    {controller.ip && <p className={cn("text-xs", homeTheme.mutedText)}>{controller.ip}</p>}
                   </div>
                 </div>
               )}
@@ -496,23 +566,23 @@ export default function DashboardScreen({
           <div className="flex justify-center">
             <button
               onClick={() => setIsSystemStatusExpanded(!isSystemStatusExpanded)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className={cn(homeTheme.mutedText, "hover:text-foreground transition-colors")}
             >
               {isSystemStatusExpanded ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
             </button>
           </div>
         </Card>
 
-        <Card className="bg-card border-border p-4 space-y-4">
+        <Card className={cn(homeTheme.card, "border-border p-4 space-y-4")}>
           <h2 className="text-lg font-semibold text-foreground">Activity Log</h2>
 
           <div className="space-y-3">
             {activityLogs.map((log) => (
-              <div key={log.id} className="rounded-lg bg-background p-3 space-y-1">
+              <div key={log.id} className={cn("rounded-lg p-3 space-y-1", homeTheme.tile)}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-foreground">{log.doorName}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className={cn("text-xs", homeTheme.mutedText)}>
                       {log.action === "open" || log.action === "closed" ? (
                         <span className={getDoorStatusClass(log.action as "open" | "closed") + " font-medium"}>
                           {log.action.toUpperCase()}
@@ -528,7 +598,7 @@ export default function DashboardScreen({
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className={cn("flex items-center gap-1 text-xs", homeTheme.mutedText)}>
                     <Clock className="h-3 w-3" />
                     {log.time}
                   </div>

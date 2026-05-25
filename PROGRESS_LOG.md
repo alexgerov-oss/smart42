@@ -1,3 +1,58 @@
+## 2026-05-25 — UI prototype: Home visibility theme selector
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a Home-only visibility theme selector next to SmartDoor Inc.
+- Added 3 small square theme buttons:
+  - dark square = current/dark theme
+  - diagonal dark/white square = medium/day visibility theme
+  - white square = brightest visibility theme
+- Theme choice is persisted in localStorage as homeVisibilityTheme.
+- Change is currently scoped only to Home/Dashboard screen.
+- Adjusted Home gray surfaces only:
+  - large cards get slightly lighter per theme
+  - inner dark tiles remain darker for contrast
+  - muted gray text changes per selected theme
+- Kept black elements black.
+- Kept red/green/primary/accent colors unchanged.
+- Improved Home Main Door dropdown visibility:
+  - clearer gray border
+  - clearer chevron/arrow
+  - dropdown text/chevron follows Home visibility theme.
+- Inactive Lock/Unlock labels now follow selected Home visibility theme.
+- No intended layout/spacing/animation changes except adding the 3 selector squares in the Home header.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Home selector appears next to SmartDoor Inc.
+- manual: selector squares are visually understandable
+- manual: selected theme persists after refresh
+- manual: Home cards and inner tiles keep acceptable contrast
+- manual: Main Door dropdown is clearer in dark theme
+- manual: inactive Lock/Unlock label changes with selected theme
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock
+
+Result:
+- OK
+
+Next:
+- Start new chat because current chat became slow.
+- Continue carefully from this Home-only prototype.
+- Next planned UI tasks:
+  1. Make bottom navigation gray icons/text follow the selected Home visibility theme.
+  2. Decide whether the visibility theme should remain Home-only or become app-wide.
+  3. If app-wide, apply the same 3 visibility levels to other tabs one screen at a time.
+  4. Do not change black, red, green, primary/accent colors.
+  5. Keep all diffs minimal and test after each screen.
+- Important caution:
+  - This theme prototype touched more lines than the previous small UI border fixes.
+  - If anything looks wrong, it can still be reverted with:
+    git restore components/dashboard-screen.tsx
+  - Do not start broader theme refactor until Home + navigation are stable.
+
 ## 2026-05-25 — UI polish: improve Lock/Unlock slider outline
 
 Baseline/branch:
