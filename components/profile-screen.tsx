@@ -14,7 +14,6 @@ import { useAppContext } from "@/lib/app-context"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
 import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
 
 type AccessLevel = "admin" | "full" | "open-close" | "none" | string

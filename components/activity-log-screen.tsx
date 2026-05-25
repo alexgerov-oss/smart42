@@ -10,7 +10,6 @@ import { useAppContext } from "@/lib/app-context"
 import { ModalSelector } from "@/components/ui/modal-selector"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
-import { cn } from "@/lib/utils"
 import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
 
 interface ActivityLogScreenProps {

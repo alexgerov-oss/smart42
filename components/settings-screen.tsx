@@ -28,7 +28,6 @@ import { useToast } from "@/hooks/use-toast"
 import { DialogCancel } from "@/components/ui/dialog-cancel"
 import { DialogAction } from "@/components/ui/dialog-action"
 import { AppBottomNav } from "@/components/app-bottom-nav"
-import { cn } from "@/lib/utils"
 import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
 
 interface SettingsScreenProps {
