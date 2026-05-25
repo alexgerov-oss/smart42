@@ -18,6 +18,41 @@ interface ActivityLogScreenProps {
   currentScreen: Screen
 }
 
+type ActivityVisibilityTheme = "dark" | "soft" | "day"
+
+const ACTIVITY_VISIBILITY_THEME_CLASSES: Record<
+  ActivityVisibilityTheme,
+  {
+    card: string
+    header: string
+    filterBar: string
+    mutedText: string
+    bottomNavInactiveText: string
+  }
+> = {
+  dark: {
+    card: "bg-card",
+    header: "bg-card",
+    filterBar: "bg-background/95 supports-backdrop-filter:bg-background/60",
+    mutedText: "text-muted-foreground",
+    bottomNavInactiveText: "text-muted-foreground",
+  },
+  soft: {
+    card: "bg-[#232b3a]",
+    header: "bg-[#232b3a]",
+    filterBar: "bg-[#151b27]/95 supports-backdrop-filter:bg-[#151b27]/60",
+    mutedText: "text-gray-300",
+    bottomNavInactiveText: "text-gray-300",
+  },
+  day: {
+    card: "bg-[#2d374c]",
+    header: "bg-[#2d374c]",
+    filterBar: "bg-[#151d2b]/95 supports-backdrop-filter:bg-[#151d2b]/60",
+    mutedText: "text-gray-200",
+    bottomNavInactiveText: "text-gray-100",
+  },
+}
+
 const users = ["John Doe", "Jane Smith", "Alice Johnson", "Bob Williams"] as const
 type KnownUser = (typeof users)[number]
 type UserFilter = "all" | KnownUser
@@ -125,6 +160,14 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
   const [userFilter, setUserFilter] = useState<UserFilter>("all")
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  const [visibilityTheme] = useState<ActivityVisibilityTheme>(() => {
+    if (typeof window === "undefined") return "soft"
+    const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
+    return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
+  })
+
+  const activityTheme = ACTIVITY_VISIBILITY_THEME_CLASSES[visibilityTheme]
+
   const { currentUserAccess } = useAppContext()
 
   // ✅ единствена истина: plan идва от parent
@@ -218,14 +261,14 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
     return (
       <div className="flex min-h-screen flex-col pb-20">
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="bg-card border-border p-8 text-center space-y-4 max-w-sm">
+          <Card className={`${activityTheme.card} border-border p-8 text-center space-y-4 max-w-sm`}>
             <div className="flex justify-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
                 <LockIcon className="h-8 w-8 text-primary" />
               </div>
             </div>
             <h2 className="text-xl font-bold text-foreground">Access Restricted</h2>
-            <p className="text-sm text-muted-foreground">Activity log is only available for Admin and Full Access users.</p>
+            <p className={`text-sm ${activityTheme.mutedText}`}>Activity log is only available for Admin and Full Access users.</p>
             <Button onClick={() => onNavigate("dashboard")} variant="outline" className="w-full border-border">
               Back to Dashboard
             </Button>
@@ -239,6 +282,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
+          inactiveTextClassName={activityTheme.bottomNavInactiveText}
         />
       </div>
     )
@@ -248,14 +292,14 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
     return (
       <div className="flex min-h-screen flex-col pb-20">
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="bg-card border-border p-8 text-center space-y-4 max-w-sm">
+          <Card className={`${activityTheme.card} border-border p-8 text-center space-y-4 max-w-sm`}>
             <div className="flex justify-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
                 <LockIcon className="h-8 w-8 text-primary" />
               </div>
             </div>
             <h2 className="text-xl font-bold text-foreground">Premium Feature</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className={`text-sm ${activityTheme.mutedText}`}>
               Full activity log history is only available for Premium users. Upgrade now to access complete door activity records.
             </p>
             <Button onClick={() => onNavigate("subscription")} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
@@ -274,6 +318,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
           canAccessActivity={canAccessActivity}
           canAccessScenes={canAccessScenes}
           canAccessSettings={canAccessSettings}
+          inactiveTextClassName={activityTheme.bottomNavInactiveText}
         />
       </div>
     )
@@ -281,7 +326,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
 
   return (
     <div className="flex flex-col min-h-screen pb-20">
-      <div className="bg-card border-b border-border p-4">
+      <div className={`${activityTheme.header} border-b border-border p-4`}>
         <div className="flex items-center gap-3">
           <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-6 w-6" />
@@ -291,7 +336,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-none p-4 pb-3 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <div className={`flex-none p-4 pb-3 border-b backdrop-blur ${activityTheme.filterBar}`}>
           <div className="flex flex-col gap-2">
             <ModalSelector
               value={timeRange}
@@ -356,18 +401,18 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
 
         <div ref={scrollContainerRef} className="space-y-3 flex-1 overflow-y-auto p-4">
           {filteredLogs.map((log) => (
-            <Card key={log.id} className="bg-card border-border p-4">
+            <Card key={log.id} className={`${activityTheme.card} border-border p-4`}>
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   {log.description ? (
                     <>
                       <p className="text-sm font-medium text-foreground">{log.action}</p>
-                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">{log.description}</p>
+                      <p className={`text-xs ${activityTheme.mutedText} mt-1 whitespace-pre-line`}>{log.description}</p>
                     </>
                   ) : (
                     <>
                       <p className="text-sm font-medium text-foreground">{log.doorName}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className={`text-xs ${activityTheme.mutedText} mt-1`}>
                         {isDoorOpenClosed(log.action) ? (
                           <span className={getDoorStatusClass(log.action) + " font-medium"}>{log.action}</span>
                         ) : isDoorLockUnlock(log.action) ? (
@@ -385,11 +430,11 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
                 </div>
 
                 <div className="text-right">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                  <div className={`flex items-center gap-1 text-xs ${activityTheme.mutedText} mb-1`}>
                     <Clock className="h-3 w-3" />
                     {log.time}
                   </div>
-                  <p className="text-xs text-muted-foreground">{log.date}</p>
+                  <p className={`text-xs ${activityTheme.mutedText}`}>{log.date}</p>
                 </div>
               </div>
             </Card>
@@ -404,6 +449,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
         canAccessActivity={canAccessActivity}
         canAccessScenes={canAccessScenes}
         canAccessSettings={canAccessSettings}
+        inactiveTextClassName={activityTheme.bottomNavInactiveText}
       />
     </div>
   )
