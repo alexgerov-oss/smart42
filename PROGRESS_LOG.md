@@ -1,3 +1,91 @@
+## 2026-05-25 — Feature: start using persisted Activity Log for Lock/Unlock
+
+Baseline/branch:
+- branch: refactor-v2
+
+Commits:
+- 31028bd feat: log dashboard lock actions
+- 8240f54 feat: show persisted activity log
+
+What we changed:
+- Found that `AppContext` already exposed persisted Activity Log state:
+  - `activityLog`
+  - `logActivity`
+  - `clearActivityLog`
+- Found that no code was calling `logActivity()` yet.
+- Added real Activity Log writing for successful Dashboard Lock/Unlock actions.
+- The log entry is written only after the door API action succeeds.
+- Failed Lock/Unlock actions still do not create activity entries.
+- Added log data for:
+  - `createdAt`
+  - `doorName`
+  - `timeLabel`
+  - `dateLabel`
+  - `action`
+  - `method`
+  - `user`
+  - `eventType`
+- Kept Lock/Unlock API flow unchanged:
+  - `lockDoor(doorId)`
+  - `unlockDoor(doorId)`
+- Kept demo sensor state behavior unchanged:
+  - `setDoorSensorOpen(nextState === "unlock")`
+
+Activity screen:
+- Updated `components/activity-log-screen.tsx` to read `activityLog` from `useAppContext()`.
+- Added a small adapter from persisted/core activity log entries to the existing Activity UI shape.
+- Kept the existing render/filter UI mostly unchanged.
+- Kept the existing hardcoded demo logs as fallback.
+- Behavior now:
+  - if persisted `activityLog` has entries → Activity tab shows real persisted entries
+  - if persisted `activityLog` is empty → Activity tab still shows the old demo fallback entries
+- This avoids an empty Activity screen on clean browser state while allowing real Lock/Unlock history to appear after actions.
+
+What we did NOT change:
+- No permission logic changes.
+- No Lock/Unlock permission changes.
+- No API route changes.
+- No localStorage storage key changes.
+- No theme color changes.
+- No layout/spacing/animation changes.
+- No bottom navigation changes.
+- No Settings/Scenes/Profile behavior changes.
+- No activity filter UI changes.
+- No direct removal of demo logs yet; they remain fallback only.
+
+Tests done:
+- For `31028bd feat: log dashboard lock actions`:
+  - npm run lint: OK
+  - npm run build: OK
+  - npm run dev: OK
+  - manual Lock/Unlock smoke test: OK
+    - terminal showed `POST /api/doors/lock`
+    - terminal showed `POST /api/doors/unlock`
+- For `8240f54 feat: show persisted activity log`:
+  - npm run lint: OK
+  - npm run build: OK
+  - npm run dev: OK
+  - manual Lock/Unlock smoke test: OK
+    - terminal showed `POST /api/doors/lock`
+    - terminal showed `POST /api/doors/unlock`
+  - manual Activity tab test: OK
+    - Activity tab showed real Lock/Unlock entries after actions
+
+Result:
+- OK
+
+Notes:
+- This is the first step toward replacing demo Activity data with real app activity.
+- Demo Activity entries are intentionally still kept as fallback when there are no persisted entries.
+- Next possible step, only if requested:
+  - add more real `logActivity()` calls for other important actions, one area at a time:
+    - add/edit/delete doors
+    - add/edit/delete iButtons
+    - add/edit/delete App Users
+    - scenes create/edit/delete/toggle
+    - controller restart
+- If touching Lock/Unlock path again, manual POST smoke test remains mandatory.
+
 ## 2026-05-25 — Refactor cleanup: safe type/import simplifications
 
 Baseline/branch:
