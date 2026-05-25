@@ -598,7 +598,7 @@ export default function SettingsScreen({
                   checked={autoLockEnabled}
                   onCheckedChange={handleToggleAutoLock}
                   disabled={areQuickControlsDisabled}
-                  className="data-[state=unchecked]:bg-gray-500"
+                  className="data-[state=unchecked]:bg-gray-700 dark:data-[state=unchecked]:bg-gray-700 data-[state=unchecked]:border-gray-400"
                 />
               </div>
 
@@ -637,7 +637,7 @@ export default function SettingsScreen({
                   checked={autoNightLockEnabled}
                   onCheckedChange={handleToggleAutoNightLock}
                   disabled={areQuickControlsDisabled}
-                  className="data-[state=unchecked]:bg-gray-500"
+                  className="data-[state=unchecked]:bg-gray-700 dark:data-[state=unchecked]:bg-gray-700 data-[state=unchecked]:border-gray-400"
                 />
               </div>
 

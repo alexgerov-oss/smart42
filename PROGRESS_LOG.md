@@ -1,3 +1,31 @@
+## 2026-05-25 — UI polish: add inactive Quick Controls switch outline
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a visible gray outline to inactive Quick Controls switches.
+- Applied the change only to:
+  - Automatic Lock switch
+  - Automatic Night Lock switch
+- Set inactive switch fill to gray-700 in light/dark states.
+- Kept inactive switch outline gray-400.
+- No layout/spacing/animation changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: inactive Quick Controls switches now look like switch controls
+- manual: active switch state remains unchanged
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock
+
+Result:
+- OK
+
+Next:
+- Continue only with explicit UI tweaks requested by the user.
+- Keep diffs minimal and avoid unrelated visual changes.
+
 python - <<'PY'
 from pathlib import Path
 
