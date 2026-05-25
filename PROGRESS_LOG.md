@@ -1,3 +1,71 @@
+## 2026-05-25 — Test infrastructure: add Playwright smoke tests
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added minimal Playwright test infrastructure.
+- Installed Playwright as a dev dependency only:
+  - @playwright/test
+- Added Playwright Chromium browser install for local testing.
+- Added `playwright.config.ts`.
+- Added Playwright scripts to `package.json`:
+  - `npm run test:e2e`
+  - `npm run test:e2e:ui`
+- Added Playwright output folders to `.gitignore`:
+  - `/test-results/`
+  - `/playwright-report/`
+- Added first app smoke test:
+  - `tests/e2e/app-smoke.spec.ts`
+  - verifies the app page loads without crashing
+  - checks that the body is visible
+  - checks there is no visible runtime crash text
+- Added Lock/Unlock smoke test:
+  - `tests/e2e/lock-unlock-smoke.spec.ts`
+  - logs in through the existing mock Admin login flow
+  - clicks Unlock first because initial door state is locked
+  - verifies `POST /api/doors/unlock`
+  - clicks Lock after that
+  - verifies `POST /api/doors/lock`
+- Set Playwright `workers: 1` so tests run one at a time.
+- This avoids flaky behavior from parallel browser tests sharing mock/local app state.
+
+What we did NOT change:
+- No app UI changes.
+- No layout/spacing/color/animation changes.
+- No business logic changes.
+- No Lock/Unlock logic changes.
+- No API route changes.
+- No permission logic changes.
+- No localStorage key changes.
+
+Tests done:
+- `npm run test:e2e`: OK
+  - app smoke test: passed
+  - unlock/lock API smoke test: passed
+  - final result: 2 passed
+- Lock/Unlock automated test confirmed:
+  - `POST /api/doors/unlock`
+  - `POST /api/doors/lock`
+
+Result:
+- OK
+
+Notes:
+- Playwright is a development/test dependency only.
+- It does not load in the production app.
+- It does not make the normal site heavier for users.
+- It only runs when explicitly started with:
+  - `npm run test:e2e`
+- The Lock/Unlock smoke test replaces the old manual check for confirming API POST calls, but manual testing can still be done when touching critical lock code.
+
+Next:
+- Keep using this before commits that touch app wiring, dashboard, lock state, door actions, API routes, or refactor logic:
+  - `npm run lint`
+  - `npm run build`
+  - `npm run test:e2e`
+- If Lock/Unlock flow is changed later, this automated smoke test should catch missing API side-effects.
+
 ## 2026-05-25 — Feature: start using persisted Activity Log for Lock/Unlock
 
 Baseline/branch:
