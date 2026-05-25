@@ -119,6 +119,8 @@ interface ScenesScreenProps {
 
 type ScenesVisibilityTheme = "dark" | "soft" | "day"
 
+const SCENES_VISIBILITY_THEMES: ScenesVisibilityTheme[] = ["dark", "soft", "day"]
+
 const SCENES_VISIBILITY_THEME_CLASSES: Record<
   ScenesVisibilityTheme,
   {
@@ -127,6 +129,7 @@ const SCENES_VISIBILITY_THEME_CLASSES: Record<
     tile: string
     mutedText: string
     bottomNavInactiveText: string
+    swatch: string
   }
 > = {
   dark: {
@@ -135,6 +138,7 @@ const SCENES_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-background",
     mutedText: "text-muted-foreground",
     bottomNavInactiveText: "text-muted-foreground",
+    swatch: "bg-black",
   },
   soft: {
     card: "bg-[#232b3a]",
@@ -142,6 +146,7 @@ const SCENES_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-[#151b27]",
     mutedText: "text-gray-300",
     bottomNavInactiveText: "text-gray-300",
+    swatch: "bg-[linear-gradient(135deg,#111827_0%,#111827_50%,#ffffff_50%,#ffffff_100%)]",
   },
   day: {
     card: "bg-[#2d374c]",
@@ -149,6 +154,7 @@ const SCENES_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-[#151d2b]",
     mutedText: "text-gray-200",
     bottomNavInactiveText: "text-gray-100",
+    swatch: "bg-white",
   },
 }
 
@@ -320,13 +326,18 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
   const [sceneNameError, setSceneNameError] = useState("")
   const [whenConditions, setWhenConditions] = useState<WhenCondition[]>([{ type: "wifi", operator: "<" }])
   const [thenAction, setThenAction] = useState<ThenAction>({ type: "push", customText: "" })
-  const [visibilityTheme] = useState<ScenesVisibilityTheme>(() => {
+  const [visibilityTheme, setVisibilityTheme] = useState<ScenesVisibilityTheme>(() => {
     if (typeof window === "undefined") return "soft"
     const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
     return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
   })
 
   const scenesTheme = SCENES_VISIBILITY_THEME_CLASSES[visibilityTheme]
+
+  const handleVisibilityThemeChange = (theme: ScenesVisibilityTheme) => {
+    setVisibilityTheme(theme)
+    window.localStorage.setItem("homeVisibilityTheme", theme)
+  }
 
   const { toast } = useToast()
 
@@ -485,11 +496,29 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
     return (
       <div className="flex min-h-screen flex-col pb-20">
         <div className={`${scenesTheme.header} border-b border-border p-4`}>
-          <div className="flex items-center gap-3">
-            <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
-              <ArrowLeft className="h-6 w-6" />
-            </button>
-            <h1 className="text-xl font-bold text-foreground">Scenes</h1>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+              <h1 className="text-xl font-bold text-foreground">Scenes</h1>
+            </div>
+
+            <div className="flex items-center gap-2" aria-label="Scenes visibility theme">
+              {SCENES_VISIBILITY_THEMES.map((theme) => (
+                <button
+                  key={theme}
+                  type="button"
+                  aria-label={`Set ${theme} visibility theme`}
+                  onClick={() => handleVisibilityThemeChange(theme)}
+                  className={cn(
+                    "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
+                    SCENES_VISIBILITY_THEME_CLASSES[theme].swatch,
+                    visibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
+                  )}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -524,11 +553,29 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
   return (
     <div className="flex min-h-screen flex-col pb-20">
       <div className={`${scenesTheme.header} border-b border-border p-4`}>
-        <div className="flex items-center gap-3">
-          <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <h1 className="text-xl font-bold text-foreground">Scenes</h1>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <h1 className="text-xl font-bold text-foreground">Scenes</h1>
+          </div>
+
+          <div className="flex items-center gap-2" aria-label="Scenes visibility theme">
+            {SCENES_VISIBILITY_THEMES.map((theme) => (
+              <button
+                key={theme}
+                type="button"
+                aria-label={`Set ${theme} visibility theme`}
+                onClick={() => handleVisibilityThemeChange(theme)}
+                className={cn(
+                  "h-4 w-4 rounded-[2px] border border-gray-500 transition-all",
+                  SCENES_VISIBILITY_THEME_CLASSES[theme].swatch,
+                  visibilityTheme === theme ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100",
+                )}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
