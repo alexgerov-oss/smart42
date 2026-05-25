@@ -1,3 +1,58 @@
+## 2026-05-25 — UI polish: apply visibility theme across main app tabs
+
+Baseline/branch:
+- branch: refactor-v2
+- commits:
+  - d8f6935 style: sync bottom nav with home visibility theme
+  - 9e20e8f docs: update progress log for bottom nav theme
+  - bc08890 style: apply visibility theme to settings
+  - 1478c00 style: apply visibility theme to activity
+  - 8c5b11c style: apply visibility theme to scenes
+  - a8a378d style: apply visibility theme to profile
+
+What we changed:
+- Extended the Home visibility theme behavior to the main app tabs one screen at a time.
+- Bottom navigation inactive gray icons/text now follow the selected visibility theme.
+- Applied the same 3 visibility levels to:
+  - Settings
+  - Activity
+  - Scenes
+  - Profile
+- Theme selection still uses localStorage key: homeVisibilityTheme.
+- Default first-load visibility theme is now soft.
+- Kept black elements unchanged.
+- Kept red/green/status colors unchanged.
+- Kept primary/accent colors unchanged.
+- Kept layouts, spacing, animations, and permission logic unchanged.
+- Settings:
+  - cards, inner tiles, muted labels/text, and bottom nav follow visibility theme.
+- Activity:
+  - header, filter area, activity cards, muted descriptions/time/date text, and bottom nav follow visibility theme.
+- Scenes:
+  - header, scene cards, scene editor card, condition tiles, muted labels/text, and bottom nav follow visibility theme.
+- Profile:
+  - header, profile/contact/account/support cards, inner info tiles, muted labels/text, and bottom nav follow visibility theme.
+
+Tests done:
+- lint: OK after every screen change
+- build: OK after every screen change
+- final lint: OK
+- final build: OK
+- manual: Settings visibility theme test OK
+- manual: Activity visibility theme test OK
+- manual: Scenes visibility theme test OK
+- manual: Profile visibility theme test OK
+- manual: bottom navigation stays black while inactive icons/text brighten by theme
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock after each screen change
+
+Result:
+- OK
+
+Next:
+- Consider extracting duplicated visibility theme constants/helpers into a shared helper only if needed later.
+- Do not start a broad theme refactor unless explicitly requested.
+- Continue with small, screen-by-screen diffs.
+
 ## 2026-05-25 — UI polish: sync bottom nav with Home visibility theme
 
 Baseline/branch:
