@@ -1,17 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { loginAsAdmin, openCleanLoginPage } from "./helpers/auth";
 
 test("automatic lock countdown works at minimum delay", async ({ page }) => {
-  await page.goto("/", {
-    waitUntil: "domcontentloaded",
-  });
-
-  await expect(page.getByRole("heading", { name: "SmartDoor" })).toBeVisible();
-
-  await page.getByLabel("Email").fill("admin@example.com");
-  await page.getByLabel("Password").fill("test123");
-  await page.getByRole("button", { name: "Login" }).click();
-
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({ timeout: 15_000 });
+  await openCleanLoginPage(page);
+  await loginAsAdmin(page);
 
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByRole("heading", { name: "Quick Controls" })).toBeVisible();
