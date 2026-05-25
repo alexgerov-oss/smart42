@@ -4,6 +4,45 @@ from pathlib import Path
 p = Path("PROGRESS_LOG.md")
 old = p.read_text(encoding="utf-8")
 
+entry = """## 2026-05-25 — UI text: show App User inviter and invite timestamp
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Updated App Users list invited status text.
+- Invited App Users now show who invited them:
+  - Invited by Admin
+  - Invited by Full Access
+- Added invite timestamp after the inviter text.
+- Timestamp format is: 25 MAY 2026 - 12:12 AM.
+- No layout/color/spacing/animation changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Admin-created Open/Close user shows Invited by Admin with timestamp
+- manual: Full Access-created Open/Close user shows Invited by Full Access with timestamp
+- manual: Lock/Unlock still sends POST /api/doors/lock and POST /api/doors/unlock
+
+Result:
+- OK
+
+Next:
+- Continue manual role/login sanity pass.
+- Fix only concrete bugs found during testing.
+
+"""
+
+p.write_text(entry + old, encoding="utf-8")
+PY
+
+python - <<'PY'
+from pathlib import Path
+
+p = Path("PROGRESS_LOG.md")
+old = p.read_text(encoding="utf-8")
+
 entry = """## 2026-05-25 — Bugfix: remove manual App User password field
 
 Baseline/branch:

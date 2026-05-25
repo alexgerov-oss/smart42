@@ -237,6 +237,20 @@ export default function SettingsScreen({
 
   const getAppUserDisplayName = (user: { id: string; name: string }) => getEntityName("appusers", user.id, user.name)
 
+  const formatCreatedAt = (createdAt: string) => {
+    const date = new Date(createdAt)
+    const day = date.getDate().toString().padStart(2, "0")
+    const month = date.toLocaleString("en-US", { month: "short" }).toUpperCase()
+    const year = date.getFullYear()
+    const time = date.toLocaleString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    })
+
+    return `${day} ${month} ${year} - ${time}`
+  }
+
   const handleSendInvitation = () => {
     if (!canAddAppUsers) return
     if (!canSendInvitation) return
@@ -764,7 +778,9 @@ export default function SettingsScreen({
                         <p className="font-medium">{getAppUserDisplayName(user)}</p>
                         <p className="text-sm text-muted-foreground">
                           {user.email} • {user.access === "admin" ? "Admin" : user.access === "full" ? "Full Access" : "Open/Close Only"}
-                          {user.status === "invited" ? " • Invited" : " • Active"}
+                          {user.status === "invited"
+                            ? ` • Invited by ${user.createdByRole === "full" ? "Full Access" : "Admin"} on ${formatCreatedAt(user.createdAt)}`
+                            : " • Active"}
                         </p>
                       </div>
 
