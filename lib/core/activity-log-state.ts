@@ -13,7 +13,7 @@ function computeNextId(prev: ActivityLogEntry[]): string {
   // Pure (без Date.now/Math.random/UUID) за да не дразни react-hooks/purity
   let max = 0
   for (const e of prev) {
-    const match = /^log_(\d+)$/.exec(String((e as any).id))
+    const match = /^log_(\d+)$/.exec(String(e.id))
     if (!match) continue
     const n = Number.parseInt(match[1] ?? "0", 10)
     if (!Number.isNaN(n)) max = Math.max(max, n)
