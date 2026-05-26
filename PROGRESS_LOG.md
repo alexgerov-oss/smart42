@@ -1,3 +1,49 @@
+## 2026-05-26 — UI polish: refine Home System Status controls
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Updated Home → System Status card collapsed height.
+- When System Status is collapsed, the card is now thinner and shows mainly:
+  - System Status title
+  - controller online/offline status
+  - compact expand control
+- Reduced the vertical spacing near the collapse/expand control when System Status is expanded.
+- Replaced the single collapse/expand chevron with a double-chevron indicator.
+- Kept the chevron size visually consistent in both expanded and collapsed states.
+- Adjusted chevron vertical position in both expanded and collapsed states.
+- Changed the chevron color to a theme-aware gray instead of green/primary.
+- Changed System Status online indicator/text from WiFi blue to green.
+- Changed WiFi Signal icon and signal value from WiFi blue to green.
+- Kept Open/Closed door state behavior correct:
+  - Unlock shows Open in green
+  - Lock shows Closed in normal text color
+- Changed the Home door edit pencil icon from blue to white.
+- No permission logic changes.
+- No Lock/Unlock API logic changes.
+- No shared component changes.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: collapsed System Status card is thinner
+- manual: expanded System Status spacing near the chevron looks correct
+- manual: double chevron appears in expanded and collapsed states
+- manual: chevron position and size look correct
+- manual: chevron uses theme-aware gray instead of green
+- manual: Online status and WiFi Signal are green
+- manual: Lock shows Closed and Unlock shows Open correctly
+- manual: Home door edit pencil icon is white
+- manual: Lock/Unlock still works
+
+Result:
+- OK
+
+Next:
+- Continue only with explicit small UI polish requests.
+- Keep changes scoped to the requested screen/element.
+
 ## 2026-05-26 — UI polish: sync Lock Delay slider track with visibility theme
 
 Baseline/branch:
