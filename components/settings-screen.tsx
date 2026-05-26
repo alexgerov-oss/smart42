@@ -52,6 +52,7 @@ const SETTINGS_VISIBILITY_THEME_CLASSES: Record<
     tile: string
     mutedText: string
     bottomNavInactiveText: string
+    sliderTrack: string
     swatch: string
   }
 > = {
@@ -60,6 +61,7 @@ const SETTINGS_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-background",
     mutedText: "text-muted-foreground",
     bottomNavInactiveText: "text-muted-foreground",
+    sliderTrack: "[&_[data-slot=slider-track]]:!bg-muted",
     swatch: "bg-black",
   },
   soft: {
@@ -67,6 +69,7 @@ const SETTINGS_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-[#151b27]",
     mutedText: "text-gray-300",
     bottomNavInactiveText: "text-gray-300",
+    sliderTrack: "[&_[data-slot=slider-track]]:!bg-gray-600",
     swatch: "bg-[linear-gradient(135deg,#111827_0%,#111827_50%,#ffffff_50%,#ffffff_100%)]",
   },
   day: {
@@ -74,6 +77,7 @@ const SETTINGS_VISIBILITY_THEME_CLASSES: Record<
     tile: "bg-[#151d2b]",
     mutedText: "text-gray-200",
     bottomNavInactiveText: "text-gray-100",
+    sliderTrack: "[&_[data-slot=slider-track]]:!bg-gray-500",
     swatch: "bg-white",
   },
 }
@@ -676,7 +680,7 @@ export default function SettingsScreen({
                     max={120}
                     step={5}
                     disabled={areQuickControlsDisabled}
-                    className="*:[[role=slider]]:bg-primary *:[[role=slider]]:border-primary"
+                    className={`${settingsTheme.sliderTrack} *:[[role=slider]]:bg-primary *:[[role=slider]]:border-primary`}
                   />
                 </div>
               )}
