@@ -1,3 +1,155 @@
+## 2026-05-26 — UI polish: sync Lock Delay slider track with visibility theme
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Updated the Lock Delay slider in Settings → Quick Controls → Automatic Lock.
+- The inactive/gray part of the slider track now follows the selected visibility theme.
+- Dark theme keeps the original muted slider track.
+- Soft/default theme uses darker visible gray:
+  - `gray-600`
+- Day/third theme uses darker visible gray:
+  - `gray-500`
+- The active/green slider range remains unchanged.
+- The slider thumb remains unchanged.
+- Automatic Lock logic remains unchanged.
+- No layout/spacing/animation changes.
+- No permission logic changes.
+- No changes to the shared Slider component.
+
+Tests done:
+- lint: OK
+- build: OK
+- manual: Settings → Quick Controls → Automatic Lock slider track changes correctly across all 3 visibility themes
+- manual: soft/default theme slider track is visible but not too bright
+- manual: day/third theme slider track is visible and darker than before
+- manual: active green slider range remains unchanged
+
+Result:
+- OK
+
+Next:
+- Continue only with explicit small UI polish requests.
+- Keep future changes scoped and avoid broad theme refactors.
+
+## 2026-05-25 — Test: add role-based Playwright smoke tests
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added role-based Playwright smoke tests for App Users.
+- Added shared Playwright auth helper:
+  - `tests/e2e/helpers/auth.ts`
+- Updated existing login-based smoke tests to use the shared helper where needed.
+- The helper:
+  - opens a clean login page
+  - clears cookies
+  - clears `localStorage`
+  - clears `sessionStorage`
+  - reloads the app
+  - logs in as Admin using the current mock login flow
+  - handles the current mock `sessionPassword` behavior by trying known mock passwords
+
+New tests added:
+- `tests/e2e/full-access-lock-unlock-smoke.spec.ts`
+  - Admin logs in
+  - Admin activates Free Trial
+  - Admin creates a Full Access App User
+  - test logs out Admin
+  - test logs in as the Full Access user
+  - verifies Full Access can send `POST /api/doors/unlock`
+  - verifies Full Access can send `POST /api/doors/lock`
+
+- `tests/e2e/full-access-auto-lock-smoke.spec.ts`
+  - Admin logs in
+  - Admin activates Free Trial
+  - Admin creates a Full Access App User
+  - test logs out Admin
+  - test logs in as the Full Access user
+  - verifies Full Access can open Settings
+  - verifies Full Access can use Quick Controls
+  - enables Automatic Lock
+  - sets Lock Delay to minimum value:
+    - 5 seconds
+  - returns Home
+  - clicks Unlock
+  - verifies `POST /api/doors/unlock`
+  - verifies Automatic Lock countdown appears
+  - waits for countdown to finish
+  - verifies countdown disappears
+
+- `tests/e2e/open-close-lock-unlock-smoke.spec.ts`
+  - Admin logs in
+  - Admin activates Free Trial
+  - Admin creates an Open/Close Only App User
+  - test logs out Admin
+  - test logs in as the Open/Close Only user
+  - verifies Open/Close Only cannot access Settings
+  - verifies Open/Close Only cannot access Activity
+  - verifies Open/Close Only can send `POST /api/doors/unlock`
+  - verifies Open/Close Only can send `POST /api/doors/lock`
+
+Existing tests improved:
+- `tests/e2e/lock-unlock-smoke.spec.ts`
+  - updated to use shared auth helper
+- `tests/e2e/auto-lock-smoke.spec.ts`
+  - updated to use shared auth helper
+
+Important findings:
+- Full Access App User must be selected explicitly in the Invite New User dialog.
+- Default new App User access is:
+  - Open/Close Only
+- App User mock password is:
+  - `smart42-temp`
+- Current Automatic Lock logic does not send `POST /api/doors/lock`.
+- Automatic Lock currently changes local UI/app state by calling:
+  - `setDoorState("lock")`
+- Therefore Automatic Lock tests verify countdown/UI behavior, not backend/controller lock API behavior.
+
+What we did NOT change:
+- No app UI changes.
+- No layout/spacing/color/animation changes.
+- No business logic changes.
+- No permission logic changes.
+- No Lock/Unlock logic changes.
+- No Automatic Lock logic changes.
+- No API route changes.
+- No localStorage key changes.
+
+Tests done:
+- `npm run test:e2e`: OK
+  - result: 6 passed
+- `npx playwright test tests/e2e/auto-lock-smoke.spec.ts --repeat-each=5`: OK
+  - result: 5 passed
+- `npx playwright test --repeat-each=5`: OK
+  - result: 30 passed
+
+Result:
+- OK
+
+Notes:
+- Playwright tests run with:
+  - `workers: 1`
+- This keeps tests stable with the current mock/localStorage-based app state.
+- Role tests use real UI flow:
+  - Admin activates trial
+  - Admin creates App Users
+  - App Users log in
+  - permissions and lock/unlock behavior are checked through the UI
+- The shared auth helper exists because the current mock login flow stores `sessionPassword`, and different test users can update that mock session password.
+
+Next:
+- Continue using the full check set before commits:
+  - `npm run lint`
+  - `npm run build`
+  - `npm run test:e2e`
+- For stability checks after changing test/login/role behavior:
+  - `npx playwright test --repeat-each=5`
+- If Automatic Lock is later changed to send a real lock API request, update the Automatic Lock tests to also verify:
+  - `POST /api/doors/lock`
+
 ## 2026-05-25 — Test: add Auto Lock Playwright smoke test
 
 Baseline/branch:
