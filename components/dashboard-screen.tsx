@@ -160,6 +160,8 @@ export default function DashboardScreen({
   const homeTheme = HOME_VISIBILITY_THEME_CLASSES[homeVisibilityTheme]
   const bottomNavInactiveTextClassName = homeVisibilityTheme === "day" ? "text-gray-100" : homeTheme.mutedText
   const unlockInactiveTextClassName = homeVisibilityTheme === "day" ? "text-white" : homeTheme.mutedText
+  const systemStatusChevronTextClassName =
+    homeVisibilityTheme === "day" ? "text-gray-300" : homeVisibilityTheme === "soft" ? "text-gray-400" : homeTheme.mutedText
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
@@ -405,7 +407,7 @@ export default function DashboardScreen({
               </Button>
 
               {canEditDoors && (
-                <Button onClick={handleEditDoor} variant="ghost" size="sm" className="text-blue-500 hover:text-blue-600">
+                <Button onClick={handleEditDoor} variant="ghost" size="sm" className="text-white hover:text-white">
                   <Pencil className="h-4 w-4" />
                 </Button>
               )}
@@ -466,12 +468,18 @@ export default function DashboardScreen({
                 <div />
               )}
 
-              <div>{doorSensorOpen ? <p className="text-sm font-medium text-green-500">Open</p> : <p className="text-sm font-medium">Closed</p>}</div>
+              <div>
+                {doorState === "unlock" ? (
+                  <p className="text-sm font-medium text-green-500">Open</p>
+                ) : (
+                  <p className="text-sm font-medium">Closed</p>
+                )}
+              </div>
             </div>
           </div>
         </Card>
 
-        <Card className={cn(homeTheme.card, "border-border p-4 space-y-4")}>
+        <Card className={cn(homeTheme.card, "border-border", isSystemStatusExpanded ? "p-4 space-y-1" : "px-4 py-2 space-y-1")}>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">System Status</h2>
             {controller ? (
@@ -480,10 +488,10 @@ export default function DashboardScreen({
                   className={`h-2 w-2 rounded-full ${controller.status === "online" ? "animate-pulse" : ""}`}
                   style={{
                     backgroundColor:
-                      controller.status === "online" ? `var(${getWifiClass(-50).match(/--[^)]+/)?.[0]})` : "#ef4444",
+                      controller.status === "online" ? "#22c55e" : "#ef4444",
                   }}
                 />
-                <span className={controller.status === "online" ? getWifiClass(-50) : "text-red-500"}>
+                <span className={controller.status === "online" ? "text-green-500" : "text-red-500"}>
                   {controller.status === "online" ? "Online" : "Offline"}
                 </span>
               </div>
@@ -500,8 +508,8 @@ export default function DashboardScreen({
               >
                 <p className={cn("text-xs", homeTheme.mutedText)}>WiFi Signal</p>
                 <div className="flex items-center gap-2">
-                  <Wifi className={`${getWifiClass(-50)}`} />
-                  <p className={`text-sm font-semibold ${getWifiClass(-50)}`}>-50 dBm</p>
+                  <Wifi className="text-green-500" />
+                  <p className="text-sm font-semibold text-green-500">-50 dBm</p>
                 </div>
               </button>
 
@@ -572,12 +580,22 @@ export default function DashboardScreen({
             </div>
           )}
 
-          <div className="flex justify-center">
+          <div className={cn("flex justify-center", isSystemStatusExpanded ? "-mt-2" : "-mt-3")}>
             <button
               onClick={() => setIsSystemStatusExpanded(!isSystemStatusExpanded)}
-              className={cn(homeTheme.mutedText, "hover:text-foreground transition-colors")}
+              className={cn(systemStatusChevronTextClassName, "h-4 leading-none hover:text-foreground transition-colors")}
             >
-              {isSystemStatusExpanded ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
+              {isSystemStatusExpanded ? (
+                <span className="relative -top-1 flex flex-col items-center -space-y-4">
+                  <ChevronUp className="h-6 w-6" />
+                  <ChevronUp className="h-6 w-6" />
+                </span>
+              ) : (
+                <span className="relative -top-3 flex flex-col items-center -space-y-4">
+                  <ChevronDown className="h-6 w-6" />
+                  <ChevronDown className="h-6 w-6" />
+                </span>
+              )}
             </button>
           </div>
         </Card>
