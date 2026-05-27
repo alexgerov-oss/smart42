@@ -1,3 +1,54 @@
+## 2026-05-27 — Test: add door-scoped iButtons Playwright smoke test
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a new Playwright smoke test:
+  - `tests/e2e/door-scoped-ibuttons-smoke.spec.ts`
+
+What the test verifies:
+- Admin can activate trial using the existing UI flow.
+- Main Door can create and show its own iButton.
+- A second added door does not show Main Door's iButton.
+- The second door can create and show its own iButton.
+- Returning to Main Door restores only Main Door's iButton.
+- Returning to the second door restores only the second door's iButton.
+- iButtons are isolated through the selected door/controller context.
+
+Test implementation notes:
+- Uses existing auth helper:
+  - `openCleanLoginPage`
+  - `loginAsAdmin`
+- Uses real UI flow:
+  - activate trial
+  - add door
+  - switch selected door
+  - create iButtons from Settings → iButton Access
+  - verify iButton visibility per selected door
+- This protects the `iButtonUsers:<doorId>` behavior from regressions.
+
+What we did NOT change:
+- No app logic changes.
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No trial/premium logic changes.
+- No storage key changes.
+- No Lock/Unlock API logic changes.
+
+Tests done:
+- npx playwright test tests/e2e/door-scoped-ibuttons-smoke.spec.ts: OK
+- npm run test:e2e: OK
+- npm run lint: OK
+- npm run build: OK
+
+Result:
+- OK
+
+Next:
+- Commit the new Playwright regression test.
+- Continue using this test before changing iButton state, selected-door logic, iButton creation, or iButton persistence.
+
 ## 2026-05-27 — Test: add door-scoped Scenes Playwright smoke test
 
 Baseline/branch:
