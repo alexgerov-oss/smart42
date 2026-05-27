@@ -324,6 +324,19 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
   if (!effectiveHasPlan) {
     return (
       <div className="flex min-h-screen flex-col pb-20">
+        <header className="border-b border-border bg-card px-4 py-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold text-foreground">Activity</h1>
+            <VisibilityThemeSelector
+              themes={ACTIVITY_VISIBILITY_THEMES}
+              currentTheme={visibilityTheme}
+              themeClasses={ACTIVITY_VISIBILITY_THEME_CLASSES}
+              onThemeChange={handleVisibilityThemeChange}
+              ariaLabel="Activity visibility theme"
+            />
+          </div>
+        </header>
+
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className={`${activityTheme.card} border-border p-8 text-center space-y-4 max-w-sm`}>
             <div className="flex justify-center">

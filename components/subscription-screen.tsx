@@ -1,10 +1,49 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Check, Zap } from "lucide-react"
 import type { Screen } from "@/app/page"
 import { AppBottomNav } from "@/components/app-bottom-nav"
+import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
+
+type SubscriptionVisibilityTheme = "dark" | "soft" | "day"
+
+const SUBSCRIPTION_VISIBILITY_THEMES: SubscriptionVisibilityTheme[] = ["dark", "soft", "day"]
+
+const SUBSCRIPTION_VISIBILITY_THEME_CLASSES: Record<
+  SubscriptionVisibilityTheme,
+  {
+    card: string
+    header: string
+    mutedText: string
+    bottomNavInactiveText: string
+    swatch: string
+  }
+> = {
+  dark: {
+    card: "bg-card",
+    header: "bg-card",
+    mutedText: "text-muted-foreground",
+    bottomNavInactiveText: "text-muted-foreground",
+    swatch: "bg-black",
+  },
+  soft: {
+    card: "bg-[#232b3a]",
+    header: "bg-[#232b3a]",
+    mutedText: "text-gray-300",
+    bottomNavInactiveText: "text-gray-300",
+    swatch: "bg-[linear-gradient(135deg,#111827_0%,#111827_50%,#ffffff_50%,#ffffff_100%)]",
+  },
+  day: {
+    card: "bg-[#2d374c]",
+    header: "bg-[#2d374c]",
+    mutedText: "text-gray-200",
+    bottomNavInactiveText: "text-gray-100",
+    swatch: "bg-white",
+  },
+}
 
 interface SubscriptionScreenProps {
   onNavigate: (screen: Screen) => void
@@ -19,6 +58,41 @@ export default function SubscriptionScreen({
   onActivateFreeTrial,
   isOnTrial,
 }: SubscriptionScreenProps) {
+  const [visibilityTheme, setVisibilityTheme] = useState<SubscriptionVisibilityTheme>(() => {
+    if (typeof window === "undefined") return "soft"
+
+    const storedTheme = window.localStorage.getItem("homeVisibilityTheme")
+    if (storedTheme === "dark" || storedTheme === "soft" || storedTheme === "day") {
+      return storedTheme
+    }
+
+    return "soft"
+  })
+
+  const handleVisibilityThemeChange = (theme: SubscriptionVisibilityTheme) => {
+    setVisibilityTheme(theme)
+    window.localStorage.setItem("homeVisibilityTheme", theme)
+  }
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== "homeVisibilityTheme") return
+
+      const nextTheme = event.newValue
+      if (nextTheme === "dark" || nextTheme === "soft" || nextTheme === "day") {
+        setVisibilityTheme(nextTheme)
+      }
+    }
+
+    window.addEventListener("storage", handleStorage)
+
+    return () => {
+      window.removeEventListener("storage", handleStorage)
+    }
+  }, [])
+
+  const subscriptionTheme = SUBSCRIPTION_VISIBILITY_THEME_CLASSES[visibilityTheme]
+
   const benefits = [
     "Unlimited iButton access",
     "Add multiple app users",
@@ -30,15 +104,25 @@ export default function SubscriptionScreen({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="bg-card border-b border-border p-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onNavigate("dashboard")}
-            className="text-foreground hover:text-primary transition-colors"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <h1 className="text-xl font-bold text-foreground">Activity</h1>
+      <div className={`${subscriptionTheme.header} border-b border-border p-4`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onNavigate("dashboard")}
+              className="text-foreground hover:text-primary transition-colors"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <h1 className="text-xl font-bold text-foreground">Activity</h1>
+          </div>
+
+          <VisibilityThemeSelector
+            themes={SUBSCRIPTION_VISIBILITY_THEMES}
+            value={visibilityTheme}
+            themeClasses={SUBSCRIPTION_VISIBILITY_THEME_CLASSES}
+            onChange={handleVisibilityThemeChange}
+            ariaLabel="Activity visibility theme"
+          />
         </div>
       </div>
 
@@ -49,16 +133,16 @@ export default function SubscriptionScreen({
 
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold text-foreground">Upgrade to Premium</h2>
-          <p className="text-muted-foreground">Unlock all features and take full control</p>
+          <p className={subscriptionTheme.mutedText}>Unlock all features and take full control</p>
         </div>
 
         {!isOnTrial && (
-          <Card className="bg-card border-border p-6 w-full max-w-md space-y-4">
+          <Card className={`${subscriptionTheme.card} border-border p-6 w-full max-w-md space-y-4`}>
             <div className="text-center space-y-2">
               <div className="flex items-baseline justify-center gap-2">
                 <span className="text-2xl font-bold text-accent">30 days free Trial</span>
               </div>
-              <p className="text-xs text-muted-foreground">No payment required. Try all premium features.</p>
+              <p className={`text-xs ${subscriptionTheme.mutedText}`}>No payment required. Try all premium features.</p>
             </div>
 
             <Button
@@ -71,7 +155,7 @@ export default function SubscriptionScreen({
           </Card>
         )}
 
-        <Card className="bg-card border-border p-6 w-full max-w-md space-y-4">
+        <Card className={`${subscriptionTheme.card} border-border p-6 w-full max-w-md space-y-4`}>
           <h3 className="text-lg font-semibold text-foreground">Premium Benefits</h3>
           <div className="space-y-3">
             {benefits.map((benefit, index) => (

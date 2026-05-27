@@ -1,3 +1,61 @@
+## 2026-05-27 — UI polish: add visibility theme selector to Activity no-plan page
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Activity / no trial-premium flow:
+  - Added the 3-square visibility theme selector to the Activity page shown when Admin has no active trial/premium.
+  - Selector now appears in the top right of the Activity header.
+  - Kept the Activity title on the left.
+  - Kept the existing Activity upsell / trial-premium page structure.
+  - Kept the existing bottom navigation visible.
+  - No trial activation logic changes.
+  - No premium payment logic changes.
+  - No permission logic changes.
+
+- Subscription/Activity upsell page theme behavior:
+  - Wired the selector to the shared `homeVisibilityTheme` localStorage key.
+  - Fixed selector props to use the shared component API:
+    - `value`
+    - `onChange`
+  - Active selected square now shows the existing ring/border state correctly.
+  - Theme selection now changes the visible page styling instead of only changing stored state.
+  - Header, cards, muted text, and bottom navigation inactive text now follow the selected visibility theme.
+  - Reused the same dark / soft / day color values already used by Activity.
+  - No new theme system was introduced.
+
+- ActivityLogScreen no-plan branch:
+  - Added the same Activity header + visibility selector there as well.
+  - This keeps the fallback no-plan branch consistent if that branch is rendered directly.
+
+What we did NOT change:
+- No business logic changes.
+- No role/permission logic changes.
+- No Lock/Unlock API flow changes.
+- No Activity log data logic changes.
+- No trial activation logic changes.
+- No premium payment logic changes.
+- No storage key changes.
+- No broad refactor.
+- No layout rewrite.
+
+Tests done:
+- npm run lint: OK
+- npm run build: OK
+- npm run test:e2e: OK
+- Manual: Activity without trial/premium shows the 3 visibility theme squares in the top right.
+- Manual: selected square shows the active ring/border.
+- Manual: clicking the squares changes the Activity upsell page theme.
+- Manual: bottom navigation remains visible on the Activity no-plan page.
+
+Result:
+- OK
+
+Next:
+- Commit the scoped UI polish update.
+- Continue only with small explicit UI polish requests.
+
 ## 2026-05-27 — UI polish: Settings Night Lock, Activity upsell page and trial card
 
 Baseline/branch:
