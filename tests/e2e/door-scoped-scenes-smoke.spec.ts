@@ -1,64 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { loginAsAdmin, openCleanLoginPage } from "./helpers/auth";
-
-async function activateTrial(page: Page) {
-  await page.getByRole("button", { name: "Get Premium" }).click();
-  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Start Free Trial" }).click();
-
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function addDoor(page: Page, name: string) {
-  await page.getByRole("button", { name: "Home" }).click();
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-
-  await page.locator("button:has(svg.lucide-plus)").click();
-
-  await expect(page.getByRole("heading", { name: "Add Door" })).toBeVisible();
-
-  await page.getByLabel("Door Name").fill(name);
-  await page.getByRole("button", { name: "Save" }).click();
-
-  await expect(page.getByRole("combobox").filter({ hasText: name })).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function selectDoor(page: Page, name: string) {
-  await page.getByRole("button", { name: "Home" }).click();
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-
-  await page.getByRole("combobox").click();
-  await page.getByRole("option", { name }).click();
-
-  await expect(page.getByRole("combobox").filter({ hasText: name })).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function createScene(page: Page, sceneName: string) {
-  await page.getByRole("button", { name: "Scenes" }).click();
-  await expect(page.getByRole("heading", { name: "Scenes" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Add Scene" }).click();
-
-  await expect(page.getByText("New Scene")).toBeVisible();
-
-  await page.getByPlaceholder("Enter scene name").fill(sceneName);
-  await page.getByRole("button", { name: "Create Scene" }).click();
-
-  await expect(page.getByText(sceneName)).toBeVisible({
-    timeout: 15_000,
-  });
-}
+import { activateTrial, addDoor, createScene, selectDoor } from "./helpers/actions";
 
 test("door scoped scenes stay separate between doors", async ({ page }) => {
   const secondDoorName = `Scene Door ${Date.now()}`;

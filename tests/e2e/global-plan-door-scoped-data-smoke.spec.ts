@@ -1,126 +1,14 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { loginAsAdmin, openCleanLoginPage } from "./helpers/auth";
-
-async function activateTrial(page: Page) {
-  const startFreeTrialButton = page.getByRole("button", { name: "Start Free Trial" });
-
-  const startFreeTrialVisible = await startFreeTrialButton
-    .isVisible({ timeout: 1_000 })
-    .catch(() => false);
-
-  if (!startFreeTrialVisible) {
-    await page.getByRole("button", { name: "Get Premium" }).click();
-    await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({
-      timeout: 15_000,
-    });
-  }
-
-  await startFreeTrialButton.click();
-
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function addDoor(page: Page, name: string) {
-  await page.getByRole("button", { name: "Home" }).click();
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-
-  await page.locator("button:has(svg.lucide-plus)").click();
-
-  await expect(page.getByRole("heading", { name: "Add Door" })).toBeVisible();
-
-  await page.getByLabel("Door Name").fill(name);
-  await page.getByRole("button", { name: "Save" }).click();
-
-  await expect(page.getByRole("combobox").filter({ hasText: name })).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function createScene(page: Page, sceneName: string) {
-  await page.getByRole("button", { name: "Scenes" }).click();
-  await expect(page.getByRole("heading", { name: "Scenes" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Add Scene" }).click();
-  await expect(page.getByText("New Scene")).toBeVisible();
-
-  await page.getByPlaceholder("Enter scene name").fill(sceneName);
-  await page.getByRole("button", { name: "Create Scene" }).click();
-
-  await expect(page.getByText(sceneName)).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function createIButton(page: Page, name: string) {
-  await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "iButton Access" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Add iButton User" }).click();
-  await expect(page.getByText("Controller is in listening mode")).toBeVisible();
-
-  await page.getByLabel("Name").fill(name);
-  await page.getByRole("button", { name: "Save iButton" }).click();
-
-  await expect(page.getByText(name)).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function createAppUser(page: Page, params: { name: string; email: string }) {
-  await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Add User" }).click();
-  await expect(page.getByRole("heading", { name: "Invite New User" })).toBeVisible();
-
-  await page.getByPlaceholder("Enter user name").fill(params.name);
-  await page.getByPlaceholder("user@example.com").fill(params.email);
-
-  await page.getByRole("button", { name: "Send Invitation" }).click();
-
-  await expect(page.getByText(params.email)).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function enableAutomaticLock(page: Page) {
-  await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByRole("heading", { name: "Quick Controls" })).toBeVisible();
-
-  await page.getByLabel("Automatic Lock").click();
-
-  await expect(page.getByText("Lock Delay")).toBeVisible();
-
-  const slider = page.getByRole("slider");
-  await slider.focus();
-  await page.keyboard.press("Home");
-
-  await expect(page.getByText("5s")).toBeVisible();
-}
-
-async function unlockDoor(page: Page) {
-  await page.getByRole("button", { name: "Home" }).click();
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-
-  const unlockResponsePromise = page.waitForResponse((response) => {
-    return (
-      response.url().includes("/api/doors/unlock") &&
-      response.request().method() === "POST" &&
-      response.ok()
-    );
-  });
-
-  await page.getByText("Unlock", { exact: true }).click();
-
-  await unlockResponsePromise;
-}
+import {
+  activateTrial,
+  addDoor,
+  createAppUser,
+  createIButton,
+  createScene,
+  setAutomaticLockToMinimum,
+  unlockDoor,
+} from "./helpers/actions";
 
 test("trial is global while door data stays scoped", async ({ page }) => {
   const secondDoorName = `Global Plan Door ${Date.now()}`;
@@ -147,7 +35,7 @@ test("trial is global while door data stays scoped", async ({ page }) => {
 
   await createIButton(page, mainIButtonName);
   await createScene(page, mainSceneName);
-  await enableAutomaticLock(page);
+  await setAutomaticLockToMinimum(page);
   await unlockDoor(page);
 
   await page.getByRole("button", { name: "Activity" }).click();

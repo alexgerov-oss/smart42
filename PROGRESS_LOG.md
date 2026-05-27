@@ -1,3 +1,69 @@
+## 2026-05-27 — Refactor: extract shared Playwright action helpers
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added shared Playwright action helper file:
+  - `tests/e2e/helpers/actions.ts`
+
+Extracted repeated E2E actions:
+- `activateTrial`
+- `addDoor`
+- `selectDoor`
+- `setAutomaticLockToMinimum`
+- `lockQuickControls`
+- `createScene`
+- `createIButton`
+- `createAppUser`
+- `logout`
+- `loginWithCredentials`
+- `unlockDoor`
+- `lockDoor`
+- `unlockAndLock`
+
+Refactored existing door-scoped tests to use the shared helpers:
+- `tests/e2e/door-scoped-scenes-smoke.spec.ts`
+- `tests/e2e/door-scoped-ibuttons-smoke.spec.ts`
+- `tests/e2e/door-scoped-users-roles-smoke.spec.ts`
+- `tests/e2e/door-scoped-state-smoke.spec.ts`
+- `tests/e2e/auto-lock-deadline-between-doors-smoke.spec.ts`
+- `tests/e2e/global-plan-door-scoped-data-smoke.spec.ts`
+
+Why:
+- Removed repeated test boilerplate.
+- Kept door-scoped tests easier to read and maintain.
+- Centralized common UI flows used by the regression tests.
+- Reduced risk of future selector drift across many test files.
+
+What we did NOT change:
+- No app logic changes.
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No trial/premium logic changes.
+- No storage key changes.
+- No Lock/Unlock API logic changes.
+- No test behavior changes intended.
+
+Tests done:
+- npx playwright test tests/e2e/door-scoped-scenes-smoke.spec.ts: OK
+- npx playwright test tests/e2e/door-scoped-ibuttons-smoke.spec.ts: OK
+- npx playwright test tests/e2e/door-scoped-users-roles-smoke.spec.ts: OK
+- npx playwright test tests/e2e/door-scoped-state-smoke.spec.ts: OK
+- npx playwright test tests/e2e/auto-lock-deadline-between-doors-smoke.spec.ts: OK
+- npx playwright test tests/e2e/global-plan-door-scoped-data-smoke.spec.ts: OK
+- npm run test:e2e: OK
+- npm run lint: OK
+- npm run build: OK
+
+Result:
+- OK
+
+Next:
+- Commit the Playwright helper cleanup.
+- Optional later cleanup:
+  - extract shared app storage helper for door-scoped keys, but only as a separate small commit.
+
 ## 2026-05-27 — Test: add global plan / door-scoped data Playwright smoke test
 
 Baseline/branch:

@@ -1,65 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { loginAsAdmin, openCleanLoginPage } from "./helpers/auth";
-
-async function activateTrial(page: Page) {
-  await page.getByRole("button", { name: "Get Premium" }).click();
-  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Start Free Trial" }).click();
-
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function addDoor(page: Page, name: string) {
-  await page.getByRole("button", { name: "Home" }).click();
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-
-  await page.locator("button:has(svg.lucide-plus)").click();
-
-  await expect(page.getByRole("heading", { name: "Add Door" })).toBeVisible();
-
-  await page.getByLabel("Door Name").fill(name);
-  await page.getByRole("button", { name: "Save" }).click();
-
-  await expect(page.getByRole("combobox").filter({ hasText: name })).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function selectDoor(page: Page, name: string) {
-  await page.getByRole("button", { name: "Home" }).click();
-  await expect(page.getByText("SmartDoor Inc.")).toBeVisible({
-    timeout: 15_000,
-  });
-
-  await page.getByRole("combobox").click();
-  await page.getByRole("option", { name }).click();
-
-  await expect(page.getByRole("combobox").filter({ hasText: name })).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
-async function createIButton(page: Page, name: string) {
-  await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "iButton Access" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Add iButton User" }).click();
-
-  await expect(page.getByText("Controller is in listening mode")).toBeVisible();
-
-  await page.getByLabel("Name").fill(name);
-  await page.getByRole("button", { name: "Save iButton" }).click();
-
-  await expect(page.getByText(name)).toBeVisible({
-    timeout: 15_000,
-  });
-}
+import { activateTrial, addDoor, createIButton, selectDoor } from "./helpers/actions";
 
 test("door scoped iButtons stay separate between doors", async ({ page }) => {
   const secondDoorName = `iButton Door ${Date.now()}`;
