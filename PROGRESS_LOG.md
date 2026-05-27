@@ -1,3 +1,54 @@
+## 2026-05-27 — Test: add door-scoped Scenes Playwright smoke test
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a new Playwright smoke test:
+  - `tests/e2e/door-scoped-scenes-smoke.spec.ts`
+
+What the test verifies:
+- Admin can activate trial using the existing UI flow.
+- Main Door can create and show its own Scene.
+- A second added door does not show Main Door's Scene.
+- The second door can create and show its own Scene.
+- Returning to Main Door restores only Main Door's Scene.
+- Returning to the second door restores only the second door's Scene.
+- Scenes are isolated through the selected door/controller context.
+
+Test implementation notes:
+- Uses existing auth helper:
+  - `openCleanLoginPage`
+  - `loginAsAdmin`
+- Uses real UI flow:
+  - activate trial
+  - add door
+  - switch selected door
+  - create scenes from the Scenes tab
+  - verify scene visibility per selected door
+- This protects the `scenes:<doorId>` behavior from regressions.
+
+What we did NOT change:
+- No app logic changes.
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No trial/premium logic changes.
+- No storage key changes.
+- No Lock/Unlock API logic changes.
+
+Tests done:
+- npx playwright test tests/e2e/door-scoped-scenes-smoke.spec.ts: OK
+- npm run test:e2e: OK
+- npm run lint: OK
+- npm run build: OK
+
+Result:
+- OK
+
+Next:
+- Commit the new Playwright regression test.
+- Continue using this test before changing Scenes state, selected-door logic, scene creation, or scene persistence.
+
 ## 2026-05-27 — Test: add door-scoped users and roles Playwright smoke test
 
 Baseline/branch:
