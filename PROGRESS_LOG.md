@@ -1,3 +1,60 @@
+## 2026-05-27 — Test: add auto-lock deadline between doors Playwright smoke test
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a new Playwright smoke test:
+  - `tests/e2e/auto-lock-deadline-between-doors-smoke.spec.ts`
+
+What the test verifies:
+- Admin can activate trial using the existing UI flow.
+- Main Door can enable Automatic Lock.
+- Lock Delay can be set to the minimum value:
+  - 5 seconds
+- Main Door can be unlocked and starts the Automatic Lock countdown.
+- User can switch to / add another door before the countdown finishes.
+- The Main Door auto-lock deadline keeps counting while another door is selected.
+- After the deadline passes, returning to Main Door shows:
+  - no restarted Automatic Lock countdown
+  - Main Door is locked
+- The second door remains separate and does not inherit Main Door countdown behavior.
+
+Test implementation notes:
+- Uses existing auth helper:
+  - `openCleanLoginPage`
+  - `loginAsAdmin`
+- Uses real UI flow:
+  - activate trial
+  - enable Automatic Lock
+  - set delay to 5 seconds
+  - unlock
+  - add/switch door
+  - return to Main Door
+  - verify the countdown did not restart
+- This protects the `autoLockDeadlineAt` behavior from regressions.
+
+What we did NOT change:
+- No app logic changes.
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No trial/premium logic changes.
+- No storage key changes.
+- No Lock/Unlock API logic changes.
+
+Tests done:
+- npx playwright test tests/e2e/auto-lock-deadline-between-doors-smoke.spec.ts: OK
+- npm run test:e2e: OK
+- npm run lint: OK
+- npm run build: OK
+
+Result:
+- OK
+
+Next:
+- Commit the new Playwright regression test.
+- Continue using this test before changing Automatic Lock, selected-door logic, lock timers, or per-door lock state.
+
 ## 2026-05-27 — Test: add door-scoped iButtons Playwright smoke test
 
 Baseline/branch:
