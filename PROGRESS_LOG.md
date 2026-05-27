@@ -1,3 +1,73 @@
+## 2026-05-27 — Test: add global plan / door-scoped data Playwright smoke test
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a new Playwright smoke test:
+  - `tests/e2e/global-plan-door-scoped-data-smoke.spec.ts`
+
+What the test verifies:
+- Admin without trial opens Activity and sees the no-plan / upgrade flow.
+- Admin can activate trial using the existing UI flow.
+- Trial/premium access is global for Admin.
+- Main Door can create door-scoped data:
+  - App User
+  - iButton
+  - Scene
+  - Automatic Lock setting
+  - Activity Log entry
+- A second added door keeps trial access available.
+- The second door starts clean for door-scoped data:
+  - no Main Door Activity entries
+  - no Main Door App User
+  - no Main Door iButton
+  - no Main Door Scene
+  - Automatic Lock default state
+- Door 2 still has trial-enabled actions available:
+  - Add Scene
+  - Add User
+  - Add iButton User
+
+Test implementation notes:
+- Uses existing auth helper:
+  - `openCleanLoginPage`
+  - `loginAsAdmin`
+- Uses real UI flow:
+  - no-plan Activity page
+  - trial activation
+  - create door-scoped data
+  - add second door
+  - verify global plan access remains
+  - verify door data stays isolated
+- `activateTrial()` handles both cases:
+  - Home → Get Premium
+  - already-open Activity upsell page → Start Free Trial
+
+What we did NOT change:
+- No app logic changes.
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No trial/premium logic changes.
+- No storage key changes.
+- No Lock/Unlock API logic changes.
+
+Tests done:
+- npx playwright test tests/e2e/global-plan-door-scoped-data-smoke.spec.ts: OK
+- npm run test:e2e: OK
+- npm run lint: OK
+- npm run build: OK
+
+Result:
+- OK
+
+Next:
+- Commit the new Playwright regression test.
+- Keep this test as the main guard for the core rule:
+  - trial/premium is global
+  - all door/controller data is scoped per selected door
+- Stop adding broad E2E coverage unless a new feature or bug requires it.
+
 ## 2026-05-27 — Test: add auto-lock deadline between doors Playwright smoke test
 
 Baseline/branch:
