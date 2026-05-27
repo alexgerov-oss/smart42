@@ -1,3 +1,70 @@
+## 2026-05-27 — Test: add door-scoped state Playwright smoke test
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a new Playwright smoke test:
+  - `tests/e2e/door-scoped-state-smoke.spec.ts`
+
+What the test verifies:
+- Admin can activate trial using the existing UI flow.
+- Main Door can have its own scoped state:
+  - Automatic Lock enabled
+  - Lock Delay set to minimum value:
+    - 5 seconds
+  - Quick Controls locked
+  - Activity Log entries from Lock/Unlock
+- A second added door starts clean:
+  - Automatic Lock is OFF
+  - Lock Delay UI is not visible
+  - Quick Controls are unlocked
+  - Main Door Activity entries are not shown
+- The second door can create its own Activity Log entries.
+- Returning to Main Door restores Main Door scoped state:
+  - Automatic Lock settings remain active
+  - Quick Controls remain locked
+  - Main Door Activity Log entries are still present
+  - second door Activity entries are not shown
+- Returning to the second door restores its own Activity Log.
+- Additional lock activity on the second door remains isolated from Main Door.
+
+Test implementation notes:
+- Uses existing auth helper:
+  - `openCleanLoginPage`
+  - `loginAsAdmin`
+- Uses the real UI flow:
+  - activate trial
+  - add door
+  - switch selected door
+  - change Settings
+  - use Lock/Unlock
+  - inspect Activity
+- Fixed Playwright selector strict-mode issues by targeting:
+  - selected door combobox for door selection assertions
+  - `.first()` for Activity entries when multiple log cards have the same door name
+
+What we did NOT change:
+- No app logic changes.
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No trial/premium logic changes.
+- No storage key changes.
+- No Lock/Unlock API logic changes.
+
+Tests done:
+- npx playwright test tests/e2e/door-scoped-state-smoke.spec.ts: OK
+- npm run test:e2e: OK
+- npm run lint: OK
+- npm run build: OK
+
+Result:
+- OK
+
+Next:
+- Commit the new Playwright regression test.
+- Continue using this test before changing per-door state, lock timers, Activity Log, Quick Controls, or door selection logic.
+
 ## 2026-05-27 — Logic: scope lock settings, quick controls and activity by selected door
 
 Baseline/branch:
