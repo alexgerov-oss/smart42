@@ -1,3 +1,79 @@
+## 2026-05-27 — UI polish: Settings Night Lock, Activity upsell page and trial card
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Settings:
+  - Fixed Quick Controls → Automatic Night Lock active lock icon color.
+  - Automatic Night Lock lock icon now turns green when enabled.
+  - It now matches the Automatic Lock icon active color.
+  - No Quick Controls logic changes.
+  - No timer logic changes.
+  - No permission logic changes.
+
+- Activity / no trial-premium flow:
+  - Fixed bottom navigation disappearing when opening Activity without trial/premium.
+  - Restored the old Activity upsell/trial page behavior for users without trial/premium.
+  - Added bottom navigation to the upsell/trial page so the nav bar remains visible.
+  - Changed the top page title from “Get Premium” to “Activity” when reached from Activity.
+  - Kept the existing top icon and main heading:
+    - Upgrade to Premium
+    - Unlock all features and take full control
+  - No subscription/trial activation logic changes.
+  - No premium payment logic changes.
+  - No permission logic changes.
+
+- Activity upsell page layout:
+  - Moved the Free Trial card above the Premium Benefits card.
+  - Kept the top icon and title area unchanged.
+  - Kept the Premium price / Get Premium card below.
+  - No logic changes.
+
+- Free Trial card:
+  - Removed the white “Free Trial” heading from the card.
+  - Changed the trial text from:
+    - 30 days free
+  - to:
+    - 30 days free Trial
+  - Made the whole “30 days free Trial” text green, matching the previous green “30 days” color.
+  - Kept card spacing, layout, button, and remaining text unchanged.
+
+- Start Free Trial button:
+  - Made the green outline/border more visible.
+  - Kept the button as an outline-style button.
+  - Did not change the Get Premium button.
+
+- Tests:
+  - Updated Playwright expectations after the Activity header title changed from “Get Premium” to “Activity”.
+  - Updated:
+    - tests/e2e/full-access-auto-lock-smoke.spec.ts
+    - tests/e2e/full-access-lock-unlock-smoke.spec.ts
+    - tests/e2e/open-close-lock-unlock-smoke.spec.ts
+
+What we did NOT change:
+- No business logic changes.
+- No role/permission logic changes.
+- No Lock/Unlock API flow changes.
+- No Activity log data logic changes.
+- No trial activation logic changes.
+- No premium payment logic changes.
+- No storage key changes.
+- No broad refactor.
+
+Tests done:
+- npm run lint: OK
+- npm run test:e2e: OK
+  - 6 passed
+
+Result:
+- OK
+
+Next:
+- Run npm run build before commit if not already done.
+- Commit the scoped UI/test updates.
+- Continue only with small explicit UI polish requests.
+
 ## 2026-05-27 — UI polish: Home, Scenes and Profile visibility refinements
 
 Baseline/branch:

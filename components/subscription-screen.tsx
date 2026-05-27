@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Check, Zap } from "lucide-react"
 import type { Screen } from "@/app/page"
+import { AppBottomNav } from "@/components/app-bottom-nav"
 
 interface SubscriptionScreenProps {
   onNavigate: (screen: Screen) => void
@@ -37,7 +38,7 @@ export default function SubscriptionScreen({
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-xl font-bold text-foreground">Get Premium</h1>
+          <h1 className="text-xl font-bold text-foreground">Activity</h1>
         </div>
       </div>
 
@@ -50,6 +51,25 @@ export default function SubscriptionScreen({
           <h2 className="text-2xl font-bold text-foreground">Upgrade to Premium</h2>
           <p className="text-muted-foreground">Unlock all features and take full control</p>
         </div>
+
+        {!isOnTrial && (
+          <Card className="bg-card border-border p-6 w-full max-w-md space-y-4">
+            <div className="text-center space-y-2">
+              <div className="flex items-baseline justify-center gap-2">
+                <span className="text-2xl font-bold text-accent">30 days free Trial</span>
+              </div>
+              <p className="text-xs text-muted-foreground">No payment required. Try all premium features.</p>
+            </div>
+
+            <Button
+              onClick={onActivateFreeTrial}
+              variant="outline"
+              className="w-full !border !border-accent text-accent hover:bg-accent/10 h-12 text-base font-semibold bg-transparent"
+            >
+              Start Free Trial
+            </Button>
+          </Card>
+        )}
 
         <Card className="bg-card border-border p-6 w-full max-w-md space-y-4">
           <h3 className="text-lg font-semibold text-foreground">Premium Benefits</h3>
@@ -64,27 +84,6 @@ export default function SubscriptionScreen({
             ))}
           </div>
         </Card>
-
-        {!isOnTrial && (
-          <Card className="bg-card border-border p-6 w-full max-w-md space-y-4">
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-semibold text-foreground">Free Trial</h3>
-              <div className="flex items-baseline justify-center gap-2">
-                <span className="text-2xl font-bold text-accent">30 days</span>
-                <span className="text-muted-foreground">free</span>
-              </div>
-              <p className="text-xs text-muted-foreground">No payment required. Try all premium features.</p>
-            </div>
-
-            <Button
-              onClick={onActivateFreeTrial}
-              variant="outline"
-              className="w-full border-accent text-accent hover:bg-accent/10 h-12 text-base font-semibold bg-transparent"
-            >
-              Start Free Trial
-            </Button>
-          </Card>
-        )}
 
         <Card className="bg-card border-border p-6 w-full max-w-md space-y-4">
           <div className="text-center space-y-2">
@@ -107,6 +106,12 @@ export default function SubscriptionScreen({
           </p>
         </Card>
       </div>
+
+      <AppBottomNav
+        currentScreen="subscription"
+        onNavigate={onNavigate}
+        hasPlan={false}
+      />
     </div>
   )
 }

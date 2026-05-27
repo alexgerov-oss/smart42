@@ -12,7 +12,7 @@ test("full access user can use automatic lock", async ({ page }) => {
 
   // Activate trial so Admin can create App Users
   await page.getByRole("button", { name: "Get Premium" }).click();
-  await expect(page.getByRole("heading", { name: "Get Premium" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
 
   await page.getByRole("button", { name: "Start Free Trial" }).click();
 

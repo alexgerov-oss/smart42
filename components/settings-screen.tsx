@@ -691,7 +691,7 @@ export default function SettingsScreen({
               <div className={`flex items-center justify-between rounded-lg ${settingsTheme.tile} p-3`}>
                 <div className="flex items-center gap-6">
                   <div className={`p-2 rounded-lg ${autoNightLockEnabled ? "bg-primary/20" : "bg-muted"}`}>
-                    <LockIcon className={`h-5 w-5 ${autoNightLockEnabled ? "text-primary" : settingsTheme.mutedText}`} />
+                    <LockIcon className={`h-5 w-5 ${autoNightLockEnabled ? "text-accent" : settingsTheme.mutedText}`} />
                   </div>
                   <Label htmlFor="night-lock" className="text-sm font-medium text-foreground">
                     Automatic Night Lock
