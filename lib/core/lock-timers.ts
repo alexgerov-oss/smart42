@@ -6,44 +6,66 @@ type AutoLockParams = {
   autoLockEnabled: boolean
   doorState: DoorState
   autoLockDelay: number
+  autoLockDeadlineAt: number | null
   setCountdown: Dispatch<SetStateAction<number | null>>
   setDoorState: Dispatch<SetStateAction<DoorState>>
+  setAutoLockDeadlineAt: Dispatch<SetStateAction<number | null>>
 }
 
 export function useAutoLockCountdown({
   autoLockEnabled,
   doorState,
   autoLockDelay,
+  autoLockDeadlineAt,
   setCountdown,
   setDoorState,
+  setAutoLockDeadlineAt,
 }: AutoLockParams) {
   useEffect(() => {
     if (!autoLockEnabled) {
       setCountdown(null)
+      setAutoLockDeadlineAt(null)
       return
     }
 
-    if (doorState === "unlock") {
-      setCountdown(autoLockDelay)
-
-      const interval = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev === null || prev <= 0) return null
-
-          const next = prev - 1
-          if (next <= 0) {
-            setDoorState("lock")
-            return null
-          }
-          return next
-        })
-      }, 1000)
-
-      return () => clearInterval(interval)
+    if (doorState !== "unlock") {
+      setCountdown(null)
+      setAutoLockDeadlineAt(null)
+      return
     }
 
-    setCountdown(null)
-  }, [autoLockEnabled, doorState, autoLockDelay, setCountdown, setDoorState])
+    const deadlineAt = autoLockDeadlineAt ?? Date.now() + autoLockDelay * 1000
+    if (autoLockDeadlineAt === null) {
+      setAutoLockDeadlineAt(deadlineAt)
+    }
+
+    const updateCountdown = () => {
+      const secondsLeft = Math.max(0, Math.ceil((deadlineAt - Date.now()) / 1000))
+
+      if (secondsLeft <= 0) {
+        setCountdown(null)
+        setAutoLockDeadlineAt(null)
+        setDoorState("lock")
+        return
+      }
+
+      setCountdown(secondsLeft)
+    }
+
+    updateCountdown()
+
+    const interval = setInterval(updateCountdown, 1000)
+
+    return () => clearInterval(interval)
+  }, [
+    autoLockEnabled,
+    doorState,
+    autoLockDelay,
+    autoLockDeadlineAt,
+    setCountdown,
+    setDoorState,
+    setAutoLockDeadlineAt,
+  ])
 }
 
 type AutoNightLockParams = {

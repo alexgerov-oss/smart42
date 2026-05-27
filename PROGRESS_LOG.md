@@ -1,3 +1,100 @@
+## 2026-05-27 — Logic: scope lock settings, quick controls and activity by selected door
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Extended the selected-door/controller rule:
+  - trial/premium remains global for Admin
+  - all door/controller behavior should be scoped by selected door
+
+- Quick Controls:
+  - Scoped Quick Controls lock state by selected door:
+    - `quickControlsLocked:<doorId>`
+  - Each door now has its own Quick Controls locked/unlocked state.
+  - New doors start with Quick Controls unlocked.
+  - Returning to an older door restores that door's Quick Controls lock state.
+
+- Lock state and timers:
+  - Scoped lock-related state by selected door:
+    - `lockState:<doorId>`
+  - Per-door state now includes:
+    - `doorState`
+    - `countdown`
+    - `autoLockDelay`
+    - `autoLockEnabled`
+    - `autoLockDeadlineAt`
+    - `autoNightLockEnabled`
+    - `nightLockHour`
+    - `nightLockMinute`
+    - `nightLockPeriod`
+    - `lastNightLockDate`
+  - New doors start with default lock settings:
+    - locked
+    - Automatic Lock OFF
+    - Automatic Lock Delay 30 seconds
+    - Automatic Night Lock OFF
+    - Night Lock time 10:00 PM
+
+- Automatic Lock deadline fix:
+  - Fixed countdown restarting when switching away from a door and returning.
+  - Automatic Lock now stores a per-door deadline timestamp:
+    - `autoLockDeadlineAt`
+  - If a door is unlocked and the user switches away:
+    - returning before the deadline shows the remaining time
+    - returning after the deadline locks that door instead of restarting the countdown
+  - This preserves correct per-door timer behavior without UI changes.
+
+- Activity Log:
+  - Scoped Activity Log persistence by selected door:
+    - `activityLog:<doorId>`
+  - Each door/controller now has its own Activity history.
+  - Activity entries from one door no longer appear on another door.
+  - Activity Log still uses the existing screen/UI.
+
+- Activity demo fallback cleanup:
+  - Removed old demo Activity fallback records from the real Activity view.
+  - Activity no longer shows fake `John Doe` records when the selected door has no real log entries.
+  - If there are no real entries for the selected door, Activity shows no fake history.
+
+- Activity render key safety:
+  - Fixed duplicate React key warning when older/stale Activity entries have repeated ids like `log_1`.
+  - Render keys are now made unique using:
+    - id
+    - createdAt
+    - index
+  - No visual Activity card changes.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No trial activation logic changes.
+- No premium payment logic changes.
+- No role/permission rule changes.
+- No Lock/Unlock API route changes.
+- No broad refactor.
+- No visual screen rewrite.
+
+Tests done:
+- npm run lint: OK
+- npm run build: OK
+- npm run test:e2e: OK
+- Manual: Quick Controls lock state is separate per selected door.
+- Manual: Automatic Lock settings are separate per selected door.
+- Manual: Automatic Night Lock settings are separate per selected door.
+- Manual: Automatic Lock countdown no longer restarts from the beginning after switching doors.
+- Manual: if Automatic Lock deadline passes while viewing another door, returning to the original door shows it locked.
+- Manual: Activity Log is separate per selected door.
+- Manual: old fake/demo Activity records no longer appear when no real entries exist.
+- Manual: duplicate Activity key console warning is gone.
+
+Result:
+- OK
+
+Next:
+- Commit the scoped lock/quick controls/activity update.
+- Continue only with small explicit requests.
+- If more per-door state is discovered later, scope it one small area at a time.
+
 ## 2026-05-27 — Logic: scope users, iButtons and scenes by selected door
 
 Baseline/branch:

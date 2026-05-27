@@ -36,6 +36,10 @@ export type NewActivityLogEntry = Omit<ActivityLogEntry, "id" | "createdAt">
 const PRIMARY_KEY = "activityLog"
 const LEGACY_KEYS = ["smart42:activityLog", "smartDoor:activityLog"]
 
+function doorScopedKey(baseKey: string, doorId?: string): string {
+  return doorId ? `${baseKey}:${doorId}` : baseKey
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -53,10 +57,10 @@ function tryParseLog(raw: string): ActivityLogEntry[] | null {
   }
 }
 
-export function loadActivityLog(fallback: ActivityLogEntry[] = []): ActivityLogEntry[] {
+export function loadActivityLog(fallback: ActivityLogEntry[] = [], doorId?: string): ActivityLogEntry[] {
   if (typeof window === "undefined") return fallback
 
-  const keys = [PRIMARY_KEY, ...LEGACY_KEYS]
+  const keys = [doorScopedKey(PRIMARY_KEY, doorId), ...LEGACY_KEYS]
   for (const key of keys) {
     try {
       const raw = window.localStorage.getItem(key)
@@ -70,10 +74,10 @@ export function loadActivityLog(fallback: ActivityLogEntry[] = []): ActivityLogE
   return fallback
 }
 
-export function saveActivityLog(items: ActivityLogEntry[]): void {
+export function saveActivityLog(items: ActivityLogEntry[], doorId?: string): void {
   if (typeof window === "undefined") return
   try {
-    window.localStorage.setItem(PRIMARY_KEY, JSON.stringify(items))
+    window.localStorage.setItem(doorScopedKey(PRIMARY_KEY, doorId), JSON.stringify(items))
   } catch {
     // ignore
   }

@@ -189,10 +189,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   })
 
   // Lock/timers (UI state)
-  const lock = useLockState()
+  const lock = useLockState({ doorId: selectedDoorId })
 
   // UI preferences (quick controls lock)
-  const { quickControlsLocked, setQuickControlsLocked } = useUiPreferences()
+  const { quickControlsLocked, setQuickControlsLocked } = useUiPreferences({ doorId: selectedDoorId })
 
   // Session
   const { sessionPassword, setSessionPassword } = useSessionState()
@@ -214,7 +214,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const controllersApi = useControllersWiring({ canOperate: profile.canOperateFullRestrictedActions })
 
   // ✅ Activity log (persisted)
-  const activity = useActivityLogState()
+  const activity = useActivityLogState({ doorId: selectedDoorId })
 
   // Full access computed
   const fullAccess = useFullAccessState({

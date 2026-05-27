@@ -273,7 +273,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
     })
   }, [activityLog])
 
-  const activityLogs = realActivityLogs.length > 0 ? realActivityLogs : demoActivityLogs
+  const activityLogs = realActivityLogs
 
   const showUserFilter = useMemo(() => {
     return (USER_FILTER_EVENT_TYPES as readonly string[]).includes(eventType)
@@ -456,8 +456,8 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
         </div>
 
         <div ref={scrollContainerRef} className="space-y-3 flex-1 overflow-y-auto p-4">
-          {filteredLogs.map((log) => (
-            <Card key={log.id} className={`${activityTheme.card} border-border p-4`}>
+          {filteredLogs.map((log, index) => (
+            <Card key={`${log.id}-${log.createdAt}-${index}`} className={`${activityTheme.card} border-border p-4`}>
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   {log.description ? (
