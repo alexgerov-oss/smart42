@@ -1,3 +1,67 @@
+## 2026-05-27 — Test: add door-scoped users and roles Playwright smoke test
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added a new Playwright smoke test:
+  - `tests/e2e/door-scoped-users-roles-smoke.spec.ts`
+
+What the test verifies:
+- Admin can activate trial using the existing UI flow.
+- On Main Door, Admin can create:
+  - Full Access App User
+  - Open/Close Only App User
+- A second added door starts with a clean App Users list.
+- App Users created on Main Door do not appear on the second door.
+- Returning to Main Door restores the Main Door App Users list.
+- Full Access user created on Main Door can:
+  - log in
+  - unlock/lock
+  - access Settings
+  - access Activity
+- Open/Close Only user created on Main Door can:
+  - log in
+  - unlock/lock
+  - cannot access Settings
+  - cannot access Activity
+
+Test implementation notes:
+- Uses existing auth helper:
+  - `openCleanLoginPage`
+  - `loginAsAdmin`
+- Uses the real UI flow:
+  - activate trial
+  - create App Users
+  - add a second door
+  - switch selected door
+  - inspect Settings users list
+  - logout/login as created App Users
+  - verify role permissions through UI
+- Keeps the test separate from the door-scoped Activity/Quick Controls test.
+- This protects the `appUsers:<doorId>` behavior and role permission behavior from regressions.
+
+What we did NOT change:
+- No app logic changes.
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No trial/premium logic changes.
+- No storage key changes.
+- No Lock/Unlock API logic changes.
+
+Tests done:
+- npx playwright test tests/e2e/door-scoped-users-roles-smoke.spec.ts: OK
+- npm run test:e2e: OK
+- npm run lint: OK
+- npm run build: OK
+
+Result:
+- OK
+
+Next:
+- Commit the new Playwright regression test.
+- Continue using this test before changing per-door users, App User roles, login behavior, Settings users list, or permission logic.
+
 ## 2026-05-27 — Test: add door-scoped state Playwright smoke test
 
 Baseline/branch:
