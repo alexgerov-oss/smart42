@@ -1,3 +1,97 @@
+## 2026-05-27 — UI polish: Home, Scenes and Profile visibility refinements
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Home:
+  - Moved the Main Door add `+` icon slightly to the right.
+  - Removed the barely visible oval/background behind the `+` icon.
+  - Kept the `+` visible and in the same Home/Main Door control area.
+  - No Lock/Unlock logic changes.
+  - No permission logic changes.
+
+- Scenes:
+  - Improved visibility of form borders in New Scene:
+    - Scene Name input
+    - THEN Action select
+    - Custom message text input
+  - Border colors now follow the selected visibility theme:
+    - dark
+    - soft
+    - day
+  - Improved visibility of the THEN Action select chevron.
+  - Chevron brightness now follows the selected visibility theme.
+  - Improved Enter value input background in WHEN Conditions.
+  - Enter value fields now match the New Scene card background more closely across visibility themes.
+  - Applied this to both numeric Enter value fields:
+    - normal condition value input
+    - power drops value input
+  - Made created scene cards more compact vertically.
+  - Reduced empty space above and below created scene text.
+  - Adjusted scene description text spacing until it was readable while keeping the card compact.
+  - Added mobile keyboard flow for New Scene inputs:
+    - Enter/Next moves from Scene Name to the next available scene input
+    - Enter/Next moves through Enter value inputs
+    - Enter/Done on Custom message text blurs the field
+  - Fixed duplicate JSX props created during the first Enter/Next change.
+  - Final lint result after duplicate-prop fix: OK.
+  - No scene business logic changes.
+  - No scene save/toggle/delete logic changes.
+  - No permission logic changes.
+
+- Profile:
+  - Improved Support form border visibility:
+    - Issue Category select
+    - Message textarea
+  - Support form borders now follow the selected visibility theme:
+    - dark
+    - soft
+    - day
+  - Improved Issue Category placeholder/text brightness.
+  - Improved Issue Category select chevron brightness.
+  - Improved Message placeholder brightness:
+    - “Describe your issue in detail...”
+  - Select text, select chevron, and Message placeholder now use matching brightness per theme.
+  - Made active Profile/Support tab state more visible.
+  - Active tab styling now clearly shows whether Profile or Support is selected.
+  - No Profile logic changes.
+  - No Support submit logic changes.
+  - No permission logic changes.
+
+What we did NOT change:
+- No business logic changes.
+- No role/permission logic changes.
+- No Lock/Unlock API flow changes.
+- No Activity logic changes.
+- No storage key changes.
+- No broad refactor.
+- No layout rewrite.
+- No component rewrite.
+
+Tests done:
+- npm run lint: OK after final duplicate-prop fix.
+- Manual: Home `+` icon is positioned correctly and no longer has the faint oval background.
+- Manual: Scenes form field borders are visible across visibility themes.
+- Manual: Scenes THEN Action chevron is more visible across visibility themes.
+- Manual: Scenes Enter value fields visually match the New Scene card background better.
+- Manual: Created scene cards are more compact vertically.
+- Manual: Created scene text remains readable after spacing adjustments.
+- Manual: Mobile Enter/Next flow in New Scene moves through fields correctly.
+- Manual: Profile Support Issue Category and Message borders are visible across themes.
+- Manual: Profile Support select text, chevron, and Message placeholder are brighter and theme-aware.
+- Manual: Profile/Profile-Support active tab state is clearly visible.
+
+Result:
+- OK
+
+Next:
+- Before pushing, run:
+  - npm run build
+- If build is OK, commit these UI polish changes.
+- Continue only with small explicit UI polish requests.
+- Keep future changes scoped and avoid broad theme refactors.
+
 ## 2026-05-26 — UI polish: refine Home System Status controls
 
 Baseline/branch:

@@ -6,7 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  allowedDevOrigins: ["192.168.18.142"],
+  allowedDevOrigins: ["192.168.18.142", "10.160.212.57"],
 }
 
 export default nextConfig

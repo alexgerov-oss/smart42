@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type KeyboardEvent } from "react"
 import { newId } from "@/lib/id"
 import { Card } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -333,6 +333,16 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
   })
 
   const scenesTheme = SCENES_VISIBILITY_THEME_CLASSES[visibilityTheme]
+  const scenesFieldBorder =
+    visibilityTheme === "dark" ? "!border-gray-600" : visibilityTheme === "soft" ? "!border-gray-500" : "!border-gray-400"
+  const scenesSelectChevron =
+    visibilityTheme === "dark"
+      ? "[&>svg]:!text-gray-400 [&>svg]:!opacity-100"
+      : visibilityTheme === "soft"
+        ? "[&>svg]:!text-gray-300 [&>svg]:!opacity-100"
+        : "[&>svg]:!text-gray-200 [&>svg]:!opacity-100"
+  const scenesFieldBackground =
+    visibilityTheme === "dark" ? "!bg-card" : visibilityTheme === "soft" ? "!bg-[#232b3a]" : "!bg-[#2d374c]"
 
   const handleVisibilityThemeChange = (theme: ScenesVisibilityTheme) => {
     setVisibilityTheme(theme)
@@ -369,6 +379,22 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
   }
 
   const handleRemoveCondition = (index: number) => setWhenConditions((prev) => prev.filter((_, i) => i !== index))
+
+  const handleSceneInputEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return
+
+    event.preventDefault()
+
+    const fields = Array.from(document.querySelectorAll<HTMLElement>("[data-scene-input-order]")).filter(
+      (field) => !field.hasAttribute("disabled"),
+    )
+
+    const currentIndex = fields.indexOf(event.currentTarget)
+    const nextField = fields[currentIndex + 1]
+
+    if (nextField) nextField.focus()
+    else event.currentTarget.blur()
+  }
 
   const handleCancelEdit = () => {
     setIsCreatingScene(false)
@@ -576,11 +602,11 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
 
             {visibleScenes.map((scene) => (
               <Card key={scene.id} className={`${scenesTheme.card} border-border`}>
-                <div className="p-4 space-y-3">
+                <div className="px-4 py-0 space-y-0 -my-1.5">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">{getEntityName("scenes", scene.id, scene.name)}</h3>
-                      <p className={`text-sm ${scenesTheme.mutedText} mt-1`}>{formatSceneDescription(scene)}</p>
+                      <h3 className="text-sm font-semibold leading-tight text-foreground">{getEntityName("scenes", scene.id, scene.name)}</h3>
+                      <p className={`text-xs ${scenesTheme.mutedText} leading-relaxed tracking-wide mt-0`}>{formatSceneDescription(scene)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className={buttonVariants({ variant: "ghost", size: "sm" })}>
@@ -617,7 +643,10 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                   if (e.target.value.trim()) setSceneNameError("")
                 }}
                 placeholder="Enter scene name"
-                className="bg-background border-border"
+                enterKeyHint="next"
+                data-scene-input-order
+                onKeyDown={handleSceneInputEnter}
+                className={`bg-background ${scenesFieldBorder}`}
               />
             </div>
 
@@ -731,7 +760,10 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                                   handleUpdateCondition(index, { value: val === "" ? undefined : Number.parseFloat(val) })
                                 }}
                                 placeholder="Enter value"
-                                className="flex-1 bg-background border-border"
+                                enterKeyHint="next"
+                                data-scene-input-order
+                                onKeyDown={handleSceneInputEnter}
+                                className={`flex-1 ${scenesFieldBackground} border-border`}
                               />
                               <span className={`text-xs ${scenesTheme.mutedText} whitespace-nowrap`}>{getUnit(condition.type)}</span>
                             </div>
@@ -749,7 +781,10 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                               handleUpdateCondition(index, { value: val === "" ? undefined : Number.parseInt(val, 10) })
                             }}
                             placeholder="Enter value"
-                            className="bg-background border-border"
+                            enterKeyHint="next"
+                            data-scene-input-order
+                            onKeyDown={handleSceneInputEnter}
+                            className={` ${scenesFieldBackground} border-border`}
                           />
                           <p className={`text-xs ${scenesTheme.mutedText}`}>
                             Notifications will be sent only after power is restored. 0 or 1 = every restore.
@@ -836,7 +871,7 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                   setThenAction((prev) => ({ ...prev, type: value }))
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className={`bg-background ${scenesFieldBorder} ${scenesSelectChevron}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -849,9 +884,12 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
               {(thenAction.type === "push" || thenAction.type === "email") && (
                 <Input
                   placeholder="Custom message text"
+                  enterKeyHint="done"
+                  data-scene-input-order
+                  onKeyDown={handleSceneInputEnter}
                   value={thenAction.customText || ""}
                   onChange={(e) => setThenAction((prev) => ({ ...prev, customText: e.target.value }))}
-                  className="bg-background border-border"
+                  className={`bg-background ${scenesFieldBorder}`}
                 />
               )}
             </div>

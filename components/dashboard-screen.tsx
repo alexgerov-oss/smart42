@@ -402,8 +402,8 @@ export default function DashboardScreen({
 
           {canAddDoors && (
             <div className="flex gap-2">
-              <Button onClick={handleAddDoor} variant="outline" size="sm">
-                <Plus className="h-4 w-4" />
+              <Button onClick={handleAddDoor} variant="ghost" size="sm">
+                <Plus className="h-4 w-4 !bg-transparent hover:!bg-transparent active:!bg-transparent shadow-none hover:shadow-none translate-x-2" />
               </Button>
 
               {canEditDoors && (

@@ -99,6 +99,20 @@ export default function ProfileScreen({
   })
 
   const profileTheme = PROFILE_VISIBILITY_THEME_CLASSES[visibilityTheme]
+  const profileSupportFieldBorder =
+    visibilityTheme === "dark" ? "!border-gray-600" : visibilityTheme === "soft" ? "!border-gray-500" : "!border-gray-400"
+  const profileSupportFieldText =
+    visibilityTheme === "dark"
+      ? "[&>span]:!text-gray-400 [&>svg]:!text-gray-400 [&>svg]:!opacity-100 placeholder:!text-gray-400"
+      : visibilityTheme === "soft"
+        ? "[&>span]:!text-gray-300 [&>svg]:!text-gray-300 [&>svg]:!opacity-100 placeholder:!text-gray-300"
+        : "[&>span]:!text-gray-200 [&>svg]:!text-gray-200 [&>svg]:!opacity-100 placeholder:!text-gray-200"
+  const profileActiveTabClass =
+    visibilityTheme === "dark"
+      ? "data-[state=active]:!bg-gray-800 data-[state=active]:!text-white data-[state=active]:!shadow-sm"
+      : visibilityTheme === "soft"
+        ? "data-[state=active]:!bg-gray-700 data-[state=active]:!text-white data-[state=active]:!shadow-sm"
+        : "data-[state=active]:!bg-gray-600 data-[state=active]:!text-white data-[state=active]:!shadow-sm"
 
   const handleVisibilityThemeChange = (theme: ProfileVisibilityTheme) => {
     setVisibilityTheme(theme)
@@ -661,11 +675,11 @@ export default function ProfileScreen({
         {access === "admin" ? (
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="profile" className="flex-1">
+              <TabsTrigger value="profile" className={`flex-1 ${profileActiveTabClass}`}>
                 Profile
               </TabsTrigger>
               {canAccessSupport && (
-                <TabsTrigger value="support" className="flex-1">
+                <TabsTrigger value="support" className={`flex-1 ${profileActiveTabClass}`}>
                   Support
                 </TabsTrigger>
               )}
@@ -699,7 +713,7 @@ export default function ProfileScreen({
                       <div className="space-y-2">
                         <Label className={`text-sm ${profileTheme.mutedText}`}>Issue Category</Label>
                         <Select value={supportCategory} onValueChange={(value) => setSupportCategory(value)}>
-                          <SelectTrigger className="w-full [&>span]:data-placeholder:text-white">
+                          <SelectTrigger className={`w-full ${profileSupportFieldBorder} ${profileSupportFieldText}`}>
                             <SelectValue placeholder="Select an issue category" />
                           </SelectTrigger>
                           <SelectContent>
@@ -718,7 +732,7 @@ export default function ProfileScreen({
                           onChange={(e) => setSupportMessage(e.target.value)}
                           placeholder="Describe your issue in detail..."
                           rows={6}
-                          className="bg-background border-border resize-none"
+                          className={`bg-background ${profileSupportFieldBorder} ${profileSupportFieldText} resize-none`}
                           autoComplete="off"
                         />
                         <p className="text-sm text-blue-500">{remainingChars} characters remaining</p>
