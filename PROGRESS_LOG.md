@@ -1,3 +1,69 @@
+## 2026-05-27 — Logic: scope users, iButtons and scenes by selected door
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added selected door state to AppContext:
+  - `selectedDoorId`
+  - `setSelectedDoorId`
+- Dashboard now uses the AppContext selected door state instead of keeping selected door only locally.
+- This allows other tabs/core hooks to know which door/controller is currently selected.
+- No Dashboard UI/layout changes.
+
+- Users/iButtons:
+  - Scoped App Users persistence by selected door:
+    - `appUsers:<doorId>`
+  - Scoped iButton Users persistence by selected door:
+    - `iButtonUsers:<doorId>`
+  - When switching doors, Settings now loads the users/iButtons for the selected door.
+  - New doors start with no added App Users or iButtons.
+  - Returning to an older door restores that door's users/iButtons.
+  - Trial/premium state remains global and unchanged.
+
+- Scenes:
+  - Scoped Scenes persistence by selected door:
+    - `scenes:<doorId>`
+  - When switching doors, Scenes now loads scenes for the selected door.
+  - New doors start with no scenes.
+  - Returning to an older door restores that door's scenes.
+  - Removed the lint-problematic synchronous `setState` effect and used door-keyed state/loading instead.
+  - Trial/premium state remains global and unchanged.
+
+Logic clarified:
+- One controller controls one door.
+- The app can control multiple controllers/doors.
+- Door/controller data is isolated per selected door.
+- Admin trial/premium remains shared across all doors/controllers.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No Lock/Unlock API flow changes.
+- No role/permission rule changes.
+- No trial activation logic changes.
+- No premium payment logic changes.
+- No existing visual behavior changes.
+- No broad refactor.
+
+Tests done:
+- npm run lint: OK
+- npm run build: OK
+- npm run test:e2e: OK
+- Manual: selected Home door persists when navigating away and back.
+- Manual: App Users/iButtons added on Main Door do not appear on a newly added door.
+- Manual: returning to Main Door restores its App Users/iButtons.
+- Manual: Scenes created on Main Door do not appear on a newly added door.
+- Manual: returning to Main Door restores its Scenes.
+- Manual: trial/premium remains active across newly added doors.
+
+Result:
+- OK
+
+Next:
+- Commit the scoped door/controller logic update.
+- Continue only with small explicit logic/UI requests.
+- If requested later, consider whether Quick Controls / lock timer settings / Activity Log should also become door-scoped.
+
 ## 2026-05-27 — UI polish: add visibility theme selector to Activity no-plan page
 
 Baseline/branch:

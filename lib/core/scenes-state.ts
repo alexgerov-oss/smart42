@@ -6,11 +6,17 @@ import { canCreateScene as canCreateSceneCore, normalizeNextScenes } from "@/lib
 import { loadScenes, saveScenes } from "@/lib/core/scenes-persistence"
 
 // ✅ opts is optional + safe defaults (prevents "destructure of undefined")
-export function useScenesState(opts?: { currentUserAccess?: AccessRole; hasPlan?: boolean }) {
+export function useScenesState(opts?: { currentUserAccess?: AccessRole; hasPlan?: boolean; doorId?: string }) {
   const currentUserAccess: AccessRole = opts?.currentUserAccess ?? "admin"
   const hasPlan: boolean = opts?.hasPlan ?? false
+  const doorId = opts?.doorId
 
-  const [scenes, setScenesState] = useState<Scene[]>(() => loadScenes())
+  const [scenesState, setScenesState] = useState<{ doorId?: string; scenes: Scene[] }>(() => ({
+    doorId,
+    scenes: loadScenes([], doorId),
+  }))
+
+  const scenes = scenesState.doorId === doorId ? scenesState.scenes : loadScenes([], doorId)
 
   const canCreateScene = useCallback(() => {
     return canCreateSceneCore({
@@ -23,10 +29,10 @@ export function useScenesState(opts?: { currentUserAccess?: AccessRole; hasPlan?
   const setScenes = useCallback(
     (next: Scene[]) => {
       const normalized = normalizeNextScenes({ currentUserAccess, hasPlan, next })
-      setScenesState(normalized)
-      saveScenes(normalized)
+      setScenesState({ doorId, scenes: normalized })
+      saveScenes(normalized, doorId)
     },
-    [currentUserAccess, hasPlan],
+    [currentUserAccess, hasPlan, doorId],
   )
 
   return useMemo(

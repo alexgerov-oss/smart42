@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, type ReactNode } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
 import { doorActions } from "@/lib/core/door-actions"
 
 import { useSystemStatusState } from "@/lib/core/system-status-state"
@@ -107,6 +107,9 @@ interface AppContextType {
   sessionPassword: string
   setSessionPassword: (password: string) => void
 
+  selectedDoorId: string
+  setSelectedDoorId: (doorId: string) => void
+
   doors: Door[]
   addDoor: (systemName: string) => string | null
   updateDoor: (id: string, systemName: string) => boolean
@@ -137,6 +140,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [selectedDoorId, setSelectedDoorId] = useState("main-door")
+
   // System UI
   const { isSystemStatusExpanded, setIsSystemStatusExpanded } = useSystemStatusState(true)
 
@@ -159,6 +164,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     canOperate: profile.canOperateFullRestrictedActions,
     isOpenClose: profile.isOpenClose,
     creatorIdentity: profile.creatorIdentity,
+    doorId: selectedDoorId,
     onFullAccessCreatedByAdmin: (p) => {
       profile.setFullAccessCreatedByAdmin(true)
       profile.setFullAccessProfileByAdmin(p)
@@ -179,6 +185,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { scenes, setScenes, canCreateScene } = useScenesState({
     currentUserAccess,
     hasPlan,
+    doorId: selectedDoorId,
   })
 
   // Lock/timers (UI state)
@@ -289,6 +296,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         sessionPassword,
         setSessionPassword,
+
+        selectedDoorId,
+        setSelectedDoorId,
 
         doors,
         addDoor,

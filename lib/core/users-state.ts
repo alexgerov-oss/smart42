@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { AccessRole, AppUser, IButtonUser } from "@/lib/core/types"
 
 import {
@@ -26,6 +26,7 @@ export function useUsersState(opts?: {
   canOperate?: boolean
   isOpenClose?: boolean
   creatorIdentity?: { name: string; email: string }
+  doorId?: string
 
   onFullAccessCreatedByAdmin?: (profile: { name: string; email: string }) => void
   onFullAccessProfileByAdminChange?: (profile: { name: string; email: string } | null) => void
@@ -35,18 +36,24 @@ export function useUsersState(opts?: {
   const canOperate = opts?.canOperate ?? false
   const isOpenClose = opts?.isOpenClose ?? (currentUserAccess === "open-close")
   const creatorIdentity = opts?.creatorIdentity ?? { name: "", email: "" }
+  const doorId = opts?.doorId
 
   const onFullAccessCreatedByAdmin = opts?.onFullAccessCreatedByAdmin ?? (() => {})
   const onFullAccessProfileByAdminChange = opts?.onFullAccessProfileByAdminChange ?? (() => {})
 
-  const [iButtonUsers, _setIButtonUsers] = useState<IButtonUser[]>(() => loadIButtonUsers())
-  const [appUsers, _setAppUsers] = useState<AppUser[]>(() => loadAppUsers())
+  const [iButtonUsers, _setIButtonUsers] = useState<IButtonUser[]>(() => loadIButtonUsers(doorId))
+  const [appUsers, _setAppUsers] = useState<AppUser[]>(() => loadAppUsers(doorId))
+
+  useEffect(() => {
+    _setIButtonUsers(loadIButtonUsers(doorId))
+    _setAppUsers(loadAppUsers(doorId))
+  }, [doorId])
 
   // Persisting setters
   const setIButtonUsers: React.Dispatch<React.SetStateAction<IButtonUser[]>> = (value) => {
     _setIButtonUsers((prev) => {
       const next = typeof value === "function" ? (value as (p: IButtonUser[]) => IButtonUser[])(prev) : value
-      saveIButtonUsers(next)
+      saveIButtonUsers(next, doorId)
       return next
     })
   }
@@ -54,7 +61,7 @@ export function useUsersState(opts?: {
   const setAppUsers: React.Dispatch<React.SetStateAction<AppUser[]>> = (value) => {
     _setAppUsers((prev) => {
       const next = typeof value === "function" ? (value as (p: AppUser[]) => AppUser[])(prev) : value
-      saveAppUsers(next)
+      saveAppUsers(next, doorId)
       return next
     })
   }

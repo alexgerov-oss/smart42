@@ -111,7 +111,6 @@ export default function DashboardScreen({
 }: DashboardScreenProps) {
   const [doorSensorOpen, setDoorSensorOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
-  const [selectedDoorId, setSelectedDoorId] = useState(DEFAULT_DOOR_ID)
   const [homeVisibilityTheme, setHomeVisibilityTheme] = useState<HomeVisibilityTheme>(() => {
     if (typeof window === "undefined") return "soft"
     const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
@@ -136,6 +135,8 @@ export default function DashboardScreen({
     currentUserAccess,
     getEntityName,
     setEntityName,
+    selectedDoorId,
+    setSelectedDoorId,
     doors,
     addDoor,
     updateDoor,
