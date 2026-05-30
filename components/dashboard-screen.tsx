@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -98,6 +98,29 @@ const HOME_VISIBILITY_THEME_CLASSES: Record<
   },
 }
 
+function formatActivityTime(createdAt: string): string {
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return ""
+
+  return new Intl.DateTimeFormat("bg-BG", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date)
+}
+
+function formatActivityDate(createdAt: string): string {
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return ""
+
+  return new Intl.DateTimeFormat("bg-BG", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date)
+}
+
 export default function DashboardScreen({
   onNavigate,
   hasPlan,
@@ -144,6 +167,7 @@ export default function DashboardScreen({
     removeDoor,
     lockDoor,
     unlockDoor,
+    activityLog,
     logActivity,
   } = useAppContext()
 
@@ -206,8 +230,8 @@ export default function DashboardScreen({
       logActivity({
         createdAt: now.toISOString(),
         doorName: displayDoorName,
-        timeLabel: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        dateLabel: "Today",
+        timeLabel: formatActivityTime(now.toISOString()),
+        dateLabel: formatActivityDate(now.toISOString()),
         action: nextState,
         method: "App",
         user: displayUserName,
@@ -272,13 +296,16 @@ export default function DashboardScreen({
 
   const handleSliderTouchEnd = () => setIsDragging(false)
 
-  const activityLogs = [
-    { id: 1, doorName: displayDoorName, time: "10:45 AM", action: "open", method: null as string | null, user: null as string | null },
-    { id: 2, doorName: displayDoorName, time: "10:47 AM", action: "closed", method: null as string | null, user: null as string | null },
-    { id: 3, doorName: displayDoorName, time: "02:30 PM", action: "unlock", method: "iButton", user: "Jane Smith" },
-    { id: 4, doorName: displayDoorName, time: "02:35 PM", action: "open", method: null as string | null, user: null as string | null },
-    { id: 5, doorName: displayDoorName, time: "05:15 PM", action: "lock", method: "App", user: "John Doe" },
-  ]
+  const activityLogs = useMemo(() => {
+    return activityLog.slice(0, 5).map((log) => ({
+      id: log.id,
+      doorName: log.doorName || displayDoorName,
+      time: formatActivityTime(log.createdAt) || log.timeLabel || "",
+      action: log.action,
+      method: log.method,
+      user: log.user,
+    }))
+  }, [activityLog, displayDoorName])
 
   const handleAddDoor = () => {
     if (!canAddDoors) return
@@ -614,8 +641,8 @@ export default function DashboardScreen({
           <h2 className="text-lg font-semibold text-foreground">Activity Log</h2>
 
           <div className="space-y-3">
-            {activityLogs.map((log) => (
-              <div key={log.id} className={cn("rounded-lg p-3 space-y-1", homeTheme.tile)}>
+            {activityLogs.map((log, index) => (
+              <div key={`${log.id}-${log.time}-${index}`} className={cn("rounded-lg p-3 space-y-1", homeTheme.tile)}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-foreground">{log.doorName}</p>

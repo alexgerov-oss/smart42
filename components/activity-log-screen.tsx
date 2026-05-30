@@ -143,6 +143,30 @@ const USER_FILTER_EVENT_TYPES = [
 function isDoorOpenClosed(action: string): action is "open" | "closed" {
   return action === "open" || action === "closed"
 }
+
+function formatActivityTime(createdAt: string): string {
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return ""
+
+  return new Intl.DateTimeFormat("bg-BG", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date)
+}
+
+function formatActivityDate(createdAt: string): string {
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return ""
+
+  return new Intl.DateTimeFormat("bg-BG", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date)
+}
+
 function isDoorLockUnlock(action: string): action is "lock" | "unlock" {
   return action === "lock" || action === "unlock"
 }
@@ -261,8 +285,8 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
         id: log.id,
         createdAt: log.createdAt,
         doorName: log.doorName,
-        time: log.timeLabel ?? createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        date: log.dateLabel ?? createdAt.toLocaleDateString(),
+        time: formatActivityTime(log.createdAt) || log.timeLabel || "",
+        date: formatActivityDate(log.createdAt) || log.dateLabel || "",
         action: log.action,
         method: log.method,
         user: log.user,
