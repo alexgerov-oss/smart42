@@ -329,9 +329,9 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
             <h1 className="text-xl font-bold text-foreground">Activity</h1>
             <VisibilityThemeSelector
               themes={ACTIVITY_VISIBILITY_THEMES}
-              currentTheme={visibilityTheme}
+              value={visibilityTheme}
               themeClasses={ACTIVITY_VISIBILITY_THEME_CLASSES}
-              onThemeChange={handleVisibilityThemeChange}
+              onChange={handleVisibilityThemeChange}
               ariaLabel="Activity visibility theme"
             />
           </div>

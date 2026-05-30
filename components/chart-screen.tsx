@@ -10,6 +10,47 @@ import { useAppContext } from "@/lib/app-context"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
 
+
+const getStatusDotColor = (value: unknown) => {
+  const n = Number(value)
+
+  if (!Number.isFinite(n)) {
+    return "#ffffff"
+  }
+
+  if (n >= 67) {
+    return "#ef4444"
+  }
+
+  if (n <= 33) {
+    return "#22c55e"
+  }
+
+  return "#ffffff"
+}
+
+const StatusChartDot = (props: any) => {
+  const { cx, cy, value, payload } = props
+
+  if (cx == null || cy == null) {
+    return null
+  }
+
+  const rawValue = value ?? payload?.value ?? payload?.uv ?? payload?.pv
+  const color = getStatusDotColor(rawValue)
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={3}
+      fill={color}
+      stroke={color}
+      strokeWidth={1}
+    />
+  )
+}
+
 interface ChartScreenProps {
   metric: string
   onBack: () => void
@@ -20,12 +61,68 @@ interface ChartScreenProps {
   currentScreen: Screen
 }
 
+type ChartDataPoint = {
+  name: string
+  value: number
+  weekDayIndex: number | null
+}
+
 // ✅ deterministic “fake data” (no Math.random)
 function getSeedFromString(input: string) {
   let seed = 0
   for (let i = 0; i < input.length; i++) seed = (seed + input.charCodeAt(i) * (i + 1)) % 100000
   return seed
 }
+
+const formatXAxisTick = (value: unknown) => {
+  const text = String(value)
+  const lower = text.toLowerCase()
+  const numberOnly = text.replace(/[^0-9]/g, "")
+
+  const weekDays: Record<string, string> = {
+    "1": "Sun",
+    "2": "Mon",
+    "3": "Tue",
+    "4": "Wed",
+    "5": "Thu",
+    "6": "Fri",
+    "7": "Sat",
+  }
+
+  if (lower.startsWith("day") || lower.startsWith("ден")) {
+    return weekDays[numberOnly] ?? text
+  }
+
+  if (lower.startsWith("month") || lower.startsWith("месец")) {
+    return numberOnly || text
+  }
+
+  return text
+}
+
+const formatChartDateLabel = (date: Date) => {
+  const day = date.getDate()
+  const month = date.toLocaleString("en-US", { month: "short" }).toUpperCase()
+  const year = date.getFullYear()
+
+  return `${day} ${month} ${year}`
+}
+
+const getCurrentWeekDates = () => {
+  const today = new Date()
+  const start = new Date(today)
+
+  start.setHours(0, 0, 0, 0)
+  start.setDate(today.getDate() - today.getDay())
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start)
+    date.setDate(start.getDate() + index)
+    return date
+  })
+}
+
+const getChartMonthLabel = (date: Date) => date.toLocaleString("en-US", { month: "long" })
 
 export default function ChartScreen({
   metric,
@@ -35,6 +132,7 @@ export default function ChartScreen({
   currentScreen,
 }: ChartScreenProps) {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("day")
+  const [selectedWeekDay, setSelectedWeekDay] = useState<number | null>(null)
   const { currentUserAccess } = useAppContext()
 
   const permissionContext: PermissionContext = {
@@ -45,6 +143,11 @@ export default function ChartScreen({
   const canAccessActivity = Permissions.canAccessActivity(permissionContext)
   const canAccessScenes = Permissions.canAccessScenes(permissionContext)
   const canAccessSettings = Permissions.canAccessSettings(permissionContext)
+
+  const today = useMemo(() => new Date(), [])
+  const todayLabel = useMemo(() => formatChartDateLabel(today), [today])
+  const weekDates = useMemo(() => getCurrentWeekDates(), [])
+  const weekMonthLabel = useMemo(() => getChartMonthLabel(today), [today])
 
   const getMetricTitle = () => {
     const titles: Record<string, string> = {
@@ -71,26 +174,73 @@ export default function ChartScreen({
   }
 
   const data = useMemo(() => {
-    const dataPoints = timeRange === "day" ? 24 : timeRange === "week" ? 7 : timeRange === "month" ? 30 : 12
+    const isWeekDayDetail = timeRange === "week" && selectedWeekDay !== null
+    const dataPoints = isWeekDayDetail ? 24 : timeRange === "day" ? 24 : timeRange === "week" ? 7 : timeRange === "month" ? 31 : 12
 
-    const seed = getSeedFromString(`${metric}:${timeRange}`)
+    const seed = getSeedFromString(`${metric}:${timeRange}:${selectedWeekDay ?? "all"}`)
     const base = 30
     const spread = 50
 
-    return Array.from({ length: dataPoints }, (_, i) => {
+    return Array.from({ length: dataPoints }, (_, i): ChartDataPoint => {
       const name =
-        timeRange === "day"
+        isWeekDayDetail
           ? `${i}:00`
-          : timeRange === "week"
-            ? `Day ${i + 1}`
+          : timeRange === "day"
+            ? `${i}:00`
+            : timeRange === "week"
+              ? `Day ${i + 1}`
             : timeRange === "month"
               ? `${i + 1}`
               : `Month ${i + 1}`
 
       const value = base + ((seed + i * 17 + (i % 3) * 11) % spread)
-      return { name, value }
+      return { name, value, weekDayIndex: timeRange === "week" && !isWeekDayDetail ? i + 1 : null }
     })
-  }, [metric, timeRange])
+  }, [metric, timeRange, selectedWeekDay])
+
+  const openWeekDay = (weekDayIndex: unknown) => {
+    if (timeRange === "week" && selectedWeekDay === null && typeof weekDayIndex === "number") {
+      setSelectedWeekDay(weekDayIndex)
+    }
+  }
+
+  const renderChartTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) {
+      return null
+    }
+
+    const point = payload[0]?.payload
+    const weekDayIndex = point?.weekDayIndex
+    const value = payload[0]?.value
+
+    if (timeRange === "week" && selectedWeekDay === null && typeof weekDayIndex === "number") {
+      return (
+        <div className="rounded-lg border border-border bg-card p-2 shadow-lg">
+          <button
+            type="button"
+            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
+            onClick={() => openWeekDay(weekDayIndex)}
+          >
+            OPEN
+          </button>
+          <p className="mt-2 text-xs text-foreground">
+            value: {value}
+            {getMetricUnit()}
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="rounded-lg border border-border bg-card p-2 shadow-lg">
+        <p className="text-xs text-foreground">{String(label)}</p>
+        <p className="text-xs text-foreground">
+          value: {value}
+          {getMetricUnit()}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen flex-col pb-20">
@@ -108,7 +258,10 @@ export default function ChartScreen({
           {(["day", "week", "month", "year"] as const).map((range) => (
             <Button
               key={range}
-              onClick={() => setTimeRange(range)}
+              onClick={() => {
+                setTimeRange(range)
+                setSelectedWeekDay(null)
+              }}
               variant={timeRange === range ? "default" : "outline"}
               className={`flex-1 capitalize ${
                 timeRange === range ? "bg-primary text-primary-foreground" : "border-border text-foreground"
@@ -119,29 +272,70 @@ export default function ChartScreen({
           ))}
         </div>
 
+        {timeRange === "week" && selectedWeekDay !== null ? (
+          <Button
+            onClick={() => setSelectedWeekDay(null)}
+            variant="outline"
+            className="w-full border-border text-foreground"
+          >
+            Back to Week
+          </Button>
+        ) : null}
+
         <Card className="bg-card border-border p-4">
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
+            <LineChart data={data} margin={{ left: -8, right: 18 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" style={{ fontSize: "12px" }} />
-              <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: "12px" }} unit={getMetricUnit()} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-                labelStyle={{ color: "hsl(var(--foreground))" }}
+              <XAxis
+                dataKey="name"
+                stroke="#ffffff"
+                style={{ fontSize: "12px" }}
+                interval={timeRange === "year" ? 0 : "preserveEnd"}
+                tickFormatter={formatXAxisTick}
               />
+              <YAxis stroke="#ffffff" style={{ fontSize: "12px" }} unit={getMetricUnit()} />
+              <Tooltip content={renderChartTooltip} wrapperStyle={{ pointerEvents: "auto" }} />
               <Line
                 type="monotone"
                 dataKey="value"
                 stroke="hsl(var(--primary))"
                 strokeWidth={2}
-                dot={{ fill: "hsl(var(--primary))" }}
+                dot={<StatusChartDot />}
+                activeDot={{
+                  r: 8,
+                  fill: "transparent",
+                  stroke: "transparent",
+                  onClick: (event: any, point: any) => {
+                    openWeekDay(point?.payload?.weekDayIndex)
+                  },
+                }}
+                onClick={(point: any) => {
+                  openWeekDay(point?.payload?.weekDayIndex)
+                }}
               />
             </LineChart>
           </ResponsiveContainer>
+
+          {timeRange === "day" ? (
+            <p className="-mt-4 text-center text-xs font-medium text-muted-foreground">{todayLabel}</p>
+          ) : null}
+
+          {timeRange === "week" && selectedWeekDay !== null ? (
+            <p className="-mt-4 text-center text-xs font-medium text-muted-foreground">
+              {formatChartDateLabel(weekDates[selectedWeekDay - 1] ?? today)}
+            </p>
+          ) : null}
+
+          {timeRange === "week" && selectedWeekDay === null ? (
+            <div className="-mt-4 space-y-0 pl-[52px] pr-[18px]">
+              <div className="flex justify-between text-center text-xs text-muted-foreground">
+                {weekDates.map((date) => (
+                  <span key={date.toISOString()} className="w-6 text-center">{date.getDate()}</span>
+                ))}
+              </div>
+              <p className="text-center text-xs font-medium text-muted-foreground">{weekMonthLabel}</p>
+            </div>
+          ) : null}
         </Card>
 
         <Card className="bg-card border-border p-4 space-y-2">
