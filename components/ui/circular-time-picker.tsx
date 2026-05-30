@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState, type PointerEvent } from "react"
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -28,6 +28,8 @@ export function CircularTimePicker({
   const [tempMinute, setTempMinute] = useState(minute)
   const [tempPeriod, setTempPeriod] = useState<"AM" | "PM">(period)
   const [mode, setMode] = useState<"hour" | "minute">("hour")
+  const isDraggingClockRef = useRef(false)
+  const switchToMinuteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const hours = ["12", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
   const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, "0"))
@@ -38,10 +40,18 @@ export function CircularTimePicker({
     setTempMinute(minute)
     setTempPeriod(period)
     setMode("hour")
+    if (switchToMinuteTimeoutRef.current) {
+      clearTimeout(switchToMinuteTimeoutRef.current)
+      switchToMinuteTimeoutRef.current = null
+    }
     setOpen(true)
   }
 
   const handleSet = () => {
+    if (switchToMinuteTimeoutRef.current) {
+      clearTimeout(switchToMinuteTimeoutRef.current)
+      switchToMinuteTimeoutRef.current = null
+    }
     onTimeChange(tempHour, tempMinute, tempPeriod)
     setOpen(false)
   }
@@ -49,7 +59,15 @@ export function CircularTimePicker({
   const handleNumberClick = (value: string) => {
     if (mode === "hour") {
       setTempHour(value)
-      setMode("minute")
+
+      if (switchToMinuteTimeoutRef.current) {
+        clearTimeout(switchToMinuteTimeoutRef.current)
+      }
+
+      switchToMinuteTimeoutRef.current = setTimeout(() => {
+        setMode("minute")
+        switchToMinuteTimeoutRef.current = null
+      }, 300)
     } else {
       setTempMinute(value)
     }
@@ -61,8 +79,62 @@ export function CircularTimePicker({
     const centerX = 120
     const centerY = 120
 
+    const selectNumberFromPointer = (event: PointerEvent<HTMLDivElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const pointerX = event.clientX - rect.left
+      const pointerY = event.clientY - rect.top
+
+      const angle = Math.atan2(pointerY - centerY, pointerX - centerX)
+      const degrees = angle * (180 / Math.PI)
+      const normalizedDegrees = (degrees + 90 + 360) % 360
+      const index = Math.round(normalizedDegrees / 30) % numbers.length
+      const value = numbers[index]
+
+      if (mode === "hour") {
+        setTempHour((currentHour) => (currentHour === value ? currentHour : value))
+      } else {
+        setTempMinute((currentMinute) => (currentMinute === value ? currentMinute : value))
+      }
+    }
+
     return (
-      <div className="relative w-[240px] h-[240px] mx-auto">
+      <div
+        className="relative w-[240px] h-[240px] mx-auto touch-none select-none"
+        onPointerDown={(event) => {
+          if (switchToMinuteTimeoutRef.current) {
+            clearTimeout(switchToMinuteTimeoutRef.current)
+            switchToMinuteTimeoutRef.current = null
+          }
+
+          isDraggingClockRef.current = true
+          event.currentTarget.setPointerCapture(event.pointerId)
+          selectNumberFromPointer(event)
+        }}
+        onPointerMove={(event) => {
+          if (!isDraggingClockRef.current) return
+          selectNumberFromPointer(event)
+        }}
+        onPointerUp={(event) => {
+          isDraggingClockRef.current = false
+
+          if (mode === "hour") {
+            switchToMinuteTimeoutRef.current = setTimeout(() => {
+              setMode("minute")
+              switchToMinuteTimeoutRef.current = null
+            }, 300)
+          }
+
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId)
+          }
+        }}
+        onPointerCancel={(event) => {
+          isDraggingClockRef.current = false
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId)
+          }
+        }}
+      >
         <svg className="absolute inset-0 w-full h-full">
           <circle
             cx={centerX}
@@ -86,7 +158,7 @@ export function CircularTimePicker({
             <button
               key={num}
               onClick={() => handleNumberClick(num)}
-              className={`absolute w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+              className={`absolute w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-sm font-medium ${
                 isSelected ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-muted"
               }`}
               style={{

@@ -1,3 +1,90 @@
+## 2026-05-30 — UX: add drag support to circular time picker
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added pointer drag support to `components/ui/circular-time-picker.tsx`.
+- The circular time picker now supports:
+  - tap/click selection
+  - drag/swipe selection on the clock face
+  - touch and mouse pointer input
+- After selecting an hour, the picker automatically switches to minute selection.
+- Added a short 300 ms delay before switching from hour to minute mode.
+- Optimized drag updates so the selected value updates only when the value actually changes.
+- Removed the clock number color transition so the active number follows the finger more responsively during drag.
+
+Where this applies:
+- Settings → Automatic Night Lock
+- Scenes → WHEN condition time picker
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation structure changes.
+- No Settings business logic changes.
+- No Scenes business logic changes.
+- No Lock/Unlock logic changes.
+- No permission logic changes.
+- No storage key changes.
+- No broad refactor.
+
+Files changed:
+- `components/ui/circular-time-picker.tsx`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- Manual: drag/swipe works on the clock face.
+- Manual: tap/click still works.
+- Manual: hour selection switches to minute selection after a short delay.
+
+Result:
+- OK
+
+## 2026-05-30 — Fix: show real Activity Log event time
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Fixed Activity Log time display to use the real event timestamp.
+- Activity entries now format the visible time from `createdAt`.
+- Home → Activity Log now also uses the real persisted `activityLog` entries instead of hardcoded demo times.
+- New Lock/Unlock activity entries now store:
+  - `createdAt`
+  - real `timeLabel`
+  - real `dateLabel`
+- Fixed duplicate React key warning in Home → Activity Log when older/stale entries have repeated ids like `log_1`.
+- Home Activity Log render keys now include:
+  - id
+  - time
+  - index
+
+Why:
+- Home Activity Log was showing incorrect/example times instead of the real time of the event.
+- Playwright later exposed a Next.js dev overlay issue caused by duplicate React keys from repeated old log ids.
+- The overlay blocked clicking Home during the door-scoped state smoke test.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No permission logic changes.
+- No Lock/Unlock API route changes.
+- No door/controller scoping logic changes.
+- No subscription/trial logic changes.
+- No storage key changes.
+- No broad refactor.
+
+Files changed:
+- `components/dashboard-screen.tsx`
+- `components/activity-log-screen.tsx`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- `npm run test:e2e`: OK
+
+Result:
+- OK
+
 ## 2026-05-30 — Perf: lazy load secondary screens
 
 Baseline/branch:
