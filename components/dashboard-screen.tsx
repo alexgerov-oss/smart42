@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -110,6 +110,7 @@ export default function DashboardScreen({
   currentScreen,
 }: DashboardScreenProps) {
   const [doorSensorOpen, setDoorSensorOpen] = useState(false)
+  const pendingDoorActionRef = useRef(false)
   const [isDragging, setIsDragging] = useState(false)
   const [homeVisibilityTheme, setHomeVisibilityTheme] = useState<HomeVisibilityTheme>(() => {
     if (typeof window === "undefined") return "soft"
@@ -188,30 +189,38 @@ export default function DashboardScreen({
   }, [homeVisibilityTheme])
 
   const callDoorAction = async (doorId: string, nextState: "lock" | "unlock") => {
-    const res = nextState === "lock" ? await lockDoor(doorId) : await unlockDoor(doorId)
+    if (pendingDoorActionRef.current) return false
 
-    if (!res.ok) {
-      toast({ title: "Action failed", description: res.error, variant: "destructive" })
-      return false
+    pendingDoorActionRef.current = true
+
+    try {
+      const res = nextState === "lock" ? await lockDoor(doorId) : await unlockDoor(doorId)
+
+      if (!res.ok) {
+        toast({ title: "Action failed", description: res.error, variant: "destructive" })
+        return false
+      }
+
+      const now = new Date()
+
+      logActivity({
+        createdAt: now.toISOString(),
+        doorName: displayDoorName,
+        timeLabel: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        dateLabel: "Today",
+        action: nextState,
+        method: "App",
+        user: displayUserName,
+        eventType: nextState === "lock" ? "door-lock" : "door-unlock",
+      })
+
+      // demo sensor state
+      setDoorSensorOpen(nextState === "unlock")
+
+      return true
+    } finally {
+      pendingDoorActionRef.current = false
     }
-
-    const now = new Date()
-
-    logActivity({
-      createdAt: now.toISOString(),
-      doorName: displayDoorName,
-      timeLabel: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      dateLabel: "Today",
-      action: nextState,
-      method: "App",
-      user: displayUserName,
-      eventType: nextState === "lock" ? "door-lock" : "door-unlock",
-    })
-
-    // demo sensor state
-    setDoorSensorOpen(nextState === "unlock")
-
-    return true
   }
 
   const handleLabelClick = async (targetState: "lock" | "unlock") => {
