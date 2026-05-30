@@ -1,18 +1,20 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import LoginScreen from "@/components/login-screen"
 import RegisterScreen from "@/components/register-screen"
 import DashboardScreen from "@/components/dashboard-screen"
-import ActivityLogScreen from "@/components/activity-log-screen"
-import SettingsScreen from "@/components/settings-screen"
-import ProfileScreen from "@/components/profile-screen"
-import SubscriptionScreen from "@/components/subscription-screen"
-import PremiumPaymentScreen from "@/components/premium-payment-screen"
-import PaymentProcessingScreen from "@/components/payment-processing-screen"
-import ChartScreen from "@/components/chart-screen"
-import ScenesScreen from "@/components/scenes-screen"
 import { useAppContext } from "@/lib/app-context"
+
+const ActivityLogScreen = dynamic(() => import("@/components/activity-log-screen"))
+const SettingsScreen = dynamic(() => import("@/components/settings-screen"))
+const ProfileScreen = dynamic(() => import("@/components/profile-screen"))
+const SubscriptionScreen = dynamic(() => import("@/components/subscription-screen"))
+const PremiumPaymentScreen = dynamic(() => import("@/components/premium-payment-screen"))
+const PaymentProcessingScreen = dynamic(() => import("@/components/payment-processing-screen"))
+const ChartScreen = dynamic(() => import("@/components/chart-screen"))
+const ScenesScreen = dynamic(() => import("@/components/scenes-screen"))
 
 export type Screen =
   | "login"
