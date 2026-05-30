@@ -1,3 +1,204 @@
+## 2026-05-30 — Perf: lazy load secondary screens
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Added lazy loading for secondary screens in `app/page.tsx`.
+- Kept `DashboardScreen`, `LoginScreen`, and `RegisterScreen` as normal direct imports.
+- Converted secondary screens to dynamic imports:
+  - Activity Log
+  - Settings
+  - Profile
+  - Subscription
+  - Premium Payment
+  - Payment Processing
+  - Chart
+  - Scenes
+
+Why:
+- Reduce initial bundle/work loaded when the app starts.
+- Make the first load lighter while keeping Home/Dashboard available immediately.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No business logic changes.
+- No permission logic changes.
+- No Lock/Unlock behavior changes.
+- No Activity logic changes.
+- No Settings logic changes.
+- No Scenes logic changes.
+- No storage key changes.
+- No broad refactor.
+
+Files changed:
+- `app/page.tsx`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- `npm run test:e2e`: OK
+
+Result:
+- OK
+
+## 2026-05-30 — Fix: prevent duplicate Lock/Unlock actions
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Improved Dashboard Lock/Unlock responsiveness without using optimistic UI.
+- Added a pending action guard in `components/dashboard-screen.tsx`.
+- While one Lock/Unlock command is already running, duplicate Lock/Unlock requests are ignored.
+- This prevents rapid click/drag interactions from sending multiple overlapping commands.
+- The button/state still changes only after the real `lockDoor()` / `unlockDoor()` action succeeds.
+- If the real API action fails, behavior remains unchanged:
+  - error toast is shown
+  - state is not falsely changed
+- Activity Log behavior remains unchanged:
+  - activity is logged only after successful Lock/Unlock action.
+- Door sensor demo state behavior remains unchanged:
+  - updated only after successful Lock/Unlock action.
+
+Why:
+- User reported small lag / slow reaction on the Lock/Unlock button.
+- User explicitly did not want optimistic UI or a “fake” button state.
+- The goal was to make the real command path feel cleaner while keeping button state tied to actual successful Lock/Unlock result.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No optimistic UI behavior.
+- No fake immediate button state change.
+- No Lock/Unlock API route changes.
+- No permission logic changes.
+- No Activity Log logic changes.
+- No timer logic changes.
+- No storage key changes.
+- No broad refactor.
+
+Files changed:
+- `components/dashboard-screen.tsx`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+
+Manual test to do / done:
+- Run `npm run dev`.
+- Click Unlock and Lock several times.
+- Confirm terminal still shows normal:
+  - `POST /api/doors/unlock`
+  - `POST /api/doors/lock`
+- Confirm rapid repeated click/drag does not create many overlapping duplicate requests.
+- Confirm button/state changes only after successful command result.
+
+Result:
+- OK
+
+## 2026-05-30 — UI polish: System Status chart readability, week drill-down and cleanup
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- System Status metric charts:
+  - Improved chart visibility on dark backgrounds.
+  - Chart axis text now uses visible white styling.
+  - Chart line remains visible.
+  - Chart dots now use value-based colors:
+    - high values: red
+    - medium values: white
+    - low values: green
+  - Removed the earlier broad/global chart dot CSS override approach.
+  - Kept the chart card/background/layout unchanged.
+
+- Chart time ranges:
+  - Fixed Month range to show 31 days instead of 30.
+  - Fixed Year range to show all months 1–12, including 11.
+  - Week labels now show weekday names:
+    - Sun, Mon, Tue, Wed, Thu, Fri, Sat
+  - Month and Year axis labels now use numbers only.
+
+- Week drill-down:
+  - Added Week → selected day drill-down behavior.
+  - In Week view, tooltip now shows an OPEN button.
+  - Clicking OPEN opens the selected day as a 24-hour chart.
+  - Added Back to Week button when viewing a selected week day.
+  - Selected week day detail view shows the selected date below the chart.
+
+- Date labels:
+  - Day view now shows today’s real date below the chart.
+  - Week view shows the current week’s date numbers and month label below the chart.
+  - Date label spacing was adjusted so Day date sits closer to the chart.
+
+- Activity visibility selector:
+  - Fixed one outdated `VisibilityThemeSelector` usage in `components/activity-log-screen.tsx`.
+  - Replaced old props:
+    - `currentTheme`
+    - `onThemeChange`
+  - With current component props:
+    - `value`
+    - `onChange`
+
+- Recharts TypeScript compatibility:
+  - Updated `components/ui/chart.tsx` tooltip and legend prop typing.
+  - Added local prop types for:
+    - `ChartTooltipContentProps`
+    - `ChartLegendContentProps`
+  - This fixes build errors with the current Recharts/TypeScript types.
+  - No UI changes intended in shared chart UI.
+
+- Dev origin config:
+  - Restored existing `next.config.mjs` settings:
+    - `typescript.ignoreBuildErrors`
+    - `images.unoptimized`
+  - Added current LAN dev origin:
+    - `10.236.237.57`
+  - Kept previous allowed dev origins:
+    - `192.168.18.142`
+    - `10.160.212.57`
+
+Cleanup done:
+- Removed temporary backup files created during patching.
+- Removed temporary script:
+  - `scripts/allow_phone_ip.py`
+- Reverted accidental changes to:
+  - `components/performance-chart.tsx`
+- Cleaned `components/chart-screen.tsx`:
+  - imports moved back to top
+  - temporary `SMART42_*` markers removed
+  - inline XAxis formatter extracted into `formatXAxisTick`
+  - repeated Week open logic extracted into `openWeekDay`
+  - chart data typed with `ChartDataPoint`
+
+What we did NOT change:
+- No Dashboard card layout changes.
+- No System Status card/container layout changes.
+- No Lock/Unlock logic changes.
+- No API route changes.
+- No permissions changes.
+- No subscription/trial logic changes.
+- No Activity data logic changes.
+- No broad refactor outside touched chart-related files.
+
+Files changed:
+- `components/chart-screen.tsx`
+- `components/activity-log-screen.tsx`
+- `components/ui/chart.tsx`
+- `next.config.mjs`
+
+Tests/checks done:
+- `npm run build`: OK
+
+Result:
+- OK
+
+Notes:
+- `components/chart-screen.tsx` now has more chart-specific logic than before.
+- A later optional cleanup could extract chart helpers into a small local helper section or separate file, but only if needed and only with no UI behavior change.
+- If editing charts again, avoid broad search/replace scripts and inspect exact code first.
+
 ## 2026-05-27 — Refactor: extract shared Playwright action helpers
 
 Baseline/branch:
