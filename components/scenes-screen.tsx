@@ -319,6 +319,45 @@ const formatSceneDescription = (scene: CoreScene): string => {
   return `IF ${conditions} → ${action}`
 }
 
+
+const formatSceneCreatedAt = (createdAt?: string): string => {
+  if (!createdAt) return ""
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return ""
+
+  const day = date.getDate().toString().padStart(2, "0")
+  const month = date.toLocaleString("en-US", { month: "short" }).toUpperCase()
+  const year = date.getFullYear()
+  const time = date.toLocaleString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
+
+  return `${day} ${month} ${year} - ${time}`
+}
+
+const getSceneCreatorLabel = (createdBy: CoreScene["createdBy"]): string => {
+  if (createdBy === "admin") return "Admin"
+  if (createdBy === "full") return "Full Access user"
+  return "Open / Close Only user"
+}
+
+const formatSceneMetadata = (scene: CoreScene, currentUserAccess: "admin" | "full" | "open-close"): string => {
+  const createdAt = formatSceneCreatedAt(scene.createdAt)
+
+  if (!createdAt) {
+    return currentUserAccess === "admin" ? `Created by ${getSceneCreatorLabel(scene.createdBy)}` : ""
+  }
+
+  if (currentUserAccess === "admin") {
+    return `Created by ${getSceneCreatorLabel(scene.createdBy)} • ${createdAt}`
+  }
+
+  return `Created ${createdAt}`
+}
+
+
 export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan, currentScreen }: ScenesScreenProps) {
   const [isCreatingScene, setIsCreatingScene] = useState(false)
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null)
@@ -444,6 +483,8 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
     }
 
     const sceneId = editingSceneId ?? newId("scene")
+    const existingScene = editingSceneId ? scenes.find((s) => s.id === editingSceneId) : undefined
+    const previousSceneName = existingScene ? getEntityName("scenes", existingScene.id, existingScene.name) : ""
 
     const adaptedWhenConditions: CoreWhenConditionExt[] = whenConditions.map((cond) => {
       const { coreType, doorEvent } = uiTypeToCoreType(cond.type)
@@ -484,17 +525,22 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
     const scene: CoreScene = {
       id: sceneId,
       name: sceneName,
-      active: true,
+      active: existingScene?.active ?? true,
       whenConditions: adaptedWhenConditions as unknown as CoreScene["whenConditions"],
       thenAction: thenAction as unknown as CoreScene["thenAction"],
-      createdBy: currentUserAccess,
+      createdBy: existingScene?.createdBy ?? currentUserAccess,
+      createdAt: existingScene?.createdAt ?? new Date().toISOString(),
     }
 
     setEntityName("scenes", sceneId, sceneName)
 
     if (editingSceneId) {
       setScenes(scenes.map((s) => (s.id === editingSceneId ? scene : s)))
-      logSceneActivity("Scene edited", "scene-edited", `Scene "${sceneName}" was edited`)
+      logSceneActivity(
+        "Scene edited",
+        "scene-edited",
+        `Scene name changed from "${previousSceneName || "Unnamed scene"}" to "${sceneName}"`,
+      )
     } else {
       setScenes([...scenes, scene])
       logSceneActivity("Scene created", "scene-created", `Scene "${sceneName}" was created`)
@@ -640,6 +686,11 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold leading-tight text-foreground">{getEntityName("scenes", scene.id, scene.name)}</h3>
                       <p className={`text-xs ${scenesTheme.mutedText} leading-relaxed tracking-wide mt-0`}>{formatSceneDescription(scene)}</p>
+                      {formatSceneMetadata(scene, currentUserAccess) && (
+                        <p className={`text-xs ${scenesTheme.mutedText} leading-relaxed tracking-wide mt-0`}>
+                          {formatSceneMetadata(scene, currentUserAccess)}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className={buttonVariants({ variant: "ghost", size: "sm" })}>

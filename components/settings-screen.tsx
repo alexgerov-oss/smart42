@@ -314,6 +314,23 @@ export default function SettingsScreen({
     return `${day} ${month} ${year} - ${time}`
   }
 
+  const getCreatorRoleLabel = (createdByRole: "admin" | "full" | "open-close") => {
+    if (createdByRole === "admin") return "Admin"
+    if (createdByRole === "full") return "Full Access user"
+    return "Open / Close Only user"
+  }
+
+  const formatIButtonMetadata = (user: { createdAt?: string; createdByRole: "admin" | "full" | "open-close" }) => {
+    const createdAt = user.createdAt ? formatCreatedAt(user.createdAt) : ""
+
+    if (currentUserAccess === "admin") {
+      const creator = getCreatorRoleLabel(user.createdByRole)
+      return createdAt ? `Created by ${creator} • ${createdAt}` : `Created by ${creator}`
+    }
+
+    return createdAt ? `Created ${createdAt}` : ""
+  }
+
   const handleSendInvitation = () => {
     if (!canAddAppUsers) return
     if (!canSendInvitation) return
@@ -874,6 +891,9 @@ export default function SettingsScreen({
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{getEntityName("ibuttons", user.id, user.name)}</p>
                         <p className={`text-sm ${settingsTheme.mutedText}`}>{user.chipId}</p>
+                        {formatIButtonMetadata(user) && (
+                          <p className={`text-xs ${settingsTheme.mutedText}`}>{formatIButtonMetadata(user)}</p>
+                        )}
                       </div>
 
                       {canRenameIButtons && canEditItem(user.createdBy, user.id) && (

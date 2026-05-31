@@ -24,6 +24,7 @@ export interface Scene {
   whenConditions: WhenCondition[]
   thenAction: ThenAction
   createdBy: AccessRole
+  createdAt?: string
 }
 
 export interface Controller {
