@@ -1,3 +1,52 @@
+## 2026-05-31 — Fix: log Door Open and Door Closed sensor activity
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Fixed Activity Log not showing Door Open and Door Closed events.
+- Added real Activity logging when the demo door sensor state changes:
+  - unlock → door open
+  - lock → door closed
+- Reused the existing Activity event types:
+  - `door-open`
+  - `door-closed`
+- Added `door-open` and `door-closed` to Activity user-filter event handling so sensor events are not hidden by filtering.
+- Moved sensor Activity logging after the immediate sensor state update using a zero-delay timeout.
+- This keeps Lock/Unlock feeling responsive while still recording the sensor event.
+
+Why:
+- Lock/Unlock Activity entries were created correctly.
+- The demo sensor state changed visually, but Door Open / Door Closed were not being written to Activity.
+- After adding sensor logging directly, Lock/Unlock felt slower in dev mode because two Activity entries were written synchronously.
+- The final fix records the sensor event asynchronously so the button response stays fast.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No Lock/Unlock API route changes.
+- No permission logic changes.
+- No Activity persistence key changes.
+- No selected-door scoping changes.
+- No backend/API changes.
+- No broad refactor.
+
+Files changed:
+- `components/dashboard-screen.tsx`
+- `components/activity-log-screen.tsx`
+
+Tests/checks done:
+- Manual: Home → Unlock creates `unlock` Activity entry.
+- Manual: Home → Unlock also creates `open` Activity entry.
+- Manual: Home → Lock creates `lock` Activity entry.
+- Manual: Home → Lock also creates `closed` Activity entry.
+- Manual: Activity filter `All` shows lock/unlock and open/closed entries.
+- Manual: Lock/Unlock responsiveness remains OK after moving sensor Activity logging after the immediate state update.
+- `npm run lint`: OK
+- `npm run build`: OK
+
+Result:
+- OK
+
 ## 2026-05-31 — UX: expand Home Lock/Unlock label hit areas
 
 Baseline/branch:
