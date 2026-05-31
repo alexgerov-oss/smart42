@@ -165,6 +165,7 @@ export default function SettingsScreen({
     currentUserAccess,
     quickControlsLocked,
     setQuickControlsLocked,
+    logActivity,
     getEntityName,
     setEntityName,
 
@@ -371,9 +372,31 @@ export default function SettingsScreen({
   const iButtonToDelete = iButtonUsers.find((u) => u.id === deleteIButtonId)
   const appUserToDelete = appUsers.find((u) => u.id === deleteAppUserId)
 
+  const getActivityActorLabel = () => {
+    if (currentUserAccess === "admin") return "Admin"
+    if (currentUserAccess === "full") return "Full Access user"
+    return "Open / Close Only user"
+  }
+
+  const logQuickControlChanged = (description: string) => {
+    const actor = getActivityActorLabel()
+
+    logActivity({
+      createdAt: new Date().toISOString(),
+      action: "Quick control changed",
+      eventType: "quick-control-changed",
+      user: actor,
+      role: currentUserAccess,
+      method: "Settings",
+      description: `${description} by ${actor}`,
+    })
+  }
+
   const handleToggleQuickControlsLock = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-    setQuickControlsLocked(!quickControlsLocked)
+    const nextLocked = !quickControlsLocked
+    setQuickControlsLocked(nextLocked)
+    logQuickControlChanged(nextLocked ? "Quick Controls locked" : "Quick Controls unlocked")
   }
 
   const areQuickControlsDisabled = quickControlsLocked
@@ -427,20 +450,29 @@ export default function SettingsScreen({
 
   const handleToggleAutoLock = (checked: boolean) => {
     setAutoLockEnabled(checked)
+    logQuickControlChanged(checked ? "Automatic Lock enabled" : "Automatic Lock disabled")
   }
 
   const handleAutoLockDelayChange = (value: number[]) => {
-    setAutoLockDelay(value[0])
+    const nextDelay = value[0]
+    setAutoLockDelay(nextDelay)
+  }
+
+  const handleAutoLockDelayCommit = (value: number[]) => {
+    const nextDelay = value[0]
+    logQuickControlChanged(`Automatic Lock delay changed to ${nextDelay} seconds`)
   }
 
   const handleToggleAutoNightLock = (checked: boolean) => {
     setAutoNightLockEnabled(checked)
+    logQuickControlChanged(checked ? "Automatic Night Lock enabled" : "Automatic Night Lock disabled")
   }
 
   const handleNightLockTimeChange = (hour: string, minute: string, period: "AM" | "PM") => {
     setNightLockHour(hour)
     setNightLockMinute(minute)
     setNightLockPeriod(period)
+    logQuickControlChanged(`Automatic Night Lock time changed to ${hour}:${minute} ${period}`)
   }
 
   const handleAddController = () => {
@@ -676,6 +708,7 @@ export default function SettingsScreen({
                   <Slider
                     value={[autoLockDelay]}
                     onValueChange={handleAutoLockDelayChange}
+                    onValueCommit={handleAutoLockDelayCommit}
                     min={5}
                     max={120}
                     step={5}
