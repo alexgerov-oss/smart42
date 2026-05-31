@@ -1,3 +1,50 @@
+## 2026-05-31 — Fix: log Quick Controls changes in Activity
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Fixed Activity Log not showing events when Quick Controls settings are changed.
+- Added Activity logging from Settings → Quick Controls for:
+  - Quick Controls lock/unlock
+  - Automatic Lock enabled/disabled
+  - Automatic Lock delay change
+  - Automatic Night Lock enabled/disabled
+  - Automatic Night Lock time change
+- Quick Controls changes now use the existing Activity event type:
+  - `quick-control-changed`
+- Activity event descriptions now clearly show who made the change:
+  - Admin
+  - Full Access user
+  - Open / Close Only user
+- Lock Delay changes are logged on slider commit/release instead of every slider movement.
+
+Why:
+- Activity filter already supported `quick-control-changed`, but Settings Quick Controls handlers were only changing state and were not calling `logActivity`.
+- Activity cards show `description` for described events, so the actor was added directly into the Quick Controls description text.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No Activity filter UI changes.
+- No Activity persistence key changes.
+- No selected-door scoping changes.
+- No Lock/Unlock API changes.
+- No permission logic changes.
+- No broad refactor.
+
+Files changed:
+- `components/settings-screen.tsx`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- Manual: changing Quick Controls settings creates Activity entries.
+- Manual: filtering Activity by “Quick control changed” shows those entries.
+- Manual: Activity description now shows who made the change.
+
+Result:
+- OK
+
 ## 2026-05-30 — UX: add drag support to circular time picker
 
 Baseline/branch:
