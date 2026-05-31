@@ -82,6 +82,7 @@ type ActivityLogEntry = {
     | "door-closed"
     | "power-restored"
     | "ibutton-created"
+    | "ibutton-edited"
     | "ibutton-deleted"
     | "app-user-created"
     | "app-user-edited"
@@ -111,6 +112,7 @@ const EVENT_TYPE_OPTIONS = [
   "power-drops",
   "power-restored",
   "ibutton-created",
+  "ibutton-edited",
   "ibutton-deleted",
   "app-user-created",
   "app-user-edited",
@@ -130,6 +132,7 @@ const USER_FILTER_EVENT_TYPES = [
   "door-lock",
   "door-unlock",
   "ibutton-created",
+  "ibutton-edited",
   "ibutton-deleted",
   "app-user-created",
   "app-user-edited",
@@ -454,6 +457,7 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
                 { value: "power-drops", label: "power drops" },
                 { value: "power-restored", label: "power restored" },
                 { value: "ibutton-created", label: "iButton created" },
+                { value: "ibutton-edited", label: "iButton edited" },
                 { value: "ibutton-deleted", label: "iButton deleted" },
                 { value: "app-user-created", label: "App user created" },
                 { value: "app-user-edited", label: "App user edited" },

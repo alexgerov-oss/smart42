@@ -252,7 +252,14 @@ export default function SettingsScreen({
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
     if (newIButtonName.trim() || registeringIButtonId) {
       const finalName = newIButtonName.trim() || "Unnamed iButton"
-      if (registeringIButtonId) updateIButtonUser(registeringIButtonId, finalName)
+      if (registeringIButtonId) {
+        updateIButtonUser(registeringIButtonId, finalName)
+        logSettingsActivity(
+          "iButton created",
+          "ibutton-created",
+          `iButton "${finalName}" (ID: ${registeringIButtonId}) was created`,
+        )
+      }
     }
     setIsListeningMode(false)
     setNewIButtonName("")
@@ -338,7 +345,9 @@ export default function SettingsScreen({
       }
     }
 
-    const ok = addAppUser(inviteUserName.trim(), inviteUserEmail.trim(), finalAccess)
+    const finalName = inviteUserName.trim()
+    const finalEmail = inviteUserEmail.trim()
+    const ok = addAppUser(finalName, finalEmail, finalAccess)
 
     if (!ok) {
       toast({
@@ -348,6 +357,12 @@ export default function SettingsScreen({
       })
       return
     }
+
+    logSettingsActivity(
+      "App user created",
+      "app-user-created",
+      `App user "${finalName}" (${finalEmail}, ${getAccessLabel(finalAccess)}) was created`,
+    )
 
     setInviteUserName("")
     setInviteUserEmail("")
@@ -359,13 +374,29 @@ export default function SettingsScreen({
 
   const handleDeleteIButton = (id: string) => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
+    const deletedIButton = iButtonUsers.find((u) => u.id === id)
     removeIButtonUser(id)
+    if (deletedIButton) {
+      logSettingsActivity(
+        "iButton deleted",
+        "ibutton-deleted",
+        `iButton "${deletedIButton.name}" (ID: ${deletedIButton.id}) was deleted`,
+      )
+    }
     setDeleteIButtonId(null)
   }
 
   const handleDeleteAppUser = (id: string) => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
+    const deletedAppUser = appUsers.find((u) => u.id === id)
     removeAppUser(id)
+    if (deletedAppUser) {
+      logSettingsActivity(
+        "App user deleted",
+        "app-user-deleted",
+        `App user "${deletedAppUser.name}" (${deletedAppUser.email}, ${getAccessLabel(deletedAppUser.access)}) was deleted`,
+      )
+    }
     setDeleteAppUserId(null)
   }
 
@@ -378,18 +409,39 @@ export default function SettingsScreen({
     return "Open / Close Only user"
   }
 
-  const logQuickControlChanged = (description: string) => {
+  const getAccessLabel = (access: "admin" | "full" | "open-close") => {
+    if (access === "admin") return "Admin"
+    if (access === "full") return "Full Access"
+    return "Open / Close Only"
+  }
+
+  const logSettingsActivity = (
+    action: string,
+    eventType:
+      | "ibutton-created"
+      | "ibutton-edited"
+      | "ibutton-deleted"
+      | "app-user-created"
+      | "app-user-edited"
+      | "app-user-deleted"
+      | "quick-control-changed",
+    description: string,
+  ) => {
     const actor = getActivityActorLabel()
 
     logActivity({
       createdAt: new Date().toISOString(),
-      action: "Quick control changed",
-      eventType: "quick-control-changed",
+      action,
+      eventType,
       user: actor,
       role: currentUserAccess,
       method: "Settings",
       description: `${description} by ${actor}`,
     })
+  }
+
+  const logQuickControlChanged = (description: string) => {
+    logSettingsActivity("Quick control changed", "quick-control-changed", description)
   }
 
   const handleToggleQuickControlsLock = () => {
@@ -403,7 +455,19 @@ export default function SettingsScreen({
 
   const handleSaveIButtonName = () => {
     if (currentUserAccess === "full" && !isFullAccessUserActivated()) return
-    if (editingUserId && editingName) setEntityName("ibuttons", editingUserId, editingName)
+    const editedIButton = editingUserId ? iButtonUsers.find((u) => u.id === editingUserId) : undefined
+    const previousName = editedIButton && editingUserId ? getEntityName("ibuttons", editingUserId, editedIButton.name) : ""
+    const nextName = editingName?.trim()
+
+    if (editingUserId && nextName) {
+      setEntityName("ibuttons", editingUserId, nextName)
+      logSettingsActivity(
+        "iButton edited",
+        "ibutton-edited",
+        `iButton name changed from "${previousName || "Unnamed iButton"}" to "${nextName}" (ID: ${editingUserId})`,
+      )
+    }
+
     setShowEditIButtonDialog(false)
     setEditingUserId(null)
     setEditingName(null)
@@ -993,8 +1057,21 @@ export default function SettingsScreen({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                const editedAppUser = editingUserId ? appUsers.find((u) => u.id === editingUserId) : undefined
+                const previousName = editedAppUser && editingUserId ? getEntityName("appusers", editingUserId, editedAppUser.name) : ""
+                const nextName = editingName?.trim() || editedAppUser?.name || "Unnamed user"
+
                 handleSaveAppUserName()
                 if (editingUserId) updateAppUserAccess(editingUserId, editingUserAccess)
+
+                if (editedAppUser) {
+                  logSettingsActivity(
+                    "App user edited",
+                    "app-user-edited",
+                    `App user name changed from "${previousName || "Unnamed user"}" to "${nextName}" (${editedAppUser.email}, ${getAccessLabel(editingUserAccess)})`,
+                  )
+                }
+
                 setShowEditAppUserDialog(false)
               }}
             >

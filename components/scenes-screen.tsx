@@ -351,7 +351,8 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
 
   const { toast } = useToast()
 
-  const { currentUserAccess, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } = useAppContext()
+  const { currentUserAccess,
+    logActivity, scenes, setScenes, getEntityName, setEntityName, isFullAccessUserActivated } = useAppContext()
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
@@ -403,6 +404,30 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
     setSceneNameError("")
     setWhenConditions([{ type: "wifi", operator: "<" }])
     setThenAction({ type: "push", customText: "" })
+  }
+
+  const getActivityActorLabel = () => {
+    if (currentUserAccess === "admin") return "Admin"
+    if (currentUserAccess === "full") return "Full Access user"
+    return "Open / Close Only user"
+  }
+
+  const logSceneActivity = (
+    action: string,
+    eventType: "scene-created" | "scene-edited" | "scene-deleted",
+    description: string,
+  ) => {
+    const actor = getActivityActorLabel()
+
+    logActivity({
+      createdAt: new Date().toISOString(),
+      action,
+      eventType,
+      user: actor,
+      role: currentUserAccess,
+      method: "Scenes",
+      description: `${description} by ${actor}`,
+    })
   }
 
   const handleSaveScene = () => {
@@ -467,8 +492,13 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
 
     setEntityName("scenes", sceneId, sceneName)
 
-    if (editingSceneId) setScenes(scenes.map((s) => (s.id === editingSceneId ? scene : s)))
-    else setScenes([...scenes, scene])
+    if (editingSceneId) {
+      setScenes(scenes.map((s) => (s.id === editingSceneId ? scene : s)))
+      logSceneActivity("Scene edited", "scene-edited", `Scene "${sceneName}" was edited`)
+    } else {
+      setScenes([...scenes, scene])
+      logSceneActivity("Scene created", "scene-created", `Scene "${sceneName}" was created`)
+    }
 
     handleCancelEdit()
   }
@@ -504,6 +534,9 @@ export default function ScenesScreen({ onNavigate, doorName: _doorName, hasPlan,
       return
     }
     setScenes(scenes.filter((s) => s.id !== id))
+    if (scene) {
+      logSceneActivity("Scene deleted", "scene-deleted", `Scene "${scene.name}" was deleted`)
+    }
   }
 
   const isFreeAdmin = currentUserAccess === "admin" && !hasPlan
