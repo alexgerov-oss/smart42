@@ -131,6 +131,8 @@ function isEventTypeFilter(value: string): value is EventTypeFilter {
 const USER_FILTER_EVENT_TYPES = [
   "door-lock",
   "door-unlock",
+  "door-open",
+  "door-closed",
   "ibutton-created",
   "ibutton-edited",
   "ibutton-deleted",

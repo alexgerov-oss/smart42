@@ -239,7 +239,27 @@ export default function DashboardScreen({
       })
 
       // demo sensor state
-      setDoorSensorOpen(nextState === "unlock")
+      const nextDoorSensorOpen = nextState === "unlock"
+      const shouldLogDoorSensorChange = doorSensorOpen !== nextDoorSensorOpen
+
+      setDoorSensorOpen(nextDoorSensorOpen)
+
+      if (shouldLogDoorSensorChange) {
+        window.setTimeout(() => {
+          const sensorNow = new Date()
+
+          logActivity({
+            createdAt: sensorNow.toISOString(),
+            doorName: displayDoorName,
+            timeLabel: formatActivityTime(sensorNow.toISOString()),
+            dateLabel: formatActivityDate(sensorNow.toISOString()),
+            action: nextDoorSensorOpen ? "open" : "closed",
+            method: "Sensor",
+            user: displayUserName,
+            eventType: nextDoorSensorOpen ? "door-open" : "door-closed",
+          })
+        }, 0)
+      }
 
       return true
     } finally {
