@@ -1,3 +1,69 @@
+## 2026-05-31 — Activity cleanup and System Status threshold event helper
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Removed the separate `power-restored` Activity event.
+- Removed `power restored` from Activity event type filtering/dropdown.
+- Removed the remaining demo/sample `power restored` Activity entry.
+- Kept `power-drops` available.
+- Added a new System Status threshold Activity helper:
+  - `lib/core/system-status-activity.ts`
+- Added threshold rules for:
+  - WiFi weak signal
+  - Battery low
+  - CPU temperature high
+  - CPU load high
+  - Latency high
+  - Power drop detected
+- Threshold Activity entries are created only when a metric crosses from OK/unknown into a bad state.
+- This prevents Activity spam while a value remains bad.
+- The helper is ready for real ESP32/backend telemetry.
+- The helper is not connected to the current static demo System Status values.
+
+Thresholds added:
+- WiFi weak: below `-80 dBm`
+- Battery low: below `20%`
+- CPU temperature high: above `75°C`
+- CPU load high: above `90%`
+- Latency high: above `500 ms`
+- Power drop detected: count above `0`
+
+Why:
+- `power restored` does not need to be a separate Activity event because power recovery should be reflected inside the Power Drops/system-status flow.
+- Activity should not log every System Status value continuously.
+- Activity should log important threshold events only, such as weak WiFi, low battery, high CPU temperature, high latency, or power drops.
+- Current System Status values are still static demo values, so no fake Activity entries should be created from them.
+- The new helper prepares the app for real telemetry without adding demo noise.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No Lock/Unlock logic changes.
+- No Door Open / Door Closed Activity logic changes.
+- No Activity persistence key changes.
+- No selected-door scoping changes.
+- No permission logic changes.
+- No backend/API integration yet.
+- No demo System Status Activity logging added.
+- No broad refactor.
+
+Files changed:
+- `components/activity-log-screen.tsx`
+- `lib/core/activity-log.ts`
+- `lib/core/system-status-activity.ts`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- Manual: Activity event type dropdown no longer shows `power restored`.
+- Manual: Activity no longer shows demo/sample `power restored` event.
+- Manual: `power-drops` remains available in Activity filtering.
+- Manual: no fake System Status Activity entries are created from the current static demo values.
+
+Result:
+- OK
+
 ## 2026-05-31 — Fix: log Door Open and Door Closed sensor activity
 
 Baseline/branch:
