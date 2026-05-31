@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
@@ -65,6 +65,14 @@ type ChartDataPoint = {
   name: string
   value: number
   weekDayIndex: number | null
+}
+
+type ChartVisibilityTheme = "dark" | "soft" | "day"
+
+const CHART_RANGE_BUTTON_CLASSES: Record<ChartVisibilityTheme, string> = {
+  dark: "border-border !bg-[#263044] text-foreground hover:!bg-[#2d374c]",
+  soft: "border-white/15 !bg-[#30394d] text-white hover:!bg-[#39445c]",
+  day: "border-white/20 !bg-[#3a455d] text-white hover:!bg-[#44516b]",
 }
 
 // ✅ deterministic “fake data” (no Math.random)
@@ -133,7 +141,29 @@ export default function ChartScreen({
 }: ChartScreenProps) {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("day")
   const [selectedWeekDay, setSelectedWeekDay] = useState<number | null>(null)
+  const [visibilityTheme, setVisibilityTheme] = useState<ChartVisibilityTheme>(() => {
+    if (typeof window === "undefined") return "soft"
+    const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
+    return savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft"
+  })
   const { currentUserAccess } = useAppContext()
+
+  useEffect(() => {
+    const syncVisibilityTheme = () => {
+      const savedTheme = window.localStorage.getItem("homeVisibilityTheme")
+      setVisibilityTheme(savedTheme === "dark" || savedTheme === "day" ? savedTheme : "soft")
+    }
+
+    window.addEventListener("focus", syncVisibilityTheme)
+    window.addEventListener("storage", syncVisibilityTheme)
+
+    return () => {
+      window.removeEventListener("focus", syncVisibilityTheme)
+      window.removeEventListener("storage", syncVisibilityTheme)
+    }
+  }, [])
+
+  const inactiveRangeButtonClass = CHART_RANGE_BUTTON_CLASSES[visibilityTheme]
 
   const permissionContext: PermissionContext = {
     currentUserAccess,
@@ -264,7 +294,7 @@ export default function ChartScreen({
               }}
               variant={timeRange === range ? "default" : "outline"}
               className={`flex-1 capitalize ${
-                timeRange === range ? "bg-primary text-primary-foreground" : "border-border text-foreground"
+                timeRange === range ? "bg-primary text-primary-foreground" : inactiveRangeButtonClass
               }`}
             >
               {range}

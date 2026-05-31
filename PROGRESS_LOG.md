@@ -1,3 +1,59 @@
+## 2026-05-31 — UI polish: System Status chart range buttons follow visibility theme
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Improved System Status chart range buttons:
+  - Day
+  - Week
+  - Month
+  - Year
+- Fixed inactive range button backgrounds being too dark and hard to see.
+- Added theme-aware inactive button colors for:
+  - dark
+  - soft
+  - day
+- Chart range buttons now read the existing `homeVisibilityTheme` setting from localStorage.
+- Chart range buttons now update their inactive background color according to the selected visibility theme.
+- Cleaned up the earlier temporary `secondary` button variant approach.
+- Kept active selected range button unchanged:
+  - `bg-primary text-primary-foreground`
+- Tuned final inactive colors so they are visible but not too bright.
+- Preserved contrast in the lightest/day visibility theme.
+
+Why:
+- The inactive Day / Week / Month / Year button ovals were almost black and difficult to distinguish.
+- Changing only text color was not enough because the `outline` button variant used a very dark background.
+- The chart screen was not reading the same visibility theme setting used by Activity/Home.
+- The final fix makes only the range button inactive background theme-aware.
+
+What we did NOT change:
+- No chart data logic changes.
+- No tooltip logic changes.
+- No Week drill-down behavior changes.
+- No System Status metric logic changes.
+- No Dashboard/Home layout changes.
+- No Lock/Unlock logic changes.
+- No Activity logic changes.
+- No permission logic changes.
+- No storage key changes.
+- No broad refactor.
+
+Files changed:
+- `components/chart-screen.tsx`
+
+Tests/checks done:
+- `npm run build`: OK
+- Existing tests: OK
+- Manual: inactive Day / Week / Month / Year buttons are visible.
+- Manual: inactive range button backgrounds change with dark / soft / day visibility themes.
+- Manual: active selected range button remains unchanged.
+- Manual: lightest/day theme keeps acceptable contrast.
+
+Result:
+- OK
+
 ## 2026-05-31 — Activity cleanup and System Status threshold event helper
 
 Baseline/branch:
