@@ -1,3 +1,71 @@
+## 2026-05-31 — Fix: show Scene and iButton metadata clearly
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Improved Activity description when editing a Scene name.
+- Scene edit Activity entries now show:
+  - old Scene name
+  - new Scene name
+  - actor who made the change
+- Added creation metadata to Scene cards.
+- Scene cards now show:
+  - Admin view:
+    - creator role and creation date
+  - non-admin view:
+    - creation date only
+- Added `createdAt` support to Scene data.
+- Existing Scene creator metadata is preserved when editing a Scene.
+- Existing Scene active state is preserved when editing a Scene.
+- Added creation metadata to Settings → iButton Access list.
+- iButton rows now show:
+  - Admin view:
+    - creator role and creation date
+  - non-admin view:
+    - creation date only
+- iButton creator display now uses role labels only:
+  - Admin
+  - Full Access user
+  - Open / Close Only user
+- iButton creator display no longer uses personal names like `John Doe`.
+- iButton creator display no longer uses the iButton name as the creator label.
+
+Why:
+- Scene edit Activity only showed the new Scene name, so it was not clear what changed.
+- Scene cards did not show who created the Scene or when.
+- iButton rows did not show creation metadata in Settings.
+- Admin needed to see who created each iButton, but by role rather than by personal/display name.
+- Non-admin users should only see when the Scene/iButton was created.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation redesign.
+- No Activity persistence key changes.
+- No selected-door scoping changes.
+- No Lock/Unlock API changes.
+- No permission logic changes.
+- No backend/API changes.
+- No broad refactor.
+
+Files changed:
+- `components/scenes-screen.tsx`
+- `components/settings-screen.tsx`
+- `lib/core/types.ts`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- Manual: Scene edit Activity shows old name → new name.
+- Manual: Scene cards show creator role/date for Admin.
+- Manual: Scene cards show date only for non-admin users.
+- Manual: iButton rows show creator role/date for Admin.
+- Manual: iButton rows show date only for non-admin users.
+- Manual: Admin-created iButtons show `Created by Admin`.
+- Manual: Full Access-created iButtons show `Created by Full Access user`.
+
+Result:
+- OK
+
 ## 2026-05-31 — Fix: complete Activity logging for Settings and Scenes events
 
 Baseline/branch:
