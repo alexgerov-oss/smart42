@@ -1,3 +1,43 @@
+## 2026-05-31 — UX: expand Home Lock/Unlock label hit areas
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Expanded the clickable/tappable area around the Home Lock and Unlock labels.
+- Tapping the label text still triggers the existing Lock/Unlock action.
+- Tapping the nearby label spacing now also triggers the existing Lock/Unlock action.
+- Reused the existing `handleLabelClick("lock" | "unlock")` logic.
+- Converted the label hit areas from plain clickable text to transparent buttons for better accessibility and mobile tap behavior.
+
+Why:
+- The Lock/Unlock labels had small visible spacing around them, but only the exact text was clickable.
+- On mobile this made the control feel inconsistent because tapping near the label did nothing.
+
+What we did NOT change:
+- No visual redesign.
+- No Lock/Unlock business logic changes.
+- No Lock/Unlock API changes.
+- No Activity Log changes.
+- No permission logic changes.
+- No storage key changes.
+- No broad refactor.
+
+Files changed:
+- `components/dashboard-screen.tsx`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- Manual: tapping Lock label triggers lock.
+- Manual: tapping nearby Lock label spacing triggers lock.
+- Manual: tapping Unlock label triggers unlock.
+- Manual: tapping nearby Unlock label spacing triggers unlock.
+- Manual: slider drag/tap behavior remains unchanged.
+
+Result:
+- OK
+
 ## 2026-05-31 — Fix: show Scene and iButton metadata clearly
 
 Baseline/branch:
