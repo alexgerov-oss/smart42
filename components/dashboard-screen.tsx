@@ -455,14 +455,15 @@ export default function DashboardScreen({
         <Card className={cn(homeTheme.card, "border-border p-4 space-y-3 min-h-[140px]")}>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
-              <span
+              <button
+                type="button"
                 onClick={() => void handleLabelClick("lock")}
-                className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
+                className={`-mx-2 px-2 py-4 text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer bg-transparent border-0 ${
                   doorState === "lock" ? "text-red-500 opacity-100" : `${homeTheme.mutedText} opacity-70`
                 }`}
               >
                 Lock
-              </span>
+              </button>
 
               <div
                 className="relative w-24 h-16 bg-black rounded-full cursor-pointer select-none overflow-hidden border-2 border-gray-700"
@@ -485,14 +486,15 @@ export default function DashboardScreen({
                 </div>
               </div>
 
-              <span
+              <button
+                type="button"
                 onClick={() => void handleLabelClick("unlock")}
-                className={`text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer ${
+                className={`-mx-2 px-2 py-4 text-sm font-semibold transition-all duration-100 whitespace-nowrap cursor-pointer bg-transparent border-0 ${
                   doorState === "unlock" ? "text-green-500 opacity-100" : `${unlockInactiveTextClassName} opacity-70`
                 }`}
               >
                 Unlock
-              </span>
+              </button>
             </div>
 
             <div className="flex items-center justify-between min-h-[32px]">
