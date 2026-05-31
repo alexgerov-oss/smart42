@@ -6,7 +6,6 @@ export type ActivityEventType =
   | "door-unlock"
   | "door-open"
   | "door-closed"
-  | "power-restored"
   | "ibutton-created"
   | "ibutton-edited"
   | "ibutton-deleted"

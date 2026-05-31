@@ -80,8 +80,7 @@ type ActivityLogEntry = {
     | "door-unlock"
     | "door-open"
     | "door-closed"
-    | "power-restored"
-    | "ibutton-created"
+      | "ibutton-created"
     | "ibutton-edited"
     | "ibutton-deleted"
     | "app-user-created"
@@ -110,7 +109,6 @@ const EVENT_TYPE_OPTIONS = [
   "cpu-load",
   "latency",
   "power-drops",
-  "power-restored",
   "ibutton-created",
   "ibutton-edited",
   "ibutton-deleted",
@@ -247,17 +245,6 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
       { id: 7, createdAt: isoYesterday(8, 12), doorName, time: "08:12 AM", date: "Yesterday", action: "unlock", method: "App", user: "John Doe", eventType: "door-unlock" },
       { id: 8, createdAt: isoYesterday(8, 15), doorName, time: "08:15 AM", date: "Yesterday", action: "open", method: null, user: null, eventType: "door-open" },
 
-      {
-        id: 9,
-        createdAt: isoYesterday(9, 22),
-        time: "09:22 AM",
-        date: "Yesterday",
-        action: "Power restored after outage",
-        user: "System",
-        role: null,
-        description: `Power was restored after an outage • ${new Date(isoYesterday(9, 22)).toLocaleDateString()} 09:22`,
-        eventType: "power-restored",
-      },
       {
         id: 10,
         createdAt: isoYesterday(11, 30),
@@ -457,7 +444,6 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
                 { value: "cpu-load", label: "cpu load" },
                 { value: "latency", label: "latency" },
                 { value: "power-drops", label: "power drops" },
-                { value: "power-restored", label: "power restored" },
                 { value: "ibutton-created", label: "iButton created" },
                 { value: "ibutton-edited", label: "iButton edited" },
                 { value: "ibutton-deleted", label: "iButton deleted" },
