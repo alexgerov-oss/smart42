@@ -1,3 +1,69 @@
+## 2026-05-31 — Fix: complete Activity logging for Settings and Scenes events
+
+Baseline/branch:
+- branch: refactor-v2
+
+What we changed:
+- Fixed missing Activity Log entries for Settings → iButton Access and App Users actions.
+- Added Activity logging for:
+  - iButton created
+  - iButton edited
+  - iButton deleted
+  - App user created
+  - App user edited
+  - App user deleted
+- Added Activity logging for Scenes actions:
+  - Scene created
+  - Scene edited
+  - Scene deleted
+- Added a new Activity event type:
+  - `ibutton-edited`
+- Added `iButton edited` to Activity Log event filtering.
+- Activity edit descriptions now show old and new names when renaming:
+  - iButton old name → new name
+  - App user old name → new name
+- Activity descriptions clearly show who performed the action:
+  - Admin
+  - Full Access user
+  - Open / Close Only user
+- Scene Activity entries are logged from the Scenes screen using method:
+  - `Scenes`
+- Settings-related Activity entries are logged from the Settings screen using method:
+  - `Settings`
+
+Why:
+- Activity Log already had filters/types for several events, but some UI handlers only changed state and did not call `logActivity`.
+- iButton edit had no dedicated Activity event type, so edited iButtons could not be filtered separately.
+- Rename Activity entries were not clear enough because they did not show the previous name and the new name.
+
+What we did NOT change:
+- No UI/layout/spacing/color/animation changes.
+- No Activity persistence key changes.
+- No selected-door scoping changes.
+- No Lock/Unlock API changes.
+- No permission logic changes.
+- No telemetry/sensor event logging added yet.
+- No broad refactor.
+
+Files changed:
+- `components/settings-screen.tsx`
+- `components/scenes-screen.tsx`
+- `components/activity-log-screen.tsx`
+- `lib/core/activity-log.ts`
+
+Tests/checks done:
+- `npm run lint`: OK
+- `npm run build`: OK
+- Manual: iButton create/edit/delete appears in Activity.
+- Manual: App user create/edit/delete appears in Activity.
+- Manual: Scene create/edit/delete appears in Activity.
+- Manual: Activity filters show the new/updated events.
+- Manual: iButton/App user edit descriptions show old name and new name.
+- Manual: Activity descriptions show who performed the action.
+
+Result:
+- OK
+
 ## 2026-05-31 — Fix: log Quick Controls changes in Activity
 
 Baseline/branch:
