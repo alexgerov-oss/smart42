@@ -11,6 +11,7 @@ import { ModalSelector } from "@/components/ui/modal-selector"
 import { Permissions, type PermissionContext } from "@/lib/permissions"
 import { AppBottomNav } from "@/components/app-bottom-nav"
 import { VisibilityThemeSelector } from "@/components/visibility-theme-selector"
+import { cn } from "@/lib/utils"
 
 interface ActivityLogScreenProps {
   onNavigate: (screen: Screen) => void
