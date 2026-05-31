@@ -472,6 +472,12 @@ export default function ActivityLogScreen({ onNavigate, hasPlan, doorName, curre
         </div>
 
         <div ref={scrollContainerRef} className="space-y-3 flex-1 overflow-y-auto p-4">
+          {filteredLogs.length === 0 ? (
+            <div className={cn(activityTheme.card, "border border-border rounded-lg p-4 text-center")}>
+              <p className={cn("text-sm font-medium", activityTheme.mutedText)}>No activity records yet</p>
+            </div>
+          ) : null}
+
           {filteredLogs.map((log, index) => (
             <Card key={`${log.id}-${log.createdAt}-${index}`} className={`${activityTheme.card} border-border p-4`}>
               <div className="flex items-start justify-between mb-2">
